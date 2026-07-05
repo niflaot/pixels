@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"testing"
+
+	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest/observer"
 )
 
 // testCommand is a named test command.
@@ -94,6 +97,30 @@ func TestChainAppliesMiddlewareOrder(t *testing.T) {
 	}
 
 	assertCommandOrder(t, order, []string{"first", "second", "handler"})
+}
+
+// TestDispatcherLogsDebugCommand verifies valid commands emit debug logs.
+func TestDispatcherLogsDebugCommand(t *testing.T) {
+	core, logs := observer.New(zap.DebugLevel)
+	dispatcher := mustDispatcher(t, HandlerFunc[testCommand](func(context.Context, Envelope[testCommand]) error {
+		return nil
+	})).WithLogger(zap.New(core))
+
+	envelope := Envelope[testCommand]{
+		Command:  testCommand{name: "player.walk"},
+		Metadata: Metadata{PlayerID: 7, ConnectionID: "ws-7"},
+	}
+	if err := dispatcher.Dispatch(context.Background(), envelope); err != nil {
+		t.Fatalf("dispatch command: %v", err)
+	}
+
+	entries := logs.FilterMessage("command dispatched").All()
+	if len(entries) != 1 {
+		t.Fatalf("expected one debug log, got %d", len(entries))
+	}
+	if entries[0].ContextMap()["command_name"] != "player.walk" {
+		t.Fatalf("expected command name field, got %#v", entries[0].ContextMap())
+	}
 }
 
 // mustDispatcher creates a test dispatcher.

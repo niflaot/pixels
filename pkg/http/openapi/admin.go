@@ -6,6 +6,7 @@ import "net/http"
 func adminOperations() []operation {
 	return []operation{
 		adminRead(http.MethodGet, "/api/admin/connections", "List connections", new(ConnectionListRequest), new(ConnectionListResponse)),
+		adminRead(http.MethodGet, "/api/admin/connections/list", "List connections", new(ConnectionListRequest), new(ConnectionListResponse)),
 		adminRead(http.MethodGet, "/api/admin/connections/count", "Count connections", new(ConnectionCountRequest), new(ConnectionCountResponse)),
 		adminRead(http.MethodGet, "/api/admin/connections/reasons", "List disconnect reasons", new(APIKeyRequest), new(ReasonsResponse)),
 		adminDisconnect("/api/admin/connections/disconnect", "Disconnect all connections", new(DisconnectAllRequest)),

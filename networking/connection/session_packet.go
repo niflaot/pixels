@@ -26,6 +26,9 @@ func (session *Session) Receive(ctx context.Context, packet codec.Packet) error 
 	if errors.Is(err, ErrHandlerNotFound) && session.logger != nil {
 		session.logger.Unhandled(context, packet)
 	}
+	if errors.Is(err, ErrHandlerNotFound) {
+		return nil
+	}
 
 	return err
 }

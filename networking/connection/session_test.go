@@ -61,11 +61,29 @@ func TestSessionPacketLoggerRecordsUnhandled(t *testing.T) {
 	session := mustSession(t, fixture)
 
 	err := session.Receive(context.Background(), codec.Packet{Header: 99})
-	if !errors.Is(err, ErrHandlerNotFound) {
-		t.Fatalf("expected handler not found, got %v", err)
+	if err != nil {
+		t.Fatalf("expected ignored missing handler, got %v", err)
 	}
 
 	if logger.received != 1 || logger.unhandled != 1 {
+		t.Fatalf("unexpected logger counters: %#v", logger)
+	}
+}
+
+// TestSessionPacketLoggerRecordsMultipleUnhandled verifies unknown packets keep flowing.
+func TestSessionPacketLoggerRecordsMultipleUnhandled(t *testing.T) {
+	fixture := sessionFixture(t)
+	logger := &testPacketLogger{}
+	fixture.PacketLogger = logger
+	session := mustSession(t, fixture)
+
+	for _, header := range []uint16{99, 100, 101} {
+		if err := session.Receive(context.Background(), codec.Packet{Header: header}); err != nil {
+			t.Fatalf("expected ignored missing handler, got %v", err)
+		}
+	}
+
+	if logger.received != 3 || logger.unhandled != 3 {
 		t.Fatalf("unexpected logger counters: %#v", logger)
 	}
 }

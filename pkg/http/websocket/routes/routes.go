@@ -11,6 +11,7 @@ const basePath = "/api/admin/connections"
 // Register mounts protected WebSocket administration routes.
 func Register(app *fiber.App, registry *netconn.Registry) {
 	app.Get(basePath, listHandler(registry))
+	app.Get(basePath+"/list", listHandler(registry))
 	app.Get(basePath+"/count", countHandler(registry))
 	app.Get(basePath+"/reasons", reasonsHandler())
 	app.Post(basePath+"/disconnect", disconnectAllHandler(registry))

@@ -37,15 +37,22 @@ func TestReceiveRejectsInvalidFrames(t *testing.T) {
 	}
 }
 
-// TestDispatchMapsHandlerErrors verifies packet routing errors become protocol failures.
-func TestDispatchMapsHandlerErrors(t *testing.T) {
+// TestReceiveIgnoresMultipleMissingHandlers verifies unknown frame packets continue.
+func TestReceiveIgnoresMultipleMissingHandlers(t *testing.T) {
+	socket, _ := testReaderSocket(t)
+	frame := append(testFrame(t, codec.Packet{Header: 99}), testFrame(t, codec.Packet{Header: 100})...)
+
+	if reason, ok := socket.receive(context.Background(), frame); !ok {
+		t.Fatalf("expected receive to continue, got %#v", reason)
+	}
+}
+
+// TestDispatchIgnoresMissingHandlers verifies unknown packets stay non-fatal.
+func TestDispatchIgnoresMissingHandlers(t *testing.T) {
 	socket, _ := testReaderSocket(t)
 	reason, ok := socket.dispatch(context.Background(), codec.Packet{Header: 99})
-	if ok {
-		t.Fatal("expected dispatch failure")
-	}
-	if reason.Code != netconn.DisconnectProtocolError {
-		t.Fatalf("expected protocol error, got %#v", reason)
+	if !ok {
+		t.Fatalf("expected dispatch to continue, got %#v", reason)
 	}
 }
 

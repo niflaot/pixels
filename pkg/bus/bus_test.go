@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"testing"
+
+	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest/observer"
 )
 
 // TestBusPublishUsesPriority verifies higher priority listeners run first.
@@ -109,6 +112,29 @@ func TestBusPublishReturnsHandlerError(t *testing.T) {
 	err := local.Publish(context.Background(), Event{Name: "room.user_moved"})
 	if !errors.Is(err, expected) {
 		t.Fatalf("expected handler error, got %v", err)
+	}
+}
+
+// TestBusPublishLogsDebugEvent verifies published events are observable in debug logs.
+func TestBusPublishLogsDebugEvent(t *testing.T) {
+	core, logs := observer.New(zap.DebugLevel)
+	local := NewWithLogger(zap.New(core))
+	defer func() {
+		if err := local.Close(); err != nil {
+			t.Fatalf("close bus: %v", err)
+		}
+	}()
+
+	if err := local.Publish(context.Background(), Event{Name: "player.connected", Payload: int64(2)}); err != nil {
+		t.Fatalf("publish event: %v", err)
+	}
+
+	entries := logs.FilterMessage("event published").All()
+	if len(entries) != 1 {
+		t.Fatalf("expected one debug log, got %d", len(entries))
+	}
+	if entries[0].ContextMap()["event_name"] != "player.connected" {
+		t.Fatalf("expected event name field, got %#v", entries[0].ContextMap())
 	}
 }
 

@@ -34,6 +34,12 @@ func TestCountListReasons(t *testing.T) {
 		t.Fatalf("expected safe websocket list, got %s", body)
 	}
 
+	response = testRequest(t, app, stdhttp.MethodGet, "/api/admin/connections/list?kind=websocket", "")
+	body = readBody(t, response)
+	if !strings.Contains(body, `"total":2`) || strings.Contains(body, "remote") {
+		t.Fatalf("expected safe websocket list alias, got %s", body)
+	}
+
 	response = testRequest(t, app, stdhttp.MethodGet, "/api/admin/connections/reasons", "")
 	body = readBody(t, response)
 	if !strings.Contains(body, `"reason":"kicked"`) {

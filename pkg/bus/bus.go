@@ -7,6 +7,7 @@ import (
 
 	gookitevent "github.com/gookit/event"
 	"go.uber.org/fx"
+	"go.uber.org/zap"
 )
 
 const (
@@ -18,7 +19,7 @@ const (
 )
 
 // Module provides the local event bus.
-var Module = fx.Module("event-bus", fx.Provide(New))
+var Module = fx.Module("event-bus", fx.Provide(NewWithLogger))
 
 // Handler handles one local event.
 type Handler func(context.Context, Event) error
@@ -42,11 +43,22 @@ type Subscriber interface {
 type Bus struct {
 	// manager stores the underlying event bus implementation.
 	manager *gookitevent.Manager
+	// log records published events.
+	log *zap.Logger
 }
 
 // New creates a local event bus.
 func New() *Bus {
-	return &Bus{manager: gookitevent.NewManager("pixels")}
+	return NewWithLogger(zap.NewNop())
+}
+
+// NewWithLogger creates a local event bus with structured logging.
+func NewWithLogger(log *zap.Logger) *Bus {
+	if log == nil {
+		log = zap.NewNop()
+	}
+
+	return &Bus{manager: gookitevent.NewManager("pixels"), log: log}
 }
 
 // Publish publishes an event to subscribers.
@@ -60,6 +72,11 @@ func (bus *Bus) Publish(ctx context.Context, event Event) error {
 	}
 
 	event = event.WithTime(time.Now())
+	bus.log.Debug("event published",
+		zap.String("event_name", string(event.Name)),
+		zap.Time("event_at", event.At),
+		zap.Any("event_payload", event.Payload),
+	)
 
 	return bus.manager.FireEventCtx(ctx, gookitevent.New(string(event.Name), gookitevent.M{
 		contextKey: ctx,
