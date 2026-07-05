@@ -11,10 +11,13 @@ Pixels is being bootstrapped. The current module provides the first package boun
 ## Layout
 
 ```text
-pkg/         reusable global components
-internal/    emulator-only realm features
-networking/  pixel-protocol packet coding and decoding
-sdk/         controlled plugin creation surface
+pkg/                    reusable global components
+internal/               emulator-only realm features
+networking/codec        pixel-protocol frame and payload coding
+networking/connection   transport-agnostic sessions and handlers
+networking/inbound      client-to-server packet decoders
+networking/outbound     server-to-client packet encoders
+sdk/                    controlled plugin creation surface
 ```
 
 ## Development

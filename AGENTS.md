@@ -13,8 +13,11 @@ This repository contains Pixels, a fast and idiomatic Go emulator for the pixel 
 ## Networking Layout
 
 - `networking/codec/` contains two-way wire encoding and decoding helpers.
+- `networking/connection/` contains transport-agnostic connection sessions, registries, handlers, commands, and disconnect reasons.
 - `networking/inbound/` contains client-to-server packet definitions.
 - `networking/outbound/` contains server-to-client packet definitions.
+- Connection handlers must emit commands for realm logic instead of executing realm behavior directly.
+- Connection sessions may hold transport callbacks, but packet handlers must stay transport-agnostic.
 - Inbound packet packages decode only; expose `Decode(packet codec.Packet) (Payload, error)` and do not expose packet constructors.
 - Outbound packet packages encode only; expose `Encode(...) (codec.Packet, error)` and do not expose packet decoders or public payload structs.
 - Outbound required protocol fields must be function parameters, while optional protocol fields must use packet-local option functions such as `WithReason(value)`.
