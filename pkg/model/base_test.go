@@ -3,8 +3,6 @@ package model
 import (
 	"testing"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 // TestIdentityEmpty verifies empty identity detection.
@@ -13,7 +11,7 @@ func TestIdentityEmpty(t *testing.T) {
 		t.Fatal("expected empty identity")
 	}
 
-	if (Identity{ID: uuid.New()}).Empty() {
+	if (Identity{ID: 1}).Empty() {
 		t.Fatal("expected assigned identity")
 	}
 }

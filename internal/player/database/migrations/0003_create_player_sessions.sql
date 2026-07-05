@@ -1,13 +1,17 @@
 --liquibase formatted sql
 
---changeset pixels:pixels-player-0002-create-player-sessions
+--changeset pixels:pixels-player-0003-create-player-sessions
 create table player_sessions (
-    id uuid primary key default gen_random_uuid(),
-    player_id uuid not null,
+    id bigint generated always as identity primary key,
+    player_id bigint not null,
     connection_kind text not null,
     started_at timestamptz not null default now(),
+    authenticated_at timestamptz null,
     ended_at timestamptz null,
     disconnect_code text null,
+    ip_hash text null,
+    machine_id_hash text null,
+    user_agent text null,
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now(),
     constraint player_sessions_player_id_fkey foreign key (player_id) references players (id),
