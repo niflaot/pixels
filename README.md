@@ -19,6 +19,14 @@ sdk/         controlled plugin creation surface
 
 ## Development
 
+Copy `.env.example` to `.env` for local overrides, or use environment variables directly.
+
+Run the emulator:
+
+```sh
+go run ./cmd
+```
+
 Run the full local check:
 
 ```sh
@@ -31,5 +39,33 @@ Run the CI-equivalent coverage check:
 go test -race -covermode=atomic -coverprofile=coverage.out ./...
 go tool cover -func=coverage.out
 ```
+
+## Configuration
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `PIXELS_ENV` | `development` | Runtime environment name. |
+| `PIXELS_HOST` | `127.0.0.1` | Protocol listener host. |
+| `PIXELS_PORT` | `3000` | Protocol listener port. |
+| `PIXELS_ACCESS_KEY` | `pixels-dev-key` | API key for private endpoints through `X-API-Key`. |
+| `LOG_LEVEL` | `info` | Zap log level. |
+| `LOG_FORMAT` | `console` | Zap encoder, either `console` or `json`. |
+
+## HTTP Surface
+
+- `GET /status` returns public server status.
+- `GET /ws` is the public websocket entrypoint.
+- `GET /docs` serves Scalar API docs only when `PIXELS_ENV=development`.
+- Private routes require `X-API-Key: <PIXELS_ACCESS_KEY>`.
+
+## Build Metadata
+
+The registered project version lives in `pkg/build`. Release builds can inject the source commit:
+
+```sh
+go build -ldflags "-X github.com/niflaot/pixels/pkg/build.CommitHash=$(git rev-parse HEAD)" ./cmd
+```
+
+The runtime build version combines the registered version and the first eight characters of the commit hash.
 
 Project rules for agents and contributors live in `AGENTS.md`.

@@ -1,0 +1,32 @@
+package config
+
+import (
+	appconfig "github.com/niflaot/pixels/pkg/config/app"
+	"github.com/niflaot/pixels/pkg/logger"
+	"go.uber.org/fx"
+)
+
+// Module provides application configuration to an Fx dependency graph.
+var Module = fx.Module(
+	"config",
+	fx.Provide(
+		New,
+		App,
+		Logger,
+	),
+)
+
+// New loads application configuration for dependency injection.
+func New() (AppConfig, error) {
+	return Load()
+}
+
+// App extracts application-level settings from composed configuration.
+func App(config AppConfig) appconfig.Config {
+	return config.App
+}
+
+// Logger extracts logger settings from composed configuration.
+func Logger(config AppConfig) logger.Config {
+	return config.Logger
+}

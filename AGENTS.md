@@ -8,6 +8,7 @@ This repository contains Pixels, a fast and idiomatic Go emulator for the pixel 
 - `internal/` contains pixel-protocol realm features that are private to this emulator.
 - `networking/` contains pixel-protocol packet coding, decoding, framing, and transport logic.
 - `sdk/` contains controlled reusable implementations for plugin creation and extension points.
+- `cmd/` contains executable entry points.
 
 ## Package Rules
 
@@ -28,6 +29,24 @@ This repository contains Pixels, a fast and idiomatic Go emulator for the pixel 
 - Prefer composition over inheritance-like hierarchies.
 - Keep public APIs conservative and stable.
 - Keep private APIs readable enough that new contributors can follow them quickly.
+
+## Configuration
+
+- Keep configuration holders close to the component they configure.
+- Give each configuration holder its own `config.go`, such as `redis/config.go`, `storage/config.go`, or `logger/config.go`.
+- Keep protocol host and port in `pkg/config/app/config.go` unless a concrete transport boundary needs its own settings.
+- Do not create long registry-style configuration structs with every setting in the project.
+- Compose small configuration structs into application-level configuration only where dependency injection or startup needs a single value.
+- Every configuration field must have a default value.
+- Keep `.env.example` documented whenever configuration variables are added, removed, or renamed.
+- Load local `.env` files for development, but keep environment variables as the source of truth.
+
+## HTTP Routes
+
+- Document every HTTP route in `pkg/http/openapi`.
+- Include request headers, request bodies, responses, possible error codes, and response bodies.
+- Keep `/status`, `/ws`, and development-only documentation routes public.
+- Protect private routes with the configured API key header.
 
 ## Testing
 

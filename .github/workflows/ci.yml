@@ -30,7 +30,19 @@ jobs:
         run: go vet ./...
 
       - name: Test
-        run: go test -race -covermode=atomic -coverprofile=coverage.out ./...
+        run: |
+          set -o pipefail
+          go test -race -covermode=atomic -coverprofile=coverage.out ./... | tee coverage.log
+          awk '/coverage:/ {
+            coverage = $0
+            sub(/^.*coverage: /, "", coverage)
+            sub(/%.*/, "", coverage)
+            score = coverage + 0
+            if (score <= 80) {
+              print "package coverage must be greater than 80%: " $0
+              failed = 1
+            }
+          } END { exit failed }' coverage.log
 
       - name: Check coverage
         run: |
