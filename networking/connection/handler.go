@@ -1,6 +1,7 @@
 package connection
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -15,6 +16,8 @@ type Context struct {
 	ConnectionKind Kind
 	// Direction is the packet flow direction.
 	Direction Direction
+	// State is the connection lifecycle phase.
+	State State
 	// StartedAt is the connection start time.
 	StartedAt time.Time
 	// AuthenticatedAt is the authentication time when authenticated.
@@ -27,8 +30,8 @@ type Context struct {
 	DisconnectReason Reason
 }
 
-// Handler emits commands for a packet handling event.
-type Handler func(Context, codec.Packet) ([]Command, error)
+// Handler executes realm-owned packet behavior.
+type Handler func(Context, codec.Packet) error
 
 // HandlerRegistry stores packet handlers by header.
 type HandlerRegistry struct {
@@ -82,8 +85,8 @@ func (registry *HandlerRegistry) SetFallback(handler Handler) {
 	registry.fallback = handler
 }
 
-// Handle emits commands for a packet using the matching handler.
-func (registry *HandlerRegistry) Handle(context Context, packet codec.Packet) ([]Command, error) {
+// Handle routes a packet to the matching handler.
+func (registry *HandlerRegistry) Handle(context Context, packet codec.Packet) error {
 	registry.mutex.RLock()
 	handler := registry.handlers[packet.Header]
 	if handler == nil {
@@ -92,7 +95,7 @@ func (registry *HandlerRegistry) Handle(context Context, packet codec.Packet) ([
 	registry.mutex.RUnlock()
 
 	if handler == nil {
-		return nil, ErrHandlerNotFound
+		return ErrHandlerNotFound
 	}
 
 	return handler(context, packet)
@@ -104,4 +107,104 @@ func (registry *HandlerRegistry) Len() int {
 	defer registry.mutex.RUnlock()
 
 	return len(registry.handlers)
+}
+
+// SecurityPolicy returns the connection security policy.
+func (session *Session) SecurityPolicy() SecurityPolicy {
+	session.mutex.RLock()
+	defer session.mutex.RUnlock()
+
+	return session.policy
+}
+
+// SetSecurityPolicy changes security policy before traffic starts.
+func (session *Session) SetSecurityPolicy(policy SecurityPolicy) error {
+	session.mutex.Lock()
+	defer session.mutex.Unlock()
+
+	if session.trafficStarted {
+		return ErrInvalidState
+	}
+
+	session.policy = normalizeSecurityPolicy(policy)
+
+	return nil
+}
+
+// AttachSecurity attaches a secure channel to the session.
+func (session *Session) AttachSecurity(channel SecureChannel) error {
+	if channel == nil {
+		return ErrInvalidSecurity
+	}
+
+	session.mutex.Lock()
+	defer session.mutex.Unlock()
+
+	if session.disconnected {
+		return ErrDisposed
+	}
+
+	if session.security != nil {
+		return ErrInvalidSecurity
+	}
+
+	session.security = channel
+
+	return nil
+}
+
+// SecurityState returns the attached secure channel state.
+func (session *Session) SecurityState() SecurityState {
+	session.mutex.RLock()
+	defer session.mutex.RUnlock()
+
+	if session.security == nil {
+		return SecurityPlain
+	}
+
+	return session.security.State()
+}
+
+// Open unwraps inbound bytes when security is ready.
+func (session *Session) Open(src []byte) ([]byte, error) {
+	channel := session.secureChannel()
+	if channel == nil || channel.State() != SecurityReady {
+		return src, nil
+	}
+
+	return channel.Open(src)
+}
+
+// Seal wraps outbound bytes when security is ready.
+func (session *Session) Seal(src []byte) ([]byte, error) {
+	channel := session.secureChannel()
+	if channel == nil || channel.State() != SecurityReady {
+		return src, nil
+	}
+
+	return channel.Seal(src)
+}
+
+// ValidateAuthenticationSecurity checks security before authentication.
+func (session *Session) ValidateAuthenticationSecurity(ctx context.Context) error {
+	if session.SecurityPolicy().Mode != SecurityRequired {
+		return nil
+	}
+
+	if session.SecurityState() == SecurityReady {
+		return nil
+	}
+
+	_ = session.Transition(EventProtocolFailed)
+	_ = session.Disconnect(ctx, Reason{Code: DisconnectProtocolError, Message: ErrSecurityRequired.Error()})
+
+	return ErrSecurityRequired
+}
+
+// secureChannel returns the attached secure channel.
+func (session *Session) secureChannel() SecureChannel {
+	session.mutex.RLock()
+	defer session.mutex.RUnlock()
+
+	return session.security
 }

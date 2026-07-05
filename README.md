@@ -15,6 +15,7 @@ pkg/                    reusable global components
 internal/               emulator-only realm features
 networking/codec        pixel-protocol frame and payload coding
 networking/connection   transport-agnostic sessions and handlers
+networking/crypto       cryptographic contracts and implementations
 networking/inbound      client-to-server packet decoders
 networking/outbound     server-to-client packet encoders
 sdk/                    controlled plugin creation surface

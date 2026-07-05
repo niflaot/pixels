@@ -9,30 +9,24 @@ import (
 	"github.com/niflaot/pixels/networking/codec"
 )
 
-// TestSessionReceiveEmitsCommands verifies inbound handling.
-func TestSessionReceiveEmitsCommands(t *testing.T) {
+// TestSessionReceiveRoutesPacket verifies inbound handling.
+func TestSessionReceiveRoutesPacket(t *testing.T) {
 	session := mustSession(t, sessionFixture(t))
-	commands, err := session.Receive(context.Background(), codec.Packet{Header: 1})
-	if err != nil {
+	if err := session.Receive(context.Background(), codec.Packet{Header: 1}); err != nil {
 		t.Fatalf("receive packet: %v", err)
 	}
 
-	if commands[0].Direction != InboundDirection {
-		t.Fatalf("expected inbound direction, got %d", commands[0].Direction)
+	if session.State() != StateHandshaking {
+		t.Fatalf("expected handshaking state, got %d", session.State())
 	}
 }
 
-// TestSessionSendWritesAndEmitsCommands verifies outbound handling and sending.
-func TestSessionSendWritesAndEmitsCommands(t *testing.T) {
+// TestSessionSendRoutesAndWrites verifies outbound handling and sending.
+func TestSessionSendRoutesAndWrites(t *testing.T) {
 	fixture := sessionFixture(t)
 	session := mustSession(t, fixture)
-	commands, err := session.Send(context.Background(), codec.Packet{Header: 2})
-	if err != nil {
+	if err := session.Send(context.Background(), codec.Packet{Header: 2}); err != nil {
 		t.Fatalf("send packet: %v", err)
-	}
-
-	if commands[0].Direction != OutboundDirection {
-		t.Fatalf("expected outbound direction, got %d", commands[0].Direction)
 	}
 
 	if *fixture.sent != 1 {
@@ -44,6 +38,8 @@ func TestSessionSendWritesAndEmitsCommands(t *testing.T) {
 func TestSessionAuthenticateTracksTime(t *testing.T) {
 	session := mustSession(t, sessionFixture(t))
 	authenticatedAt := time.Unix(20, 0)
+	mustTransition(t, session, EventPacketReceived)
+	mustTransition(t, session, EventAuthenticationStarted)
 	if err := session.Authenticate(authenticatedAt); err != nil {
 		t.Fatalf("authenticate session: %v", err)
 	}
@@ -55,6 +51,10 @@ func TestSessionAuthenticateTracksTime(t *testing.T) {
 
 	if !got.Equal(authenticatedAt) {
 		t.Fatalf("expected %s, got %s", authenticatedAt, got)
+	}
+
+	if session.State() != StateAuthenticated {
+		t.Fatalf("expected authenticated state, got %d", session.State())
 	}
 }
 
@@ -98,12 +98,12 @@ func TestSessionRejectsAfterDisconnect(t *testing.T) {
 		t.Fatalf("disconnect session: %v", err)
 	}
 
-	_, err := session.Receive(context.Background(), codec.Packet{Header: 1})
+	err := session.Receive(context.Background(), codec.Packet{Header: 1})
 	if !errors.Is(err, ErrDisposed) {
 		t.Fatalf("expected disposed receive, got %v", err)
 	}
 
-	_, err = session.Send(context.Background(), codec.Packet{Header: 2})
+	err = session.Send(context.Background(), codec.Packet{Header: 2})
 	if !errors.Is(err, ErrDisposed) {
 		t.Fatalf("expected disposed send, got %v", err)
 	}
@@ -155,8 +155,12 @@ func sessionFixture(t *testing.T) sessionFixtureConfig {
 // mustRegister registers a packet handler or fails the test.
 func mustRegister(t *testing.T, registry *HandlerRegistry, header uint16, name string) {
 	t.Helper()
-	handler := func(context Context, packet codec.Packet) ([]Command, error) {
-		return []Command{NewCommand(name, context, packet, nil)}, nil
+	handler := func(context Context, packet codec.Packet) error {
+		if context.Direction == 0 || context.ConnectionID == "" || packet.Header != header {
+			t.Fatalf("invalid handler context for %s", name)
+		}
+
+		return nil
 	}
 
 	if err := registry.Register(header, handler); err != nil {
@@ -173,4 +177,12 @@ func mustSession(t *testing.T, config sessionFixtureConfig) *Session {
 	}
 
 	return session
+}
+
+// mustTransition applies a transition or fails the test.
+func mustTransition(t *testing.T, session *Session, event Event) {
+	t.Helper()
+	if err := session.Transition(event); err != nil {
+		t.Fatalf("transition %s: %v", event, err)
+	}
 }

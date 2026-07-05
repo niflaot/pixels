@@ -13,11 +13,13 @@ This repository contains Pixels, a fast and idiomatic Go emulator for the pixel 
 ## Networking Layout
 
 - `networking/codec/` contains two-way wire encoding and decoding helpers.
-- `networking/connection/` contains transport-agnostic connection sessions, registries, handlers, commands, and disconnect reasons.
+- `networking/connection/` contains transport-agnostic connection sessions, registries, handler routing, state, security policy, and disconnect reasons.
+- `networking/crypto/` contains cryptographic contracts and implementations such as Diffie-Hellman.
 - `networking/inbound/` contains client-to-server packet definitions.
 - `networking/outbound/` contains server-to-client packet definitions.
-- Connection handlers must emit commands for realm logic instead of executing realm behavior directly.
-- Connection sessions may hold transport callbacks, but packet handlers must stay transport-agnostic.
+- Connection sessions may hold transport and security callbacks, but packet handlers must stay transport-agnostic and security-agnostic.
+- Connection sessions must unwrap security before dispatching packets, so handlers never know whether a packet came from encrypted or plain traffic.
+- Realm packages own their handlers and commands; connection handler registries only register handlers and route decoded plain packets to them.
 - Inbound packet packages decode only; expose `Decode(packet codec.Packet) (Payload, error)` and do not expose packet constructors.
 - Outbound packet packages encode only; expose `Encode(...) (codec.Packet, error)` and do not expose packet decoders or public payload structs.
 - Outbound required protocol fields must be function parameters, while optional protocol fields must use packet-local option functions such as `WithReason(value)`.
@@ -34,7 +36,8 @@ This repository contains Pixels, a fast and idiomatic Go emulator for the pixel 
 - Use `networking/session/ping/packet.go` and `networking/session/ping/packet_test.go` instead of names like `networking/session/pingpacket.go`.
 - Keep each package focused on one responsibility.
 - Keep each file focused on one responsibility.
-- Keep every file at or below 250 lines.
+- Keep every Go source file at or below 250 lines.
+- Markdown planning and documentation files are exempt from the 250-line limit, but should still stay structured and easy to scan.
 - Keep each package to a maximum of six file pairs, where `hello.go` plus `hello_test.go` counts as one pair.
 - If a package needs more tests after six file pairs, create a `tests/` folder inside that package.
 

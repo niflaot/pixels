@@ -93,3 +93,12 @@ func (code DisconnectCode) String() string {
 func UnknownReason() Reason {
 	return Reason{Code: DisconnectUnknown}
 }
+
+// normalizeSecurityPolicy fills missing policy values.
+func normalizeSecurityPolicy(policy SecurityPolicy) SecurityPolicy {
+	if policy.Mode == 0 {
+		return DefaultSecurityPolicy()
+	}
+
+	return policy
+}
