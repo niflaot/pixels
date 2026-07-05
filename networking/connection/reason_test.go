@@ -74,6 +74,28 @@ func TestSessionTransitions(t *testing.T) {
 	}
 }
 
+// TestStateString verifies stable state labels.
+func TestStateString(t *testing.T) {
+	cases := map[State]string{
+		StateCreated:        "created",
+		StateHandshaking:    "handshaking",
+		StateSecuring:       "securing",
+		StateAuthenticating: "authenticating",
+		StateAuthenticated:  "authenticated",
+		StateConnected:      "connected",
+		StateClosing:        "closing",
+		StateClosed:         "closed",
+		StateError:          "error",
+		State(99):           "unknown",
+	}
+
+	for state, expected := range cases {
+		if state.String() != expected {
+			t.Fatalf("expected %s, got %s", expected, state.String())
+		}
+	}
+}
+
 // TestSessionSecurityOpenSeal verifies ready secure channel byte wrapping.
 func TestSessionSecurityOpenSeal(t *testing.T) {
 	session := mustSession(t, sessionFixture(t))

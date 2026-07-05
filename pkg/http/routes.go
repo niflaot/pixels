@@ -7,10 +7,12 @@ import (
 	fiberws "github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
 	"github.com/niflaot/pixels/internal/auth/sso"
+	netconn "github.com/niflaot/pixels/networking/connection"
 	"github.com/niflaot/pixels/pkg/build"
 	"github.com/niflaot/pixels/pkg/config"
 	"github.com/niflaot/pixels/pkg/http/openapi"
 	ws "github.com/niflaot/pixels/pkg/http/websocket"
+	wsroutes "github.com/niflaot/pixels/pkg/http/websocket/routes"
 )
 
 const development = "development"
@@ -23,8 +25,9 @@ func registerPublic(app *fiber.App, config config.AppConfig, info build.Info, we
 }
 
 // registerPrivate registers private authenticated fallback routes.
-func registerPrivate(app *fiber.App, sso *sso.Service) {
+func registerPrivate(app *fiber.App, sso *sso.Service, registry *netconn.Registry) {
 	app.Post("/api/sso/tickets", createSSOTicketHandler(sso))
+	wsroutes.Register(app, registry)
 	app.Use(notFoundHandler)
 }
 

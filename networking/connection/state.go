@@ -32,6 +32,32 @@ const (
 	StateError
 )
 
+// String returns a stable state label.
+func (state State) String() string {
+	switch state {
+	case StateCreated:
+		return "created"
+	case StateHandshaking:
+		return "handshaking"
+	case StateSecuring:
+		return "securing"
+	case StateAuthenticating:
+		return "authenticating"
+	case StateAuthenticated:
+		return "authenticated"
+	case StateConnected:
+		return "connected"
+	case StateClosing:
+		return "closing"
+	case StateClosed:
+		return "closed"
+	case StateError:
+		return "error"
+	default:
+		return "unknown"
+	}
+}
+
 // Event names a lifecycle transition trigger.
 type Event string
 

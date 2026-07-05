@@ -38,6 +38,18 @@ func TestRegistryRegisterGetRemove(t *testing.T) {
 	}
 }
 
+// TestRegistryListAll verifies registry-wide snapshots.
+func TestRegistryListAll(t *testing.T) {
+	registry := NewRegistry()
+	mustRegisterConnection(t, registry, mustSession(t, sessionFixture(t)))
+	mustRegisterConnection(t, registry, mustSession(t, sessionFixtureWithKind(t, "raw")))
+
+	connections := registry.ListAll()
+	if len(connections) != 2 {
+		t.Fatalf("expected two connections, got %d", len(connections))
+	}
+}
+
 // TestRegistryRejectsDuplicates verifies duplicate connection protection.
 func TestRegistryRejectsDuplicates(t *testing.T) {
 	registry := NewRegistry()

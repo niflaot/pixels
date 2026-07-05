@@ -144,6 +144,26 @@ func (registry *Registry) List(kind Kind) []Connection {
 	return connections
 }
 
+// ListAll returns all registered connections.
+func (registry *Registry) ListAll() []Connection {
+	registry.mutex.RLock()
+	defer registry.mutex.RUnlock()
+
+	total := 0
+	for _, bucket := range registry.connections {
+		total += len(bucket)
+	}
+
+	connections := make([]Connection, 0, total)
+	for _, bucket := range registry.connections {
+		for _, connection := range bucket {
+			connections = append(connections, connection)
+		}
+	}
+
+	return connections
+}
+
 // Count returns the number of connections in one kind bucket.
 func (registry *Registry) Count(kind Kind) int {
 	registry.mutex.RLock()

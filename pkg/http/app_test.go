@@ -15,6 +15,7 @@ import (
 	"github.com/niflaot/pixels/pkg/build"
 	"github.com/niflaot/pixels/pkg/config"
 	appconfig "github.com/niflaot/pixels/pkg/config/app"
+	"github.com/niflaot/pixels/pkg/http/openapi"
 	ws "github.com/niflaot/pixels/pkg/http/websocket"
 	"github.com/niflaot/pixels/pkg/logger"
 	"github.com/niflaot/pixels/pkg/redis"
@@ -80,7 +81,7 @@ func TestOpenAPIIsEmbeddedInDocs(t *testing.T) {
 	}
 
 	body := readBody(t, response)
-	if !strings.Contains(body, `"openapi": "3.1.0"`) {
+	if !strings.Contains(body, openapi.Spec) {
 		t.Fatalf("expected embedded OpenAPI document, got %s", body)
 	}
 }
@@ -88,17 +89,17 @@ func TestOpenAPIIsEmbeddedInDocs(t *testing.T) {
 // TestPrivateRoutesRequireAccessKey verifies private routes require API keys.
 func TestPrivateRoutesRequireAccessKey(t *testing.T) {
 	app := testApp(t, "development")
-	response := testRequest(t, app, stdhttp.MethodGet, "/private")
+	response := testRequest(t, app, stdhttp.MethodGet, "/api/admin/connections/count")
 
 	if response.StatusCode != fiber.StatusUnauthorized {
 		t.Fatalf("expected unauthorized status 401, got %d", response.StatusCode)
 	}
 }
 
-// TestPrivateRoutesAllowAccessKey verifies authenticated private routes continue.
+// TestPrivateRoutesAllowAccessKey verifies authenticated admin routes continue.
 func TestPrivateRoutesAllowAccessKey(t *testing.T) {
 	app := testApp(t, "development")
-	request := newRequest(stdhttp.MethodGet, "/private")
+	request := newRequest(stdhttp.MethodGet, "/api/admin/connections/count")
 	request.Header.Set(apiKeyHeader, "secret")
 
 	response, err := app.Test(request)
@@ -106,8 +107,8 @@ func TestPrivateRoutesAllowAccessKey(t *testing.T) {
 		t.Fatalf("test request: %v", err)
 	}
 
-	if response.StatusCode != fiber.StatusNotFound {
-		t.Fatalf("expected not found status 404, got %d", response.StatusCode)
+	if response.StatusCode != fiber.StatusOK {
+		t.Fatalf("expected ok status 200, got %d", response.StatusCode)
 	}
 }
 
@@ -152,9 +153,10 @@ func testApp(t *testing.T, environment string) *fiber.App {
 	t.Helper()
 
 	service := testSSO(t)
-	adapter := ws.New(ws.Config{}, testConfig(environment).App, netconn.NewRegistry(), realmconn.NewHandlers(service), zap.NewNop())
+	registry := netconn.NewRegistry()
+	adapter := ws.New(ws.Config{}, testConfig(environment).App, registry, realmconn.NewHandlers(service), zap.NewNop())
 
-	return New(zap.NewNop(), testConfig(environment), testInfo(), service, adapter)
+	return New(zap.NewNop(), testConfig(environment), testInfo(), service, adapter, registry)
 }
 
 // testConfig creates composed configuration for route tests.
