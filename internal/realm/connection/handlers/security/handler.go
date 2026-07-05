@@ -1,6 +1,8 @@
-package connection
+// Package security contains connection security and authentication handlers.
+package security
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"time"
@@ -17,8 +19,14 @@ import (
 	outstatus "github.com/niflaot/pixels/networking/outbound/session/hotel/availability/status"
 )
 
-// machineHandler handles machine identity packets.
-func machineHandler(context netconn.Context, packet codec.Packet) error {
+// Register adds security handlers to a registry.
+func Register(registry *netconn.HandlerRegistry, service *sso.Service) {
+	_ = registry.Register(inmachine.Header, Machine, netconn.AllowStates(netconn.StateHandshaking, netconn.StateSecuring), netconn.AllowUnauthenticated())
+	_ = registry.Register(inticket.Header, Ticket(service), netconn.AllowStates(netconn.StateHandshaking), netconn.AllowUnauthenticated())
+}
+
+// Machine handles machine identity packets.
+func Machine(handler netconn.Context, packet codec.Packet) error {
 	payload, err := inmachine.Decode(packet)
 	if err != nil {
 		return err
@@ -28,34 +36,24 @@ func machineHandler(context netconn.Context, packet codec.Packet) error {
 		return nil
 	}
 
-	machineID, err := randomMachineID()
-	if err != nil {
-		return err
-	}
-
-	response, err := outmachine.Encode(machineID)
-	if err != nil {
-		return err
-	}
-
-	return context.Send(background(), response)
+	return sendMachineReplacement(handler)
 }
 
-// ticketHandler handles SSO authentication packets.
-func ticketHandler(service *sso.Service) netconn.Handler {
-	return func(context netconn.Context, packet codec.Packet) error {
+// Ticket handles SSO authentication packets.
+func Ticket(service *sso.Service) netconn.Handler {
+	return func(handler netconn.Context, packet codec.Packet) error {
 		payload, err := inticket.Decode(packet)
 		if err != nil {
 			return err
 		}
 
-		return authenticate(context, service, payload.Ticket)
+		return authenticate(handler, service, payload.Ticket)
 	}
 }
 
 // authenticate consumes SSO and sends the initial bootstrap.
 func authenticate(handler netconn.Context, service *sso.Service, ticket string) error {
-	ctx := background()
+	ctx := context.Background()
 	if err := handler.ValidateAuthenticationSecurity(ctx); err != nil {
 		return err
 	}
@@ -79,12 +77,27 @@ func authenticate(handler netconn.Context, service *sso.Service, ticket string) 
 // sendBootstrap sends the minimal connection bootstrap.
 func sendBootstrap(handler netconn.Context) error {
 	for _, packet := range bootstrapPackets() {
-		if err := handler.Send(background(), packet); err != nil {
+		if err := handler.Send(context.Background(), packet); err != nil {
 			return err
 		}
 	}
 
 	return handler.Transition(netconn.EventSessionReady)
+}
+
+// sendMachineReplacement sends a generated machine identifier.
+func sendMachineReplacement(handler netconn.Context) error {
+	machineID, err := randomMachineID()
+	if err != nil {
+		return err
+	}
+
+	response, err := outmachine.Encode(machineID)
+	if err != nil {
+		return err
+	}
+
+	return handler.Send(context.Background(), response)
 }
 
 // bootstrapPackets returns the first authenticated packets.

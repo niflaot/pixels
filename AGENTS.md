@@ -48,6 +48,7 @@ This repository contains Pixels, a fast and idiomatic Go emulator for the pixel 
 - Do not add comments inside function bodies.
 - Avoid unnecessary interfaces. Introduce an interface only when it decouples a real boundary, supports multiple implementations, or enables focused tests.
 - Prefer composition over inheritance-like hierarchies.
+- Do not create god functions that register, configure, validate, and execute unrelated responsibilities; split orchestration by behavior before one function becomes a dumping ground.
 - Keep public APIs conservative and stable.
 - Keep private APIs readable enough that new contributors can follow them quickly.
 
