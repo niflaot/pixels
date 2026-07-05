@@ -5,7 +5,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
-	playermodel "github.com/niflaot/pixels/internal/player/model"
+	playermodel "github.com/niflaot/pixels/internal/realm/player/model"
 )
 
 // scanPlayer scans a player row.

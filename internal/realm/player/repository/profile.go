@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
-	playermodel "github.com/niflaot/pixels/internal/player/model"
+	playermodel "github.com/niflaot/pixels/internal/realm/player/model"
 )
 
 const (

@@ -83,7 +83,7 @@ go tool cover -func=coverage.out
 
 Pixels uses PostgreSQL for durable state and Liquibase for schema migrations.
 Schema migrations are composed from `database/changelog.xml`, while realm-owned
-migrations live with their realm, such as `internal/player/database`.
+migrations live with their realm, such as `internal/realm/player/database`.
 
 Run schema validation:
 

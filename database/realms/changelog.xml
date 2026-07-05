@@ -5,5 +5,5 @@
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
     https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-    <include file="../../internal/player/database/changelog.xml" relativeToChangelogFile="true"/>
+    <include file="../../internal/realm/player/database/changelog.xml" relativeToChangelogFile="true"/>
 </databaseChangeLog>

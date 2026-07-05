@@ -4,7 +4,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	playermodel "github.com/niflaot/pixels/internal/player/model"
+	playermodel "github.com/niflaot/pixels/internal/realm/player/model"
 )
 
 const (

@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 
-	playermodel "github.com/niflaot/pixels/internal/player/model"
+	playermodel "github.com/niflaot/pixels/internal/realm/player/model"
 )
 
 // PlayerReader reads player identity records.

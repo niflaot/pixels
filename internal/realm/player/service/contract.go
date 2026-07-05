@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 
-	playermodel "github.com/niflaot/pixels/internal/player/model"
+	playermodel "github.com/niflaot/pixels/internal/realm/player/model"
 )
 
 // Creator creates player identity and profile records.

@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	playermodel "github.com/niflaot/pixels/internal/player/model"
-	"github.com/niflaot/pixels/internal/player/repository"
+	playermodel "github.com/niflaot/pixels/internal/realm/player/model"
+	"github.com/niflaot/pixels/internal/realm/player/repository"
 )
 
 // CreateParams contains player creation input.

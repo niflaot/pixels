@@ -1,6 +1,6 @@
 package service
 
-import "github.com/niflaot/pixels/internal/player/repository"
+import "github.com/niflaot/pixels/internal/realm/player/repository"
 
 // Service validates and coordinates player persistence behavior.
 type Service struct {
