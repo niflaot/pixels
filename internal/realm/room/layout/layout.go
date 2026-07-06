@@ -3,6 +3,7 @@ package layout
 import (
 	"strings"
 
+	"github.com/niflaot/pixels/internal/realm/room/grid"
 	sharedmodel "github.com/niflaot/pixels/pkg/model"
 )
 
@@ -60,4 +61,9 @@ func (layout Layout) Valid() bool {
 		layout.DoorX >= 0 &&
 		layout.DoorY >= 0 &&
 		layout.DoorDirection >= 0
+}
+
+// Grid parses the layout heightmap into a compact room grid.
+func (layout Layout) Grid() (grid.Grid, error) {
+	return grid.Parse(layout.Heightmap, grid.WithDoor(layout.DoorX, layout.DoorY))
 }

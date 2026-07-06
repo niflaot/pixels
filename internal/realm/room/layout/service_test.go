@@ -72,6 +72,23 @@ func TestServiceCatalogLoadsPersistentLayouts(t *testing.T) {
 	}
 }
 
+// TestLayoutGridParsesHeightmap verifies layout to grid conversion.
+func TestLayoutGridParsesHeightmap(t *testing.T) {
+	roomGrid, err := validLayoutForTest().Grid()
+	if err != nil {
+		t.Fatalf("parse layout grid: %v", err)
+	}
+
+	if roomGrid.Width() != 3 || roomGrid.Height() != 3 || roomGrid.ValidCount() != 1 {
+		t.Fatalf("unexpected layout grid dimensions or count")
+	}
+
+	door, ok := roomGrid.Door()
+	if !ok || door.X != 1 || door.Y != 1 {
+		t.Fatalf("unexpected layout door %#v found=%v", door, ok)
+	}
+}
+
 // newFakeStore creates a room layout store for tests.
 func newFakeStore() *fakeStore {
 	roomLayout := validLayoutForTest()
