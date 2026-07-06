@@ -1,10 +1,6 @@
 package surface
 
-import (
-	"sort"
-
-	"github.com/niflaot/pixels/internal/realm/room/world/grid"
-)
+import "github.com/niflaot/pixels/internal/realm/room/world/grid"
 
 const (
 	// inlineSectionLimit stores the sections kept inside a column value.
@@ -47,13 +43,31 @@ func (column Column) Version() uint32 {
 // Sections returns the resolved tile sections.
 func (column Column) Sections() []Section {
 	sections := make([]Section, 0, column.Len())
+	if len(column.extra) > 0 {
+		sections = append(sections, column.extra...)
+
+		return sections
+	}
 	for index := 0; index < int(column.count); index++ {
 		sections = append(sections, column.sections[index])
 	}
-	sections = append(sections, column.extra...)
-	sortSections(sections)
 
 	return sections
+}
+
+// Section returns a resolved section by ordered index.
+func (column Column) Section(index int) (Section, bool) {
+	if index < 0 || index >= column.Len() {
+		return Section{}, false
+	}
+	if len(column.extra) > 0 {
+		return column.extra[index], true
+	}
+	if index < int(column.count) {
+		return column.sections[index], true
+	}
+
+	return Section{}, false
 }
 
 // Len returns the number of resolved sections.
@@ -63,14 +77,19 @@ func (column Column) Len() int {
 
 // AddSection adds a resolved tile section.
 func (column *Column) AddSection(section Section) {
+	if len(column.extra) > 0 {
+		column.insertExtra(section)
+
+		return
+	}
 	if int(column.count) < len(column.sections) {
 		column.insertInline(section)
 
 		return
 	}
 
-	column.extra = append(column.extra, section)
-	sortSections(column.extra)
+	column.promoteToExtra()
+	column.insertExtra(section)
 }
 
 // SectionAt finds a section at the exact walkable height.
@@ -95,16 +114,11 @@ func (column Column) TopSection() (Section, bool) {
 	if column.Len() == 0 {
 		return Section{}, false
 	}
-	top := column.sections[column.count-1]
-	if len(column.extra) == 0 {
-		return top, true
-	}
-	extraTop := column.extra[len(column.extra)-1]
-	if extraTop.Z() > top.Z() {
-		return extraTop, true
+	if len(column.extra) > 0 {
+		return column.extra[len(column.extra)-1], true
 	}
 
-	return top, true
+	return column.sections[column.count-1], true
 }
 
 // Dynamic reports whether the column was materialized from dynamic state.
@@ -123,9 +137,18 @@ func (column *Column) insertInline(section Section) {
 	column.count++
 }
 
-// sortSections orders sections by height.
-func sortSections(sections []Section) {
-	sort.Slice(sections, func(left int, right int) bool {
-		return sections[left].Z() < sections[right].Z()
-	})
+// promoteToExtra moves inline sections to overflow storage.
+func (column *Column) promoteToExtra() {
+	column.extra = make([]Section, int(column.count), int(column.count)+1)
+	copy(column.extra, column.sections[:column.count])
+	column.count = 0
+}
+
+// insertExtra adds an overflow section ordered by height.
+func (column *Column) insertExtra(section Section) {
+	column.extra = append(column.extra, section)
+	for index := len(column.extra) - 1; index > 0 && column.extra[index-1].Z() > section.Z(); index-- {
+		column.extra[index] = column.extra[index-1]
+		column.extra[index-1] = section
+	}
 }

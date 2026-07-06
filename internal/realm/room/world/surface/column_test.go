@@ -30,6 +30,10 @@ func TestColumnStoresSectionsInlineAndOverflow(t *testing.T) {
 		if section.Z() != grid.Height(index) {
 			t.Fatalf("expected sorted height %d, got %d", index, section.Z())
 		}
+		sectionAt, ok := column.Section(index)
+		if !ok || sectionAt.Z() != grid.Height(index) {
+			t.Fatalf("expected section at %d, got %d found=%v", index, sectionAt.Z(), ok)
+		}
 	}
 
 	top, ok := column.TopSection()
@@ -45,5 +49,9 @@ func TestColumnReportsEmptyTop(t *testing.T) {
 	_, ok := column.TopSection()
 	if ok {
 		t.Fatal("expected missing top section")
+	}
+	_, ok = column.Section(0)
+	if ok {
+		t.Fatal("expected missing indexed section")
 	}
 }
