@@ -58,7 +58,8 @@ func TestDispatcherRejectsInvalidCommand(t *testing.T) {
 
 // TestNewDispatcherRejectsInvalidHandler verifies nil handlers are rejected.
 func TestNewDispatcherRejectsInvalidHandler(t *testing.T) {
-	dispatcher, err := NewDispatcher[testCommand](nil)
+	var handler Handler[testCommand]
+	dispatcher, err := NewDispatcher(handler)
 	if !errors.Is(err, ErrInvalidHandler) {
 		t.Fatalf("expected invalid handler error, got %v", err)
 	}
@@ -87,7 +88,7 @@ func TestChainAppliesMiddlewareOrder(t *testing.T) {
 		})
 	}
 
-	dispatcher, err := NewDispatcher[testCommand](handler, first, second)
+	dispatcher, err := NewDispatcher(handler, first, second)
 	if err != nil {
 		t.Fatalf("create dispatcher: %v", err)
 	}
@@ -127,7 +128,7 @@ func TestDispatcherLogsDebugCommand(t *testing.T) {
 func mustDispatcher(t *testing.T, handler Handler[testCommand]) *Dispatcher[testCommand] {
 	t.Helper()
 
-	dispatcher, err := NewDispatcher[testCommand](handler)
+	dispatcher, err := NewDispatcher(handler)
 	if err != nil {
 		t.Fatalf("create dispatcher: %v", err)
 	}

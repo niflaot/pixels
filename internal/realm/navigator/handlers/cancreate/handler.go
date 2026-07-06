@@ -14,7 +14,7 @@ import (
 
 // New creates a navigator can-create packet handler.
 func New(handler cancreatecmd.Handler, log *zap.Logger) netconn.Handler {
-	dispatcher, _ := command.NewDispatcher[cancreatecmd.Command](handler)
+	dispatcher, _ := command.NewDispatcher(handler)
 	dispatcher.WithLogger(log)
 
 	return func(connection netconn.Context, packet codec.Packet) error {

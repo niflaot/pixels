@@ -5,13 +5,13 @@ import "net/http"
 // adminOperations returns protected connection administration operations.
 func adminOperations() []operation {
 	return []operation{
-		adminRead(http.MethodGet, "/api/admin/connections", "List connections", new(ConnectionListRequest), new(ConnectionListResponse)),
-		adminRead(http.MethodGet, "/api/admin/connections/list", "List connections", new(ConnectionListRequest), new(ConnectionListResponse)),
-		adminRead(http.MethodGet, "/api/admin/connections/count", "Count connections", new(ConnectionCountRequest), new(ConnectionCountResponse)),
-		adminRead(http.MethodGet, "/api/admin/connections/reasons", "List disconnect reasons", new(APIKeyRequest), new(ReasonsResponse)),
-		adminDisconnect("/api/admin/connections/disconnect", "Disconnect all connections", new(DisconnectAllRequest)),
-		adminDisconnect("/api/admin/connections/{kind}/disconnect", "Disconnect connections by kind", new(DisconnectKindRequest)),
-		adminDisconnect("/api/admin/connections/{kind}/{id}/disconnect", "Disconnect one connection", new(DisconnectOneRequest)),
+		adminRead(http.MethodGet, "/api/admin/connections", "List connections", &ConnectionListRequest{}, &ConnectionListResponse{}),
+		adminRead(http.MethodGet, "/api/admin/connections/list", "List connections", &ConnectionListRequest{}, &ConnectionListResponse{}),
+		adminRead(http.MethodGet, "/api/admin/connections/count", "Count connections", &ConnectionCountRequest{}, &ConnectionCountResponse{}),
+		adminRead(http.MethodGet, "/api/admin/connections/reasons", "List disconnect reasons", &APIKeyRequest{}, &ReasonsResponse{}),
+		adminDisconnect("/api/admin/connections/disconnect", "Disconnect all connections", &DisconnectAllRequest{}),
+		adminDisconnect("/api/admin/connections/{kind}/disconnect", "Disconnect connections by kind", &DisconnectKindRequest{}),
+		adminDisconnect("/api/admin/connections/{kind}/{id}/disconnect", "Disconnect one connection", &DisconnectOneRequest{}),
 	}
 }
 
@@ -42,7 +42,7 @@ func adminDisconnect(path string, summary string, request any) operation {
 		description: summary + ".",
 		request:     request,
 		responses: append(
-			[]response{jsonResponse(http.StatusOK, new(DisconnectResponse), "Connections disconnected.")},
+			[]response{jsonResponse(http.StatusOK, &DisconnectResponse{}, "Connections disconnected.")},
 			errorResponses(http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound)...,
 		),
 		secured: true,

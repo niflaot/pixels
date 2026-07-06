@@ -11,9 +11,9 @@ func ssoOperations() []operation {
 			tag:         "SSO",
 			summary:     "Create SSO ticket",
 			description: "Creates a Redis-backed one-time SSO ticket for the configured TTL.",
-			request:     new(CreateSSOTicketRequest),
+			request:     &CreateSSOTicketRequest{},
 			responses: append(
-				[]response{jsonResponse(http.StatusCreated, new(CreateSSOTicketResponse), "SSO ticket created.")},
+				[]response{jsonResponse(http.StatusCreated, &CreateSSOTicketResponse{}, "SSO ticket created.")},
 				errorResponses(http.StatusBadRequest, http.StatusUnauthorized, http.StatusInternalServerError)...,
 			),
 			secured: true,

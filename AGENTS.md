@@ -51,6 +51,8 @@ This repository contains Pixels, a fast and idiomatic Go emulator for the pixel 
 - Document every package, function, method, struct, interface, type, const, var, field, private field, and test helper in Go doc style.
 - Do not add comments inside function bodies.
 - Avoid unnecessary interfaces. Introduce an interface only when it decouples a real boundary, supports multiple implementations, or enables focused tests.
+- Let Go infer generic type arguments when the compiler can infer them clearly.
+- Prefer `&Type{}` over `new(Type)` for pointer allocation so initialization stays explicit and consistent.
 - Prefer composition over inheritance-like hierarchies.
 - Do not create god functions that register, configure, validate, and execute unrelated responsibilities; split orchestration by behavior before one function becomes a dumping ground.
 - Keep public APIs conservative and stable.

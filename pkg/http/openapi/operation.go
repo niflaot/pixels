@@ -58,7 +58,7 @@ func emptyResponse(status int, description string) response {
 func errorResponses(statuses ...int) []response {
 	responses := make([]response, 0, len(statuses))
 	for _, status := range statuses {
-		responses = append(responses, jsonResponse(status, new(ErrorResponse), http.StatusText(status)))
+		responses = append(responses, jsonResponse(status, &ErrorResponse{}, http.StatusText(status)))
 	}
 
 	return responses

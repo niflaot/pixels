@@ -11,7 +11,7 @@ func publicOperations() []operation {
 			tag:         "Public",
 			summary:     "Read server status",
 			description: "Returns public runtime status without requiring an API key.",
-			responses:   []response{jsonResponse(http.StatusOK, new(StatusResponse), "Server status.")},
+			responses:   []response{jsonResponse(http.StatusOK, &StatusResponse{}, "Server status.")},
 		},
 		{
 			method:      http.MethodGet,
@@ -19,7 +19,7 @@ func publicOperations() []operation {
 			tag:         "WebSocket",
 			summary:     "Open websocket session",
 			description: "Upgrades an HTTP request to the pixel-protocol websocket entrypoint.",
-			request:     new(WebSocketUpgradeRequest),
+			request:     &WebSocketUpgradeRequest{},
 			responses: append(
 				[]response{emptyResponse(http.StatusSwitchingProtocols, "Websocket upgrade accepted.")},
 				errorResponses(http.StatusUpgradeRequired)...,
@@ -33,7 +33,7 @@ func publicOperations() []operation {
 			description: "Serves public Scalar documentation in development only.",
 			responses: []response{
 				{status: http.StatusOK, body: "", description: "Scalar documentation HTML.", contentType: "text/html"},
-				jsonResponse(http.StatusNotFound, new(ErrorResponse), "Documentation is disabled outside development."),
+				jsonResponse(http.StatusNotFound, &ErrorResponse{}, "Documentation is disabled outside development."),
 			},
 		},
 	}
@@ -47,7 +47,7 @@ func fallbackOperation() operation {
 		tag:         "Fallback",
 		summary:     "Private route fallback",
 		description: "Represents protected endpoints added after public route registration.",
-		request:     new(APIKeyRequest),
+		request:     &APIKeyRequest{},
 		responses:   errorResponses(http.StatusUnauthorized, http.StatusNotFound),
 		secured:     true,
 	}

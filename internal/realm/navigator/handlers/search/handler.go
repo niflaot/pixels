@@ -14,7 +14,7 @@ import (
 
 // New creates a navigator search packet handler.
 func New(handler searchcmd.Handler, log *zap.Logger) netconn.Handler {
-	dispatcher, _ := command.NewDispatcher[searchcmd.Command](handler)
+	dispatcher, _ := command.NewDispatcher(handler)
 	dispatcher.WithLogger(log)
 
 	return func(connection netconn.Context, packet codec.Packet) error {
