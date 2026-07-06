@@ -65,7 +65,7 @@ func TestHandleJoinsRoomAndSendsEntryPackets(t *testing.T) {
 	if len(publisher.events) != 1 || publisher.events[0].Name != roomentered.Name {
 		t.Fatalf("unexpected events %#v", publisher.events)
 	}
-	if len(*sent) != 3 {
+	if len(*sent) != 5 {
 		t.Fatalf("expected entered and model packets, got %#v", *sent)
 	}
 }
@@ -138,7 +138,7 @@ func TestJoinLeavesPreviousRoomAndLoadsWorld(t *testing.T) {
 		t.Fatalf("enter previous room: %v", err)
 	}
 
-	err := handler.join(context.Background(), player, connectionForTest(), roomForTest(), layoutForTest())
+	_, err := handler.join(context.Background(), player, connectionForTest(), roomForTest(), layoutForTest())
 	if err != nil {
 		t.Fatalf("join target room: %v", err)
 	}

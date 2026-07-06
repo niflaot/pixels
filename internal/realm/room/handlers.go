@@ -6,13 +6,16 @@ import (
 	entercmd "github.com/niflaot/pixels/internal/realm/room/commands/enter"
 	modelcmd "github.com/niflaot/pixels/internal/realm/room/commands/model"
 	tagscmd "github.com/niflaot/pixels/internal/realm/room/commands/tags"
+	walkcmd "github.com/niflaot/pixels/internal/realm/room/commands/walk"
 	enterhandler "github.com/niflaot/pixels/internal/realm/room/handlers/enter"
 	modelhandler "github.com/niflaot/pixels/internal/realm/room/handlers/model"
 	tagshandler "github.com/niflaot/pixels/internal/realm/room/handlers/tags"
+	walkhandler "github.com/niflaot/pixels/internal/realm/room/handlers/walk"
 	"github.com/niflaot/pixels/internal/realm/room/layout"
 	roomlive "github.com/niflaot/pixels/internal/realm/room/live"
 	roomservice "github.com/niflaot/pixels/internal/realm/room/service"
 	"github.com/niflaot/pixels/internal/realm/session/binding"
+	netconn "github.com/niflaot/pixels/networking/connection"
 	"github.com/niflaot/pixels/pkg/bus"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -32,6 +35,8 @@ type HandlerDeps struct {
 	Layouts layout.Manager
 	// Runtime stores active rooms.
 	Runtime *roomlive.Registry
+	// Connections stores active network connections.
+	Connections *netconn.Registry
 	// Events publishes realm events.
 	Events *bus.Bus
 	// Log records command dispatch.
@@ -46,12 +51,15 @@ func RegisterConnectionHandlers(handlers *realmconn.Handlers, deps HandlerDeps) 
 
 	enterhandler.Register(handlers.Inbound, enterhandler.New(entercmd.Handler{
 		Players: deps.Players, Bindings: deps.Bindings, Rooms: deps.Rooms,
-		Layouts: deps.Layouts, Runtime: deps.Runtime, Events: deps.Events,
+		Layouts: deps.Layouts, Runtime: deps.Runtime, Connections: deps.Connections, Events: deps.Events,
 	}, deps.Log))
 	modelhandler.Register(handlers.Inbound, modelhandler.New(modelcmd.Handler{
 		Players: deps.Players, Bindings: deps.Bindings, Rooms: deps.Rooms, Layouts: deps.Layouts,
 	}, deps.Log))
 	tagshandler.Register(handlers.Inbound, tagshandler.New(tagscmd.Handler{
 		Players: deps.Players, Bindings: deps.Bindings, Rooms: deps.Rooms,
+	}, deps.Log))
+	walkhandler.Register(handlers.Inbound, walkhandler.New(walkcmd.Handler{
+		Players: deps.Players, Bindings: deps.Bindings, Runtime: deps.Runtime,
 	}, deps.Log))
 }

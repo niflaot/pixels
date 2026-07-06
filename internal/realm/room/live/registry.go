@@ -22,11 +22,27 @@ type Registry struct {
 
 	// publish publishes occupancy changes.
 	publish OccupancyPublisher
+
+	// movementPublish publishes movement changes.
+	movementPublish MovementPublisher
+
+	// tickInterval stores active room movement cadence.
+	tickInterval time.Duration
 }
 
 // NewRegistry creates an active room registry.
-func NewRegistry(publisher OccupancyPublisher) *Registry {
-	return &Registry{rooms: make(map[int64]*Room), byPlayer: make(map[int64]int64), publish: publisher}
+func NewRegistry(publisher OccupancyPublisher, options ...RegistryOption) *Registry {
+	registry := &Registry{
+		rooms:        make(map[int64]*Room),
+		byPlayer:     make(map[int64]int64),
+		publish:      publisher,
+		tickInterval: DefaultTickInterval,
+	}
+	for _, option := range options {
+		option(registry)
+	}
+
+	return registry
 }
 
 // Activate registers an active room.
@@ -43,6 +59,7 @@ func (registry *Registry) Activate(snapshot Snapshot) (*Room, error) {
 		return active, nil
 	}
 
+	room.startLoop(context.Background(), registry.tickInterval, registry.movementPublish)
 	registry.rooms[snapshot.ID] = room
 
 	return room, nil
@@ -53,6 +70,20 @@ func (registry *Registry) Find(roomID int64) (*Room, bool) {
 	registry.mutex.RLock()
 	defer registry.mutex.RUnlock()
 
+	room, found := registry.rooms[roomID]
+
+	return room, found
+}
+
+// FindByPlayer returns an active room by occupant player id.
+func (registry *Registry) FindByPlayer(playerID int64) (*Room, bool) {
+	registry.mutex.RLock()
+	defer registry.mutex.RUnlock()
+
+	roomID, found := registry.byPlayer[playerID]
+	if !found {
+		return nil, false
+	}
 	room, found := registry.rooms[roomID]
 
 	return room, found
@@ -69,7 +100,9 @@ func (registry *Registry) Join(ctx context.Context, roomID int64, occupant Occup
 		return Occupancy{}, ErrRoomNotFound
 	}
 
-	registry.removeIndexedPlayer(ctx, occupant.PlayerID)
+	if previousID, found := registry.indexedRoom(occupant.PlayerID); found && previousID != roomID {
+		registry.removeIndexedPlayer(ctx, occupant.PlayerID)
+	}
 	occupancy, err := room.Join(occupant)
 	if err != nil {
 		return Occupancy{}, err
@@ -80,6 +113,16 @@ func (registry *Registry) Join(ctx context.Context, roomID int64, occupant Occup
 	registry.mutex.Unlock()
 
 	return occupancy, registry.publishOccupancy(ctx, occupancy)
+}
+
+// indexedRoom returns the indexed room id for one player.
+func (registry *Registry) indexedRoom(playerID int64) (int64, bool) {
+	registry.mutex.RLock()
+	defer registry.mutex.RUnlock()
+
+	roomID, found := registry.byPlayer[playerID]
+
+	return roomID, found
 }
 
 // Leave removes a player from its active room.

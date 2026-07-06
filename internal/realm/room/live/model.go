@@ -1,6 +1,7 @@
 package live
 
 import (
+	"context"
 	"time"
 
 	"github.com/niflaot/pixels/internal/realm/room/world/grid"
@@ -8,6 +9,11 @@ import (
 	"github.com/niflaot/pixels/internal/realm/room/world/surface"
 	worldunit "github.com/niflaot/pixels/internal/realm/room/world/unit"
 	netconn "github.com/niflaot/pixels/networking/connection"
+)
+
+const (
+	// DefaultTickInterval stores the default room movement tick interval.
+	DefaultTickInterval = 500 * time.Millisecond
 )
 
 // Snapshot stores room metadata needed by runtime occupancy.
@@ -47,6 +53,15 @@ type Occupant struct {
 
 	// Username stores a display snapshot for diagnostics.
 	Username string
+
+	// Motto stores the visible player motto.
+	Motto string
+
+	// Figure stores the visible player figure.
+	Figure string
+
+	// Gender stores the visible player gender.
+	Gender string
 
 	// ConnectionID identifies the active connection.
 	ConnectionID netconn.ID
@@ -116,6 +131,28 @@ type Movement struct {
 
 	// Step stores the accepted path step.
 	Step worldpath.Step
+}
+
+// MovementPublisher publishes room tick movements.
+type MovementPublisher func(context.Context, *Room, []Movement) error
+
+// RegistryOption configures a room registry.
+type RegistryOption func(*Registry)
+
+// WithMovementPublisher configures room movement publishing.
+func WithMovementPublisher(publisher MovementPublisher) RegistryOption {
+	return func(registry *Registry) {
+		registry.movementPublish = publisher
+	}
+}
+
+// WithTickInterval configures room movement tick cadence.
+func WithTickInterval(interval time.Duration) RegistryOption {
+	return func(registry *Registry) {
+		if interval > 0 {
+			registry.tickInterval = interval
+		}
+	}
 }
 
 // Valid reports whether the snapshot can back an active room.

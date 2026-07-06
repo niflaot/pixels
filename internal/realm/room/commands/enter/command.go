@@ -46,6 +46,8 @@ type Handler struct {
 	Layouts layout.Manager
 	// Runtime stores active rooms.
 	Runtime *roomlive.Registry
+	// Connections stores active network connections.
+	Connections *netconn.Registry
 	// Events publishes room lifecycle events.
 	Events bus.Publisher
 }
@@ -66,14 +68,19 @@ func (handler Handler) Handle(ctx context.Context, envelope command.Envelope[Com
 	if err != nil {
 		return err
 	}
-	if err := handler.join(ctx, player, envelope.Command.Handler, room, roomLayout); err != nil {
+	active, err := handler.join(ctx, player, envelope.Command.Handler, room, roomLayout)
+	if err != nil {
 		return handler.sendEntryError(ctx, envelope.Command.Handler, err)
 	}
 	if err := player.EnterRoom(room.ID); err != nil {
 		return err
 	}
 
-	return handler.sendEntered(ctx, envelope.Command.Handler, room, roomLayout)
+	if err := handler.sendEntered(ctx, envelope.Command.Handler, room, roomLayout, active); err != nil {
+		return err
+	}
+
+	return handler.broadcastJoined(ctx, active, player.ID())
 }
 
 // loadRoom loads room and layout data.
@@ -98,7 +105,7 @@ func (handler Handler) loadRoom(ctx context.Context, roomID int64) (roommodel.Ro
 }
 
 // sendEntered sends the initial room entry packets.
-func (handler Handler) sendEntered(ctx context.Context, connection netconn.Context, room roommodel.Room, roomLayout layout.Layout) error {
+func (handler Handler) sendEntered(ctx context.Context, connection netconn.Context, room roommodel.Room, roomLayout layout.Layout, active *roomlive.Room) error {
 	packet, err := outentered.Encode()
 	if err != nil {
 		return err
@@ -107,7 +114,11 @@ func (handler Handler) sendEntered(ctx context.Context, connection netconn.Conte
 		return err
 	}
 
-	return SendModel(ctx, connection, room, roomLayout)
+	if err := SendModel(ctx, connection, room, roomLayout); err != nil {
+		return err
+	}
+
+	return handler.sendRoomState(ctx, connection, active, 0)
 }
 
 // sendEntryError sends a room entry error when possible.

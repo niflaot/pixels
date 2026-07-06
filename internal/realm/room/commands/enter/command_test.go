@@ -38,7 +38,7 @@ func TestLoadRoomPropagatesStoreErrors(t *testing.T) {
 // TestJoinAllowsMissingEventBus verifies publish is optional.
 func TestJoinAllowsMissingEventBus(t *testing.T) {
 	handler := Handler{Runtime: roomlive.NewRegistry(nil)}
-	err := handler.join(context.Background(), playerForTest(t), connectionForTest(), roomForTest(), layoutForTest())
+	_, err := handler.join(context.Background(), playerForTest(t), connectionForTest(), roomForTest(), layoutForTest())
 	if err != nil {
 		t.Fatalf("join without events: %v", err)
 	}

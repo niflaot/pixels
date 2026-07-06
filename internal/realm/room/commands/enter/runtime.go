@@ -4,6 +4,7 @@ import (
 	"context"
 
 	playerlive "github.com/niflaot/pixels/internal/realm/player/live"
+	"github.com/niflaot/pixels/internal/realm/room/broadcast"
 	roomentered "github.com/niflaot/pixels/internal/realm/room/events/entered"
 	roomleft "github.com/niflaot/pixels/internal/realm/room/events/left"
 	"github.com/niflaot/pixels/internal/realm/room/layout"
@@ -17,36 +18,45 @@ import (
 )
 
 // join moves a player into the target room.
-func (handler Handler) join(ctx context.Context, player *playerlive.Player, connection netconn.Context, room roommodel.Room, roomLayout layout.Layout) error {
+func (handler Handler) join(ctx context.Context, player *playerlive.Player, connection netconn.Context, room roommodel.Room, roomLayout layout.Layout) (*roomlive.Room, error) {
 	if previousID, found := player.CurrentRoom(); found && previousID != room.ID {
+		previousRoom, roomFound := handler.Runtime.Find(previousID)
+		previousUnitID := unitIDForPlayer(previousRoom, player.ID())
 		if _, left, err := handler.Runtime.Leave(ctx, player.ID()); err != nil {
-			return err
+			return nil, err
 		} else if left {
+			if roomFound && previousUnitID > 0 {
+				_ = broadcast.RoomRemove(ctx, handler.Connections, previousRoom, previousUnitID, player.ID())
+			}
 			_ = handler.publish(ctx, roomleft.Name, roomleft.Payload{PlayerID: player.ID(), RoomID: previousID})
 		}
 	}
 
 	active, err := handler.Runtime.Activate(roomSnapshot(room))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !active.WorldLoaded() {
 		if err := loadWorld(active, roomLayout); err != nil {
-			return err
+			return nil, err
 		}
 	}
+	snapshot := player.Snapshot()
 
 	_, err = handler.Runtime.Join(ctx, room.ID, roomlive.Occupant{
 		PlayerID:       player.ID(),
 		Username:       player.Username(),
+		Motto:          snapshot.Motto,
+		Figure:         snapshot.Look,
+		Gender:         string(snapshot.Gender),
 		ConnectionID:   connection.ConnectionID,
 		ConnectionKind: connection.ConnectionKind,
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return handler.publish(ctx, roomentered.Name, roomentered.Payload{PlayerID: player.ID(), RoomID: room.ID})
+	return active, handler.publish(ctx, roomentered.Name, roomentered.Payload{PlayerID: player.ID(), RoomID: room.ID})
 }
 
 // loadWorld loads the room runtime world from its persistent layout.
@@ -75,6 +85,20 @@ func loadWorld(room *roomlive.Room, roomLayout layout.Layout) error {
 // rotationFromLayout converts layout direction to runtime rotation.
 func rotationFromLayout(roomLayout layout.Layout) worldunit.Rotation {
 	return worldunit.Rotation(roomLayout.DoorDirection % 8)
+}
+
+// unitIDForPlayer returns the live unit id for a player.
+func unitIDForPlayer(room *roomlive.Room, playerID int64) int64 {
+	if room == nil {
+		return 0
+	}
+	for _, unit := range room.Units() {
+		if unit.PlayerID == playerID {
+			return unit.UnitID
+		}
+	}
+
+	return 0
 }
 
 // publish emits room lifecycle events.

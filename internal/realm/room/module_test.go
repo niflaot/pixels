@@ -11,6 +11,7 @@ import (
 	roomupdated "github.com/niflaot/pixels/internal/realm/room/events/updated"
 	"github.com/niflaot/pixels/internal/realm/room/layout"
 	"github.com/niflaot/pixels/internal/realm/room/service"
+	netconn "github.com/niflaot/pixels/networking/connection"
 	"github.com/niflaot/pixels/pkg/bus"
 )
 
@@ -37,7 +38,7 @@ func TestProvidersExposeContracts(t *testing.T) {
 	layoutService := layout.NewService(nil)
 	roomService := service.New(nil, layoutService)
 
-	if NewLiveRegistry(bus.New()) == nil {
+	if NewLiveRegistry(bus.New(), netconn.NewRegistry()) == nil {
 		t.Fatal("expected live registry")
 	}
 	if NewLayoutStore(nil) == nil {

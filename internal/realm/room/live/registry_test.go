@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	worldpath "github.com/niflaot/pixels/internal/realm/room/world/path"
 	netconn "github.com/niflaot/pixels/networking/connection"
 )
 
@@ -59,6 +60,30 @@ func TestRegistryJoinRejectsFullRoom(t *testing.T) {
 	_, err := registry.Join(context.Background(), 9, occupantForTest(8))
 	if !errors.Is(err, ErrRoomFull) {
 		t.Fatalf("expected room full, got %v", err)
+	}
+}
+
+// TestRegistryJoinSameRoomPreservesUnit verifies rejoin does not recreate units.
+func TestRegistryJoinSameRoomPreservesUnit(t *testing.T) {
+	registry := NewRegistry(nil)
+	active, err := registry.Activate(Snapshot{ID: 9, MaxUsers: 2})
+	if err != nil {
+		t.Fatalf("activate room: %v", err)
+	}
+	if err := active.LoadWorld(worldConfigForTest(t)); err != nil {
+		t.Fatalf("load world: %v", err)
+	}
+	if _, err := registry.Join(context.Background(), 9, occupantForTest(7)); err != nil {
+		t.Fatalf("join room: %v", err)
+	}
+	first := active.Units()[0].UnitID
+
+	if _, err := registry.Join(context.Background(), 9, occupantForTest(7)); err != nil {
+		t.Fatalf("rejoin room: %v", err)
+	}
+	units := active.Units()
+	if len(units) != 1 || units[0].UnitID != first {
+		t.Fatalf("unexpected units %#v", units)
 	}
 }
 
@@ -134,4 +159,16 @@ func TestRegistryUnloadIdleClosesEmptyRooms(t *testing.T) {
 // occupantForTest creates an active room occupant.
 func occupantForTest(playerID int64) Occupant {
 	return Occupant{PlayerID: playerID, Username: "demo", ConnectionID: netconn.ID("conn"), ConnectionKind: netconn.Kind("websocket")}
+}
+
+// worldConfigForTest creates a flat world config.
+func worldConfigForTest(t testing.TB) WorldConfig {
+	t.Helper()
+
+	return WorldConfig{
+		Grid: gridForTest(t, "0", 0, 0),
+		Door: worldpath.Position{
+			Point: pointForTest(t, 0, 0),
+		},
+	}
 }

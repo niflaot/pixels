@@ -1,6 +1,7 @@
 package live
 
 import (
+	"context"
 	"sort"
 	"sync"
 	"time"
@@ -30,6 +31,12 @@ type Room struct {
 
 	// closed reports whether the active room was closed.
 	closed bool
+
+	// loopCancel stops the room owner goroutine.
+	loopCancel context.CancelFunc
+
+	// loopDone closes when the room owner goroutine stops.
+	loopDone chan struct{}
 }
 
 // NewRoom creates an active room.
@@ -126,6 +133,8 @@ func (room *Room) Occupants() []Occupant {
 
 // Close marks the active room as closed.
 func (room *Room) Close() Occupancy {
+	room.stopLoop()
+
 	room.mutex.Lock()
 	defer room.mutex.Unlock()
 
