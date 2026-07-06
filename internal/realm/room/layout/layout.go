@@ -3,7 +3,7 @@ package layout
 import (
 	"strings"
 
-	"github.com/niflaot/pixels/internal/realm/room/grid"
+	"github.com/niflaot/pixels/internal/realm/room/world/grid"
 	sharedmodel "github.com/niflaot/pixels/pkg/model"
 )
 
