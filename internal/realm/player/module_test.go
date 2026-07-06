@@ -3,18 +3,24 @@ package player
 import (
 	"testing"
 
+	playerauthenticated "github.com/niflaot/pixels/internal/realm/player/events/authenticated"
+	playerauthenticating "github.com/niflaot/pixels/internal/realm/player/events/authenticating"
+	playerauthfailed "github.com/niflaot/pixels/internal/realm/player/events/authfailed"
+	playerconnected "github.com/niflaot/pixels/internal/realm/player/events/connected"
+	playerdisconnected "github.com/niflaot/pixels/internal/realm/player/events/disconnected"
+	playerprofileloaded "github.com/niflaot/pixels/internal/realm/player/events/profileloaded"
 	"github.com/niflaot/pixels/internal/realm/player/service"
 )
 
 // TestEventNames verifies player event names are stable.
 func TestEventNames(t *testing.T) {
 	events := []string{
-		string(EventAuthenticating),
-		string(EventAuthenticated),
-		string(EventAuthenticationFailed),
-		string(EventConnected),
-		string(EventDisconnected),
-		string(EventProfileLoaded),
+		string(playerauthenticating.Name),
+		string(playerauthenticated.Name),
+		string(playerauthfailed.Name),
+		string(playerconnected.Name),
+		string(playerdisconnected.Name),
+		string(playerprofileloaded.Name),
 	}
 
 	for _, event := range events {

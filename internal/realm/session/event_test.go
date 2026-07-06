@@ -1,12 +1,17 @@
 package session
 
-import "testing"
+import (
+	"testing"
+
+	sessionbound "github.com/niflaot/pixels/internal/realm/session/events/bound"
+	sessionunbound "github.com/niflaot/pixels/internal/realm/session/events/unbound"
+)
 
 // TestEventNames verifies session event names are stable.
 func TestEventNames(t *testing.T) {
 	events := []string{
-		string(EventBound),
-		string(EventUnbound),
+		string(sessionbound.Name),
+		string(sessionunbound.Name),
 	}
 
 	for _, event := range events {

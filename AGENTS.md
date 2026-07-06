@@ -34,6 +34,10 @@ This repository contains Pixels, a fast and idiomatic Go emulator for the pixel 
 
 - Prefer small, single-name packages with nested paths over long package names.
 - Use `networking/session/ping/packet.go` and `networking/session/ping/packet_test.go` instead of names like `networking/session/pingpacket.go`.
+- Keep exactly one realm event per event package, similar to packet packages.
+- Place realm events under concise paths such as `internal/realm/player/events/disconnected/event.go`.
+- Event packages expose `Name` and, when needed, `Payload`; do not group several event names or payloads in one realm-level `event.go`.
+- Prefer deriving shared event behavior through small helpers at call sites over creating broad event registry packages.
 - Keep each package focused on one responsibility.
 - Keep each file focused on one responsibility.
 - Keep every Go source file at or below 250 lines.

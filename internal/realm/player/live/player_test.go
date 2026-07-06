@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	navviewer "github.com/niflaot/pixels/internal/realm/navigator/viewer/live"
 	playermodel "github.com/niflaot/pixels/internal/realm/player/model"
 	playerservice "github.com/niflaot/pixels/internal/realm/player/service"
 	sharedmodel "github.com/niflaot/pixels/pkg/model"
@@ -81,6 +82,50 @@ func TestPlayerReplaceSnapshotPreservesIdentity(t *testing.T) {
 	}
 }
 
+// TestPlayerNavigatorLifecycle verifies embedded navigator viewer behavior.
+func TestPlayerNavigatorLifecycle(t *testing.T) {
+	player := mustPlayer(t, 10, "ian")
+	if _, found := player.Navigator(); found {
+		t.Fatal("expected no navigator viewer")
+	}
+
+	viewer := player.OpenNavigator()
+	viewer.SetLastSearch(navSearchForTest())
+
+	found, ok := player.Navigator()
+	if !ok || found.LastSearch().Code != "hotel_view" {
+		t.Fatalf("unexpected navigator viewer found=%v viewer=%#v", ok, found)
+	}
+
+	closed, ok := player.CloseNavigator()
+	if !ok || closed != viewer {
+		t.Fatalf("unexpected closed viewer found=%v viewer=%#v", ok, closed)
+	}
+	if _, found := player.Navigator(); found {
+		t.Fatal("expected closed navigator viewer")
+	}
+}
+
+// TestRegistryNavigatorAudienceFiltersPlayers verifies navigator audience derivation.
+func TestRegistryNavigatorAudienceFiltersPlayers(t *testing.T) {
+	registry := NewRegistry()
+	first := mustPlayer(t, 10, "ian")
+	second := mustPlayer(t, 11, "ada")
+	first.OpenNavigator()
+	second.OpenNavigator().SetCategoryCounts(false)
+	if err := registry.Add(first); err != nil {
+		t.Fatalf("add first player: %v", err)
+	}
+	if err := registry.Add(second); err != nil {
+		t.Fatalf("add second player: %v", err)
+	}
+
+	audience := registry.NavigatorAudience()
+	if len(audience) != 1 || audience[0].ID() != 10 {
+		t.Fatalf("unexpected audience %#v", audience)
+	}
+}
+
 // TestRegistryLifecycle verifies live player registry behavior.
 func TestRegistryLifecycle(t *testing.T) {
 	registry := NewRegistry()
@@ -126,4 +171,9 @@ func mustPlayer(t *testing.T, id int64, username string) *Player {
 	}
 
 	return player
+}
+
+// navSearchForTest returns a navigator search state for tests.
+func navSearchForTest() navviewer.LastSearch {
+	return navviewer.LastSearch{Code: "hotel_view", Query: "demo"}
 }

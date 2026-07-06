@@ -6,11 +6,15 @@ import (
 	"time"
 
 	"github.com/niflaot/pixels/internal/auth/sso"
-	playerrealm "github.com/niflaot/pixels/internal/realm/player"
+	playerauthenticated "github.com/niflaot/pixels/internal/realm/player/events/authenticated"
+	playerauthenticating "github.com/niflaot/pixels/internal/realm/player/events/authenticating"
+	playerauthfailed "github.com/niflaot/pixels/internal/realm/player/events/authfailed"
+	playerconnected "github.com/niflaot/pixels/internal/realm/player/events/connected"
+	playerprofileloaded "github.com/niflaot/pixels/internal/realm/player/events/profileloaded"
 	"github.com/niflaot/pixels/internal/realm/player/live"
 	playerservice "github.com/niflaot/pixels/internal/realm/player/service"
-	sessionrealm "github.com/niflaot/pixels/internal/realm/session"
 	"github.com/niflaot/pixels/internal/realm/session/binding"
+	sessionbound "github.com/niflaot/pixels/internal/realm/session/events/bound"
 	netconn "github.com/niflaot/pixels/networking/connection"
 	"github.com/niflaot/pixels/pkg/bus"
 )
@@ -44,23 +48,23 @@ func NewAuthenticator(tickets *sso.Service, players playerservice.Finder, live *
 func (authenticator *Authenticator) Resolve(ctx context.Context, handler netconn.Context, ticketValue string) (playerservice.Record, error) {
 	ticket, err := authenticator.tickets.Consume(ctx, sso.ConsumeRequest{Ticket: ticketValue, IP: handler.RemoteAddr})
 	if err != nil {
-		authenticator.publish(ctx, playerrealm.EventAuthenticationFailed, authenticationEvent(handler, 0, err.Error()))
+		authenticator.publish(ctx, playerauthfailed.Name, playerauthfailed.Payload(authenticationPayloadFromHandler(handler, 0, err.Error())))
 		return playerservice.Record{}, err
 	}
 
-	authenticator.publish(ctx, playerrealm.EventAuthenticating, authenticationEvent(handler, ticket.PlayerID, ""))
+	authenticator.publish(ctx, playerauthenticating.Name, playerauthenticating.Payload(authenticationPayloadFromHandler(handler, ticket.PlayerID, "")))
 
 	record, found, err := authenticator.players.FindByID(ctx, ticket.PlayerID)
 	if err != nil {
-		authenticator.publish(ctx, playerrealm.EventAuthenticationFailed, authenticationEvent(handler, ticket.PlayerID, err.Error()))
+		authenticator.publish(ctx, playerauthfailed.Name, playerauthfailed.Payload(authenticationPayloadFromHandler(handler, ticket.PlayerID, err.Error())))
 		return playerservice.Record{}, fmt.Errorf("load player %d: %w", ticket.PlayerID, err)
 	}
 	if !found {
-		authenticator.publish(ctx, playerrealm.EventAuthenticationFailed, authenticationEvent(handler, ticket.PlayerID, playerservice.ErrPlayerNotFound.Error()))
+		authenticator.publish(ctx, playerauthfailed.Name, playerauthfailed.Payload(authenticationPayloadFromHandler(handler, ticket.PlayerID, playerservice.ErrPlayerNotFound.Error())))
 		return playerservice.Record{}, playerservice.ErrPlayerNotFound
 	}
 
-	authenticator.publish(ctx, playerrealm.EventProfileLoaded, authenticationEvent(handler, ticket.PlayerID, ""))
+	authenticator.publish(ctx, playerprofileloaded.Name, playerprofileloaded.Payload(authenticationPayloadFromHandler(handler, ticket.PlayerID, "")))
 
 	return record, nil
 }
@@ -92,9 +96,9 @@ func (authenticator *Authenticator) Bind(ctx context.Context, handler netconn.Co
 		return err
 	}
 
-	authenticator.publish(ctx, sessionrealm.EventBound, sessionrealm.BindingEvent{Binding: sessionBinding})
-	authenticator.publish(ctx, playerrealm.EventAuthenticated, authenticationEvent(handler, record.Player.ID, ""))
-	authenticator.publish(ctx, playerrealm.EventConnected, authenticationEvent(handler, record.Player.ID, ""))
+	authenticator.publish(ctx, sessionbound.Name, sessionbound.Payload{Binding: sessionBinding})
+	authenticator.publish(ctx, playerauthenticated.Name, playerauthenticated.Payload(authenticationPayloadFromHandler(handler, record.Player.ID, "")))
+	authenticator.publish(ctx, playerconnected.Name, playerconnected.Payload(authenticationPayloadFromHandler(handler, record.Player.ID, "")))
 
 	return nil
 }
@@ -108,9 +112,24 @@ func (authenticator *Authenticator) publish(ctx context.Context, name bus.Name, 
 	_ = authenticator.events.Publish(ctx, bus.Event{Name: name, Payload: payload})
 }
 
-// authenticationEvent creates a player authentication event payload.
-func authenticationEvent(handler netconn.Context, playerID int64, reason string) playerrealm.AuthenticationEvent {
-	return playerrealm.AuthenticationEvent{
+// authenticationPayload describes shared authentication event fields.
+type authenticationPayload struct {
+	// PlayerID identifies the player when known.
+	PlayerID int64
+
+	// ConnectionID identifies the connection.
+	ConnectionID netconn.ID
+
+	// ConnectionKind identifies the connection family.
+	ConnectionKind netconn.Kind
+
+	// Reason stores a failure reason when available.
+	Reason string
+}
+
+// authenticationPayloadFromHandler creates shared authentication event fields.
+func authenticationPayloadFromHandler(handler netconn.Context, playerID int64, reason string) authenticationPayload {
+	return authenticationPayload{
 		PlayerID:       playerID,
 		ConnectionID:   handler.ConnectionID,
 		ConnectionKind: handler.ConnectionKind,

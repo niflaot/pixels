@@ -9,11 +9,11 @@ import (
 	"github.com/niflaot/pixels/internal/realm/connection/handlers/heartbeat"
 	"github.com/niflaot/pixels/internal/realm/connection/handlers/latency"
 	"github.com/niflaot/pixels/internal/realm/connection/handlers/security"
-	playerrealm "github.com/niflaot/pixels/internal/realm/player"
+	playerdisconnected "github.com/niflaot/pixels/internal/realm/player/events/disconnected"
 	"github.com/niflaot/pixels/internal/realm/player/live"
 	playerservice "github.com/niflaot/pixels/internal/realm/player/service"
-	sessionrealm "github.com/niflaot/pixels/internal/realm/session"
 	"github.com/niflaot/pixels/internal/realm/session/binding"
+	sessionunbound "github.com/niflaot/pixels/internal/realm/session/events/unbound"
 	"github.com/niflaot/pixels/networking/codec"
 	netconn "github.com/niflaot/pixels/networking/connection"
 	"github.com/niflaot/pixels/pkg/bus"
@@ -68,8 +68,8 @@ func (handlers *Handlers) Disconnected(ctx context.Context, kind netconn.Kind, i
 		handlers.players.Remove(sessionBinding.PlayerID)
 	}
 
-	handlers.publish(ctx, sessionrealm.EventUnbound, sessionrealm.BindingEvent{Binding: sessionBinding})
-	handlers.publish(ctx, playerrealm.EventDisconnected, playerrealm.AuthenticationEvent{
+	handlers.publish(ctx, sessionunbound.Name, sessionunbound.Payload{Binding: sessionBinding})
+	handlers.publish(ctx, playerdisconnected.Name, playerdisconnected.Payload{
 		PlayerID:       sessionBinding.PlayerID,
 		ConnectionID:   sessionBinding.ConnectionID,
 		ConnectionKind: sessionBinding.ConnectionKind,

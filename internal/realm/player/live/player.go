@@ -1,6 +1,10 @@
 package live
 
-import "sync"
+import (
+	"sync"
+
+	navviewer "github.com/niflaot/pixels/internal/realm/navigator/viewer/live"
+)
 
 // Player is the live runtime player composition root.
 type Player struct {
@@ -12,6 +16,9 @@ type Player struct {
 
 	// peer stores the authenticated connection binding.
 	peer SessionPeer
+
+	// navigator stores navigator UI state when opened.
+	navigator *navviewer.Viewer
 }
 
 // NewPlayer creates a live player.
@@ -70,4 +77,43 @@ func (player *Player) Peer() SessionPeer {
 	defer player.mutex.RUnlock()
 
 	return player.peer
+}
+
+// OpenNavigator creates or returns the player's navigator viewer.
+func (player *Player) OpenNavigator() *navviewer.Viewer {
+	player.mutex.Lock()
+	defer player.mutex.Unlock()
+
+	if player.navigator == nil {
+		player.navigator = navviewer.NewViewer()
+	}
+
+	return player.navigator
+}
+
+// Navigator returns the player's navigator viewer.
+func (player *Player) Navigator() (*navviewer.Viewer, bool) {
+	player.mutex.RLock()
+	defer player.mutex.RUnlock()
+
+	if player.navigator == nil {
+		return nil, false
+	}
+
+	return player.navigator, true
+}
+
+// CloseNavigator removes the player's navigator viewer.
+func (player *Player) CloseNavigator() (*navviewer.Viewer, bool) {
+	player.mutex.Lock()
+	defer player.mutex.Unlock()
+
+	if player.navigator == nil {
+		return nil, false
+	}
+
+	viewer := player.navigator
+	player.navigator = nil
+
+	return viewer, true
 }

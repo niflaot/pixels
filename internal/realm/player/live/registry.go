@@ -80,3 +80,19 @@ func (registry *Registry) Snapshot() []*Player {
 
 	return players
 }
+
+// NavigatorAudience returns players receiving navigator category counts.
+func (registry *Registry) NavigatorAudience() []*Player {
+	registry.mutex.RLock()
+	defer registry.mutex.RUnlock()
+
+	players := make([]*Player, 0, len(registry.players))
+	for _, player := range registry.players {
+		viewer, found := player.Navigator()
+		if found && viewer.ReceivesCategoryCounts() {
+			players = append(players, player)
+		}
+	}
+
+	return players
+}
