@@ -101,6 +101,16 @@ func TestUnitStatusesAreStable(t *testing.T) {
 	}
 }
 
+// TestUnitFaceTowardRotatesBodyAndHead verifies direct facing behavior.
+func TestUnitFaceTowardRotatesBodyAndHead(t *testing.T) {
+	roomUnit := unitForTest(t)
+	roomUnit.FaceToward(grid.MustPoint(2, 1))
+
+	if roomUnit.BodyRotation() != RotationEast || roomUnit.HeadRotation() != RotationEast {
+		t.Fatalf("expected east facing body=%d head=%d", roomUnit.BodyRotation(), roomUnit.HeadRotation())
+	}
+}
+
 // TestRotationBetweenDirections verifies directional rotation mapping.
 func TestRotationBetweenDirections(t *testing.T) {
 	tests := []struct {

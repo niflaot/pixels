@@ -78,6 +78,16 @@ func RoomSpawn(ctx context.Context, connections *netconn.Registry, active *live.
 	return RoomPacket(ctx, connections, active, packet, excludedPlayerID)
 }
 
+// RoomUnitStatus sends one unit status snapshot to active room occupants.
+func RoomUnitStatus(ctx context.Context, connections *netconn.Registry, active *live.Room, unit live.UnitSnapshot, excludedPlayerID int64) error {
+	packet, err := outstatus.Encode(projection.MovementStatuses([]live.Movement{{Unit: unit, Settled: true}}))
+	if err != nil {
+		return err
+	}
+
+	return RoomPacket(ctx, connections, active, packet, excludedPlayerID)
+}
+
 // RoomRemove sends a room unit remove packet to room occupants.
 func RoomRemove(ctx context.Context, connections *netconn.Registry, active *live.Room, unitID int64, excludedPlayerID int64) error {
 	packet, err := outremoved.Encode(unitID)

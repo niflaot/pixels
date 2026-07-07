@@ -1,4 +1,4 @@
-package walk
+package look
 
 import (
 	"context"
@@ -17,88 +17,8 @@ import (
 	netconn "github.com/niflaot/pixels/networking/connection"
 )
 
-// TestHandleMovesPlayer verifies walk command handling.
-func TestHandleMovesPlayer(t *testing.T) {
-	handler, player := handlerForTest(t)
-	if err := player.EnterRoom(9); err != nil {
-		t.Fatalf("enter room: %v", err)
-	}
-
-	err := handler.Handle(context.Background(), command.Envelope[Command]{
-		Command: Command{Handler: connectionForTest(), X: 1, Y: 0},
-	})
-	if err != nil {
-		t.Fatalf("handle walk: %v", err)
-	}
-	room, _ := handler.Runtime.Find(9)
-	if units := room.Units(); len(units) != 1 || !units[0].Moving {
-		t.Fatalf("expected moving unit %#v", units)
-	}
-}
-
-// TestHandleFacesOccupiedTarget verifies occupied targets do not disconnect clients.
-func TestHandleFacesOccupiedTarget(t *testing.T) {
-	handler, player := handlerForTest(t)
-	if err := player.EnterRoom(9); err != nil {
-		t.Fatalf("enter room: %v", err)
-	}
-	connections := netconn.NewRegistry()
-	sent := registeredConnectionForWalkTest(t, connections, "conn")
-	handler.Connections = connections
-	room, _ := handler.Runtime.Find(9)
-	if _, err := room.Join(roomlive.Occupant{PlayerID: 8, Username: "other", ConnectionID: "other", ConnectionKind: "websocket"}); err != nil {
-		t.Fatalf("join other: %v", err)
-	}
-	if _, err := room.MoveTo(8, grid.MustPoint(1, 0)); err != nil {
-		t.Fatalf("move other: %v", err)
-	}
-	if movements := room.Tick(); len(movements) != 1 {
-		t.Fatalf("expected other movement %#v", movements)
-	}
-
-	err := handler.Handle(context.Background(), command.Envelope[Command]{
-		Command: Command{Handler: connectionForTest(), X: 1, Y: 0},
-	})
-	if err != nil {
-		t.Fatalf("handle occupied walk: %v", err)
-	}
-	units := room.Units()
-	if len(units) != 2 || units[0].BodyRotation != worldunit.RotationEast {
-		t.Fatalf("expected player facing target %#v", units)
-	}
-	if len(*sent) != 1 || (*sent)[0].Header != 1640 {
-		t.Fatalf("expected status packet, got %#v", *sent)
-	}
-}
-
-// TestHandleRejectsMissingRoomPresence verifies room presence validation.
-func TestHandleRejectsMissingRoomPresence(t *testing.T) {
-	handler, _ := handlerForTest(t)
-	err := handler.Handle(context.Background(), command.Envelope[Command]{
-		Command: Command{Handler: connectionForTest(), X: 1, Y: 0},
-	})
-	if !errors.Is(err, ErrPlayerNotInRoom) {
-		t.Fatalf("expected player not in room, got %v", err)
-	}
-}
-
-// TestHandleRejectsInvalidTarget verifies target validation.
-func TestHandleRejectsInvalidTarget(t *testing.T) {
-	handler, player := handlerForTest(t)
-	if err := player.EnterRoom(9); err != nil {
-		t.Fatalf("enter room: %v", err)
-	}
-
-	err := handler.Handle(context.Background(), command.Envelope[Command]{
-		Command: Command{Handler: connectionForTest(), X: -1, Y: 0},
-	})
-	if !errors.Is(err, ErrInvalidTarget) {
-		t.Fatalf("expected invalid target, got %v", err)
-	}
-}
-
-// TestCommandNameAndSoftMoveErrors verifies command identity and soft failures.
-func TestCommandNameAndSoftMoveErrors(t *testing.T) {
+// TestHandleFacesTarget verifies look command status broadcasting.
+func TestHandleFacesTarget(t *testing.T) {
 	handler, player := handlerForTest(t)
 	if (Command{}).CommandName() != Name {
 		t.Fatalf("unexpected command name %s", (Command{}).CommandName())
@@ -106,29 +26,88 @@ func TestCommandNameAndSoftMoveErrors(t *testing.T) {
 	if err := player.EnterRoom(9); err != nil {
 		t.Fatalf("enter room: %v", err)
 	}
-	room, _ := handler.Runtime.Find(9)
+	connections := netconn.NewRegistry()
+	sent := registeredConnectionForLookTest(t, connections, "conn")
+	handler.Connections = connections
 
-	err := handler.handleMoveError(context.Background(), room, 7, grid.MustPoint(1, 0), worldpath.ErrNoPath)
+	err := handler.Handle(context.Background(), command.Envelope[Command]{
+		Command: Command{Handler: connectionForTest(), X: 1, Y: 0},
+	})
 	if err != nil {
-		t.Fatalf("handle soft move: %v", err)
+		t.Fatalf("handle look: %v", err)
 	}
+	room, _ := handler.Runtime.Find(9)
 	units := room.Units()
 	if len(units) != 1 || units[0].BodyRotation != worldunit.RotationEast {
 		t.Fatalf("expected facing unit %#v", units)
 	}
-
-	err = handler.handleMoveError(context.Background(), room, 99, grid.MustPoint(1, 0), worldpath.ErrNoPath)
-	if err != nil {
-		t.Fatalf("handle missing unit soft move: %v", err)
-	}
-	hardErr := errors.New("hard failure")
-	err = handler.handleMoveError(context.Background(), room, 7, grid.MustPoint(1, 0), hardErr)
-	if !errors.Is(err, hardErr) {
-		t.Fatalf("expected hard error, got %v", err)
+	if len(*sent) != 1 || (*sent)[0].Header != 1640 {
+		t.Fatalf("expected status packet, got %#v", *sent)
 	}
 }
 
-// handlerForTest creates a walk command handler.
+// TestHandleFacesWithoutConnections verifies local state updates without broadcasting.
+func TestHandleFacesWithoutConnections(t *testing.T) {
+	handler, player := handlerForTest(t)
+	if err := player.EnterRoom(9); err != nil {
+		t.Fatalf("enter room: %v", err)
+	}
+
+	err := handler.Handle(context.Background(), command.Envelope[Command]{
+		Command: Command{Handler: connectionForTest(), X: 1, Y: 0},
+	})
+	if err != nil {
+		t.Fatalf("handle look: %v", err)
+	}
+	room, _ := handler.Runtime.Find(9)
+	if movingUnit(room, 99) {
+		t.Fatal("unexpected missing moving unit")
+	}
+}
+
+// TestHandleSkipsMovingUnit verifies look does not cancel active walking.
+func TestHandleSkipsMovingUnit(t *testing.T) {
+	handler, player := handlerForTest(t)
+	if err := player.EnterRoom(9); err != nil {
+		t.Fatalf("enter room: %v", err)
+	}
+	room, _ := handler.Runtime.Find(9)
+	if _, err := room.MoveTo(7, grid.MustPoint(1, 0)); err != nil {
+		t.Fatalf("move unit: %v", err)
+	}
+
+	err := handler.Handle(context.Background(), command.Envelope[Command]{
+		Command: Command{Handler: connectionForTest(), X: 1, Y: 0},
+	})
+	if err != nil {
+		t.Fatalf("handle moving look: %v", err)
+	}
+	if units := room.Units(); len(units) != 1 || !units[0].Moving {
+		t.Fatalf("expected movement to continue %#v", units)
+	}
+}
+
+// TestHandleRejectsInvalidState verifies look command guards.
+func TestHandleRejectsInvalidState(t *testing.T) {
+	handler, player := handlerForTest(t)
+	err := handler.Handle(context.Background(), command.Envelope[Command]{
+		Command: Command{Handler: connectionForTest(), X: 1, Y: 0},
+	})
+	if !errors.Is(err, ErrPlayerNotInRoom) {
+		t.Fatalf("expected player not in room, got %v", err)
+	}
+	if err := player.EnterRoom(9); err != nil {
+		t.Fatalf("enter room: %v", err)
+	}
+	err = handler.Handle(context.Background(), command.Envelope[Command]{
+		Command: Command{Handler: connectionForTest(), X: -1, Y: 0},
+	})
+	if !errors.Is(err, ErrInvalidTarget) {
+		t.Fatalf("expected invalid target, got %v", err)
+	}
+}
+
+// handlerForTest creates a look command handler.
 func handlerForTest(t *testing.T) (Handler, *playerlive.Player) {
 	t.Helper()
 
@@ -185,8 +164,8 @@ func occupantForTest(playerID int64) roomlive.Occupant {
 	return roomlive.Occupant{PlayerID: playerID, Username: "demo", ConnectionID: netconn.ID("conn"), ConnectionKind: netconn.Kind("websocket")}
 }
 
-// registeredConnectionForWalkTest creates a registered test connection.
-func registeredConnectionForWalkTest(t *testing.T, connections *netconn.Registry, id netconn.ID) *[]codec.Packet {
+// registeredConnectionForLookTest creates a registered test connection.
+func registeredConnectionForLookTest(t *testing.T, connections *netconn.Registry, id netconn.ID) *[]codec.Packet {
 	t.Helper()
 
 	outbound := netconn.NewHandlerRegistry()

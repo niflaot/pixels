@@ -40,6 +40,28 @@ func TestRoomSpawnSkipsMissingRecords(t *testing.T) {
 	}
 }
 
+// TestRoomUnitStatusEncodesPacket verifies focused unit status broadcasting.
+func TestRoomUnitStatusEncodesPacket(t *testing.T) {
+	connections := netconn.NewRegistry()
+	sent := registerConnectionForTest(t, connections, "conn")
+	room := loadedRoomForSpawnTest(t)
+	if _, err := room.Join(live.Occupant{PlayerID: 7, Username: "demo", ConnectionID: "conn", ConnectionKind: "websocket"}); err != nil {
+		t.Fatalf("join room: %v", err)
+	}
+	units := room.Units()
+	if len(units) != 1 {
+		t.Fatalf("expected one room unit %#v", units)
+	}
+
+	err := RoomUnitStatus(context.Background(), connections, room, units[0], 0)
+	if err != nil {
+		t.Fatalf("unit status: %v", err)
+	}
+	if len(*sent) != 1 || (*sent)[0].Header != 1640 {
+		t.Fatalf("unexpected status packets %#v", *sent)
+	}
+}
+
 // loadedRoomForSpawnTest creates a loaded room for spawn projections.
 func loadedRoomForSpawnTest(t *testing.T) *live.Room {
 	t.Helper()

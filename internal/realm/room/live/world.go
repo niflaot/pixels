@@ -101,6 +101,24 @@ func (room *Room) MoveTo(playerID int64, goal grid.Point) (worldpath.Path, error
 	return roomPath, nil
 }
 
+// FaceTo rotates a unit toward a target point and clears pending movement.
+func (room *Room) FaceTo(playerID int64, target grid.Point) (UnitSnapshot, error) {
+	room.mutex.Lock()
+	defer room.mutex.Unlock()
+
+	if room.world == nil {
+		return UnitSnapshot{}, ErrWorldNotLoaded
+	}
+	roomUnit, ok := room.world.units[playerID]
+	if !ok {
+		return UnitSnapshot{}, ErrUnitNotFound
+	}
+	roomUnit.ClearPath()
+	roomUnit.FaceToward(target)
+
+	return unitSnapshot(playerID, roomUnit), nil
+}
+
 // Tick advances room world movement once.
 func (room *Room) Tick() []Movement {
 	room.mutex.Lock()
@@ -201,12 +219,15 @@ func (world *World) clearUnits() {
 
 // occupancyExcept returns occupied positions except one player.
 func (world *World) occupancyExcept(playerID int64) worldpath.Occupancy {
-	positions := make([]worldpath.Position, 0, len(world.units))
+	positions := make([]worldpath.Position, 0, len(world.units)*2)
 	for occupantID, roomUnit := range world.units {
 		if occupantID == playerID {
 			continue
 		}
 		positions = append(positions, roomUnit.Position())
+		if goal, ok := roomUnit.Goal(); ok {
+			positions = append(positions, goal)
+		}
 	}
 
 	return worldpath.NewOccupancy(positions)

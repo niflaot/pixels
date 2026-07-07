@@ -1,5 +1,7 @@
 package unit
 
+import "github.com/niflaot/pixels/internal/realm/room/world/grid"
+
 // Rotation stores a Habbo-style directional rotation.
 type Rotation uint8
 
@@ -53,6 +55,13 @@ func RotationBetween(fromX uint16, fromY uint16, toX uint16, toY uint16) Rotatio
 	default:
 		return RotationSouth
 	}
+}
+
+// FaceToward rotates the unit toward a target point.
+func (unit *Unit) FaceToward(point grid.Point) {
+	rotation := RotationBetween(unit.position.Point.X, unit.position.Point.Y, point.X, point.Y)
+	unit.body = rotation
+	unit.head = rotation
 }
 
 // compareUint16 compares two unsigned coordinates.
