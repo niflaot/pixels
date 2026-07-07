@@ -45,6 +45,9 @@ type Unit struct {
 	// hasGoal reports whether goal is active.
 	hasGoal bool
 
+	// settling reports whether movement needs a final clean status.
+	settling bool
+
 	// steps stores pending path steps.
 	steps []path.Step
 

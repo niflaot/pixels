@@ -38,13 +38,37 @@ func TestNilRoomProjection(t *testing.T) {
 // TestMovementStatuses verifies movement projection records.
 func TestMovementStatuses(t *testing.T) {
 	movements := []roomlive.Movement{{
-		Unit: roomlive.UnitSnapshot{UnitID: 1},
-		Step: worldpath.Step{Position: worldpath.Position{Point: grid.MustPoint(2, 3), Z: 1}},
+		Unit: roomlive.UnitSnapshot{
+			UnitID:   1,
+			Previous: worldpath.Position{Point: grid.MustPoint(1, 3), Z: 0},
+			Moving:   true,
+		},
+		Step:  worldpath.Step{Position: worldpath.Position{Point: grid.MustPoint(2, 3), Z: 1}},
+		Moved: true,
 	}}
 
 	statusRecords := MovementStatuses(movements)
-	if len(statusRecords) != 1 || statusRecords[0].Actions[0].Value != "2,3,1" {
+	if len(statusRecords) != 1 || statusRecords[0].Actions[0].Value != "2,3,1" || statusRecords[0].X != 1 {
 		t.Fatalf("unexpected movement statuses %#v", statusRecords)
+	}
+}
+
+// TestMovementStatusesStopsAtFinalPosition verifies the final movement status.
+func TestMovementStatusesStopsAtFinalPosition(t *testing.T) {
+	movements := []roomlive.Movement{{
+		Unit: roomlive.UnitSnapshot{
+			UnitID:   1,
+			Position: worldpath.Position{Point: grid.MustPoint(2, 3), Z: 1},
+			Previous: worldpath.Position{Point: grid.MustPoint(1, 3), Z: 0},
+			Moving:   false,
+		},
+		Step:    worldpath.Step{Position: worldpath.Position{Point: grid.MustPoint(2, 3), Z: 1}},
+		Settled: true,
+	}}
+
+	statusRecords := MovementStatuses(movements)
+	if len(statusRecords) != 1 || len(statusRecords[0].Actions) != 0 || statusRecords[0].X != 2 || statusRecords[0].Y != 3 {
+		t.Fatalf("unexpected final movement statuses %#v", statusRecords)
 	}
 }
 

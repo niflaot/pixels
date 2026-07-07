@@ -6,6 +6,7 @@ import (
 	"github.com/niflaot/pixels/internal/realm/room/layout"
 	roommodel "github.com/niflaot/pixels/internal/realm/room/model"
 	netconn "github.com/niflaot/pixels/networking/connection"
+	outentrytile "github.com/niflaot/pixels/networking/outbound/room/entrytile"
 	outmodel "github.com/niflaot/pixels/networking/outbound/room/model"
 	outmodelname "github.com/niflaot/pixels/networking/outbound/room/modelname"
 )
@@ -25,7 +26,15 @@ func SendModel(ctx context.Context, connection netconn.Context, room roommodel.R
 		return err
 	}
 
-	modelPacket, err := outmodel.Encode(false, DefaultWallHeight, roomLayout.Heightmap)
+	entryPacket, err := outentrytile.Encode(int32(roomLayout.DoorX), int32(roomLayout.DoorY), int32(roomLayout.DoorDirection))
+	if err != nil {
+		return err
+	}
+	if err := connection.Send(ctx, entryPacket); err != nil {
+		return err
+	}
+
+	modelPacket, err := outmodel.Encode(true, DefaultWallHeight, roomLayout.Heightmap)
 	if err != nil {
 		return err
 	}

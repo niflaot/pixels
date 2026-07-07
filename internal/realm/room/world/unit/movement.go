@@ -11,6 +11,7 @@ func (unit *Unit) SetPath(roomPath path.Path) {
 	steps := roomPath.Steps()
 	unit.steps = steps
 	unit.hasGoal = len(steps) > 0
+	unit.settling = false
 	if unit.hasGoal {
 		unit.goal = steps[len(steps)-1].Position
 		unit.setMoveStatus(steps[0].Position)
@@ -21,6 +22,7 @@ func (unit *Unit) SetPath(roomPath path.Path) {
 func (unit *Unit) ClearPath() {
 	unit.steps = nil
 	unit.hasGoal = false
+	unit.settling = false
 	unit.statuses.clear(StatusMove)
 }
 
@@ -40,9 +42,15 @@ func (unit *Unit) PendingSteps() int {
 }
 
 // Advance moves the unit by one pending step.
-func (unit *Unit) Advance() (path.Step, bool) {
+func (unit *Unit) Advance() (path.Step, bool, bool) {
 	if len(unit.steps) == 0 {
-		return path.Step{}, false
+		if !unit.settling {
+			return path.Step{}, false, false
+		}
+		unit.settling = false
+		unit.statuses.clear(StatusMove)
+
+		return path.Step{}, false, true
 	}
 
 	step := unit.steps[0]
@@ -50,14 +58,13 @@ func (unit *Unit) Advance() (path.Step, bool) {
 	unit.previous = unit.position
 	unit.position = step.Position
 	unit.rotateToward(step.Position)
+	unit.setMoveStatus(step.Position)
 	if len(unit.steps) == 0 {
 		unit.hasGoal = false
-		unit.statuses.clear(StatusMove)
-	} else {
-		unit.setMoveStatus(unit.steps[0].Position)
+		unit.settling = true
 	}
 
-	return step, true
+	return step, true, false
 }
 
 // setMoveStatus stores the next movement status.

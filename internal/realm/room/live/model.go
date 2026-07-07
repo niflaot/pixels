@@ -131,6 +131,12 @@ type Movement struct {
 
 	// Step stores the accepted path step.
 	Step worldpath.Step
+
+	// Moved reports whether the tick advanced to Step.
+	Moved bool
+
+	// Settled reports whether the tick cleared movement status.
+	Settled bool
 }
 
 // MovementPublisher publishes room tick movements.

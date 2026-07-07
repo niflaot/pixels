@@ -51,25 +51,5 @@ func (handler Handler) broadcastJoined(ctx context.Context, active *roomlive.Roo
 		return nil
 	}
 
-	unitRecords := projection.Units(active, playerID)
-	if len(unitRecords) > 0 {
-		packet, err := outunits.Encode(unitRecords)
-		if err != nil {
-			return err
-		}
-		if err := broadcast.RoomPacket(ctx, handler.Connections, active, packet, playerID); err != nil {
-			return err
-		}
-	}
-
-	statusRecords := projection.Statuses(active, playerID)
-	if len(statusRecords) == 0 {
-		return nil
-	}
-	packet, err := outstatus.Encode(statusRecords)
-	if err != nil {
-		return err
-	}
-
-	return broadcast.RoomPacket(ctx, handler.Connections, active, packet, playerID)
+	return broadcast.RoomSpawn(ctx, handler.Connections, active, playerID, playerID)
 }

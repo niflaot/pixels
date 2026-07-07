@@ -64,11 +64,7 @@ func Statuses(room *roomlive.Room, playerIDs ...int64) []outstatus.Unit {
 func MovementStatuses(movements []roomlive.Movement) []outstatus.Unit {
 	records := make([]outstatus.Unit, 0, len(movements))
 	for _, movement := range movements {
-		actions := []outstatus.Action{{
-			Key:   worldunit.StatusMove,
-			Value: positionValue(movement.Step.Position),
-		}}
-		records = append(records, statusRecord(movement.Unit, actions))
+		records = append(records, movementStatusRecord(movement))
 	}
 
 	return records
@@ -96,11 +92,30 @@ func unitRecord(occupant roomlive.Occupant, unit roomlive.UnitSnapshot) outunits
 
 // statusRecord maps one live unit to one protocol status.
 func statusRecord(unit roomlive.UnitSnapshot, actions []outstatus.Action) outstatus.Unit {
+	return statusPositionRecord(unit, unit.Previous, actions)
+}
+
+// movementStatusRecord maps one movement tick to a protocol status.
+func movementStatusRecord(movement roomlive.Movement) outstatus.Unit {
+	if !movement.Moved {
+		return statusPositionRecord(movement.Unit, movement.Unit.Position, statusActions(movement.Unit.Statuses))
+	}
+
+	actions := []outstatus.Action{{
+		Key:   worldunit.StatusMove,
+		Value: positionValue(movement.Step.Position),
+	}}
+
+	return statusRecord(movement.Unit, actions)
+}
+
+// statusPositionRecord maps one live unit position to one protocol status.
+func statusPositionRecord(unit roomlive.UnitSnapshot, position worldpath.Position, actions []outstatus.Action) outstatus.Unit {
 	return outstatus.Unit{
 		RoomIndex:     unit.UnitID,
-		X:             int32(unit.Previous.Point.X),
-		Y:             int32(unit.Previous.Point.Y),
-		Z:             heightValue(unit.Previous.Z),
+		X:             int32(position.Point.X),
+		Y:             int32(position.Point.Y),
+		Z:             heightValue(position.Z),
 		HeadDirection: int32(unit.HeadRotation),
 		BodyDirection: int32(unit.BodyRotation),
 		Actions:       actions,

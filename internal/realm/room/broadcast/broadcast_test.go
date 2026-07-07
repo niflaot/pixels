@@ -145,6 +145,32 @@ func TestRoomPacketReturnsSendError(t *testing.T) {
 	}
 }
 
+// TestRoomPacketContinuesAfterSendError verifies best-effort delivery.
+func TestRoomPacketContinuesAfterSendError(t *testing.T) {
+	sendErr := errors.New("send failed")
+	connections := netconn.NewRegistry()
+	registerFailingConnectionForTest(t, connections, "bad", sendErr)
+	sent := registerConnectionForTest(t, connections, "good")
+	room, err := live.NewRoom(live.Snapshot{ID: 9, MaxUsers: 5})
+	if err != nil {
+		t.Fatalf("create room: %v", err)
+	}
+	if _, err := room.Join(live.Occupant{PlayerID: 7, Username: "bad", ConnectionID: "bad", ConnectionKind: "websocket"}); err != nil {
+		t.Fatalf("join bad room: %v", err)
+	}
+	if _, err := room.Join(live.Occupant{PlayerID: 8, Username: "good", ConnectionID: "good", ConnectionKind: "websocket"}); err != nil {
+		t.Fatalf("join good room: %v", err)
+	}
+
+	err = RoomPacket(context.Background(), connections, room, codec.Packet{Header: 9}, 0)
+	if !errors.Is(err, sendErr) {
+		t.Fatalf("expected send error, got %v", err)
+	}
+	if len(*sent) != 1 || (*sent)[0].Header != 9 {
+		t.Fatalf("expected good connection delivery, got %#v", *sent)
+	}
+}
+
 // registerConnectionForTest registers a captured test connection.
 func registerConnectionForTest(t *testing.T, connections *netconn.Registry, id netconn.ID) *[]codec.Packet {
 	t.Helper()
@@ -174,4 +200,31 @@ func registerConnectionForTest(t *testing.T, connections *netconn.Registry, id n
 	}
 
 	return &sent
+}
+
+// registerFailingConnectionForTest registers a failing test connection.
+func registerFailingConnectionForTest(t *testing.T, connections *netconn.Registry, id netconn.ID, sendErr error) {
+	t.Helper()
+
+	outbound := netconn.NewHandlerRegistry()
+	outbound.SetFallback(func(netconn.Context, codec.Packet) error {
+		return nil
+	}, netconn.AllowAnyActiveState(), netconn.AllowUnauthenticated())
+	session, err := netconn.NewSession(netconn.SessionConfig{
+		ID:       id,
+		Kind:     "websocket",
+		Outbound: outbound,
+		Sender: func(context.Context, codec.Packet) error {
+			return sendErr
+		},
+		Disposer: func(context.Context, netconn.Reason) error {
+			return nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if err := connections.Register(session); err != nil {
+		t.Fatalf("register session: %v", err)
+	}
 }

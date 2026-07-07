@@ -114,11 +114,17 @@ func (room *Room) Tick() []Movement {
 	movements := make([]Movement, 0, len(playerIDs))
 	for _, playerID := range playerIDs {
 		roomUnit := room.world.units[playerID]
-		step, moved := roomUnit.Advance()
-		if !moved {
+		step, moved, settled := roomUnit.Advance()
+		if !moved && !settled {
 			continue
 		}
-		movements = append(movements, Movement{PlayerID: playerID, Unit: unitSnapshot(playerID, roomUnit), Step: step})
+		movements = append(movements, Movement{
+			PlayerID: playerID,
+			Unit:     unitSnapshot(playerID, roomUnit),
+			Step:     step,
+			Moved:    moved,
+			Settled:  settled,
+		})
 	}
 
 	return movements

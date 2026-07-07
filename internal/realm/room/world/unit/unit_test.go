@@ -48,8 +48,8 @@ func TestUnitAdvancesPath(t *testing.T) {
 	}
 	assertStatus(t, roomUnit, StatusMove, "2,1,0")
 
-	step, ok := roomUnit.Advance()
-	if !ok || step.Position != positionForTest(2, 1, 0) {
+	step, moved, settled := roomUnit.Advance()
+	if !moved || settled || step.Position != positionForTest(2, 1, 0) {
 		t.Fatalf("unexpected first step %#v found=%v", step, ok)
 	}
 	if roomUnit.Previous() != positionForTest(1, 1, 0) || roomUnit.Position() != positionForTest(2, 1, 0) {
@@ -58,14 +58,20 @@ func TestUnitAdvancesPath(t *testing.T) {
 	if roomUnit.BodyRotation() != RotationEast || roomUnit.HeadRotation() != RotationEast {
 		t.Fatalf("expected east rotation")
 	}
-	assertStatus(t, roomUnit, StatusMove, "2,2,1")
+	assertStatus(t, roomUnit, StatusMove, "2,1,0")
 
-	_, ok = roomUnit.Advance()
-	if !ok || roomUnit.Moving() || roomUnit.PendingSteps() != 0 {
+	_, moved, settled = roomUnit.Advance()
+	if !moved || settled || roomUnit.Moving() || roomUnit.PendingSteps() != 0 {
 		t.Fatalf("expected completed movement")
 	}
 	if _, ok := roomUnit.Goal(); ok {
 		t.Fatal("expected cleared goal")
+	}
+	assertStatus(t, roomUnit, StatusMove, "2,2,1")
+
+	_, moved, settled = roomUnit.Advance()
+	if moved || !settled {
+		t.Fatalf("expected settled movement moved=%v settled=%v", moved, settled)
 	}
 	assertNoStatus(t, roomUnit, StatusMove)
 }
@@ -135,8 +141,8 @@ func TestRotationBetweenDirections(t *testing.T) {
 func TestUnitAdvanceWithoutPathReportsMissingStep(t *testing.T) {
 	roomUnit := unitForTest(t)
 
-	_, ok := roomUnit.Advance()
-	if ok {
+	_, moved, settled := roomUnit.Advance()
+	if moved || settled {
 		t.Fatal("expected missing step")
 	}
 }
