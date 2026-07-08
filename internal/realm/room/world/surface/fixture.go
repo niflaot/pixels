@@ -83,6 +83,11 @@ func (fixture Fixture) Point() grid.Point {
 	return fixture.point
 }
 
+// SourceID returns the optional source record id.
+func (fixture Fixture) SourceID() int64 {
+	return fixture.sourceID
+}
+
 // Section converts the fixture to a resolved section.
 func (fixture Fixture) Section() Section {
 	return NewSection(SectionParams{

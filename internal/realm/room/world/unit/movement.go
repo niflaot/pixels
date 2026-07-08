@@ -9,9 +9,12 @@ import (
 // SetPath stores a new pending movement path.
 func (unit *Unit) SetPath(roomPath path.Path) {
 	steps := roomPath.Steps()
+	unit.activePath = roomPath
 	unit.steps = steps
 	unit.hasGoal = len(steps) > 0
 	unit.settling = false
+	unit.statuses.clear(StatusSit)
+	unit.statuses.clear(StatusLay)
 	if unit.hasGoal {
 		unit.goal = steps[len(steps)-1].Position
 		unit.setMoveStatus(steps[0].Position)
@@ -20,10 +23,28 @@ func (unit *Unit) SetPath(roomPath path.Path) {
 
 // ClearPath clears pending movement.
 func (unit *Unit) ClearPath() {
+	unit.activePath = path.Path{}
 	unit.steps = nil
 	unit.hasGoal = false
 	unit.settling = false
 	unit.statuses.clear(StatusMove)
+}
+
+// ValidatePath reports whether the unit's active path still matches the current world state.
+func (unit *Unit) ValidatePath(world path.World) error {
+	if len(unit.steps) == 0 && !unit.settling {
+		return nil
+	}
+
+	return unit.activePath.Validate(world)
+}
+
+// Settle finalizes a unit's landed status and rotation, replacing any pending movement status.
+func (unit *Unit) Settle(status string, value string, body Rotation, head Rotation) {
+	unit.statuses.clear(StatusMove)
+	unit.statuses.set(status, value)
+	unit.body = body
+	unit.head = head
 }
 
 // Moving reports whether the unit has pending steps.

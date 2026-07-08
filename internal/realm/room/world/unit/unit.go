@@ -48,6 +48,9 @@ type Unit struct {
 	// settling reports whether movement needs a final clean status.
 	settling bool
 
+	// activePath stores the accepted path used to validate staleness against the world.
+	activePath path.Path
+
 	// steps stores pending path steps.
 	steps []path.Step
 

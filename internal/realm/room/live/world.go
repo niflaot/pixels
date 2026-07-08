@@ -54,6 +54,18 @@ func (room *Room) LoadWorld(config WorldConfig) error {
 	return nil
 }
 
+// ReloadFixtures replaces the room world fixture set for one source without resetting existing units.
+func (room *Room) ReloadFixtures(sourceID int64, fixtures []surface.Fixture) error {
+	room.mutex.Lock()
+	defer room.mutex.Unlock()
+
+	if room.world == nil {
+		return ErrWorldNotLoaded
+	}
+
+	return room.world.resolver.ReplaceFixtures(sourceID, fixtures)
+}
+
 // UnloadWorld unloads room world behavior.
 func (room *Room) UnloadWorld() {
 	room.mutex.Lock()
@@ -68,100 +80,6 @@ func (room *Room) WorldLoaded() bool {
 	defer room.mutex.RUnlock()
 
 	return room.world != nil
-}
-
-// MoveTo sets a unit movement goal.
-func (room *Room) MoveTo(playerID int64, goal grid.Point) (worldpath.Path, error) {
-	runtime, start, occupancy, err := room.movementSnapshot(playerID)
-	if err != nil {
-		return worldpath.Path{}, err
-	}
-
-	finder := worldpath.NewFinderWithOccupancy(runtime.resolver, runtime.rules, occupancy)
-	roomPath, err := finder.Find(start, goal)
-	if err != nil {
-		return worldpath.Path{}, err
-	}
-
-	room.mutex.Lock()
-	defer room.mutex.Unlock()
-
-	if room.world != runtime {
-		return worldpath.Path{}, worldpath.ErrInvalidPath
-	}
-	roomUnit, ok := room.world.units[playerID]
-	if !ok {
-		return worldpath.Path{}, ErrUnitNotFound
-	}
-	if err := roomPath.Validate(room.world.resolver); err != nil {
-		return worldpath.Path{}, err
-	}
-	roomUnit.SetPath(roomPath)
-
-	return roomPath, nil
-}
-
-// FaceTo rotates a unit toward a target point and clears pending movement.
-func (room *Room) FaceTo(playerID int64, target grid.Point) (UnitSnapshot, error) {
-	room.mutex.Lock()
-	defer room.mutex.Unlock()
-
-	if room.world == nil {
-		return UnitSnapshot{}, ErrWorldNotLoaded
-	}
-	roomUnit, ok := room.world.units[playerID]
-	if !ok {
-		return UnitSnapshot{}, ErrUnitNotFound
-	}
-	roomUnit.ClearPath()
-	roomUnit.FaceToward(target)
-
-	return unitSnapshot(playerID, roomUnit), nil
-}
-
-// Tick advances room world movement once.
-func (room *Room) Tick() []Movement {
-	room.mutex.Lock()
-	defer room.mutex.Unlock()
-
-	if room.world == nil {
-		return nil
-	}
-
-	playerIDs := room.world.sortedPlayerIDs()
-	movements := make([]Movement, 0, len(playerIDs))
-	for _, playerID := range playerIDs {
-		roomUnit := room.world.units[playerID]
-		step, moved, settled := roomUnit.Advance()
-		if !moved && !settled {
-			continue
-		}
-		movements = append(movements, Movement{
-			PlayerID: playerID,
-			Unit:     unitSnapshot(playerID, roomUnit),
-			Step:     step,
-			Moved:    moved,
-			Settled:  settled,
-		})
-	}
-
-	return movements
-}
-
-// movementSnapshot returns data needed to calculate movement outside the room lock.
-func (room *Room) movementSnapshot(playerID int64) (*World, worldpath.Position, worldpath.Occupancy, error) {
-	room.mutex.RLock()
-	defer room.mutex.RUnlock()
-
-	if room.world == nil {
-		return nil, worldpath.Position{}, worldpath.Occupancy{}, ErrWorldNotLoaded
-	}
-	roomUnit, ok := room.world.units[playerID]
-	if !ok {
-		return nil, worldpath.Position{}, worldpath.Occupancy{}, ErrUnitNotFound
-	}
-
-	return room.world, roomUnit.Position(), room.world.occupancyExcept(playerID), nil
 }
 
 // newWorld creates loaded world state.

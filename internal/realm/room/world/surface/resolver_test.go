@@ -126,6 +126,99 @@ func TestResolverAddFixtureBumpsVersion(t *testing.T) {
 	}
 }
 
+// TestResolverRemoveFixturesClearsTileAndBumpsVersion verifies fixture removal.
+func TestResolverRemoveFixturesClearsTileAndBumpsVersion(t *testing.T) {
+	point := grid.MustPoint(1, 1)
+	resolver := resolverForTest(t, []Fixture{
+		fixtureForTest(t, FixtureParams{Point: point, Z: 6, Top: 6, State: StateBlocked, SourceID: 42}),
+	})
+
+	removed := resolver.RemoveFixtures(42)
+	if removed != 1 {
+		t.Fatalf("expected one removed fixture, got %d", removed)
+	}
+
+	column, err := resolver.Column(point)
+	if err != nil {
+		t.Fatalf("resolve column: %v", err)
+	}
+	if column.Version() != 2 {
+		t.Fatalf("expected version bumped twice, got %d", column.Version())
+	}
+	if len(column.Sections()) != 1 {
+		t.Fatalf("expected fixture removed, got %d sections", len(column.Sections()))
+	}
+	assertSection(t, column.Sections()[0], grid.Height(4), StateOpen, SourceBase)
+}
+
+// TestResolverRemoveFixturesIgnoresUnknownSource verifies removal is a no-op for unmatched sources.
+func TestResolverRemoveFixturesIgnoresUnknownSource(t *testing.T) {
+	point := grid.MustPoint(1, 1)
+	resolver := resolverForTest(t, []Fixture{
+		fixtureForTest(t, FixtureParams{Point: point, Z: 6, Top: 6, State: StateBlocked, SourceID: 42}),
+	})
+
+	if removed := resolver.RemoveFixtures(99); removed != 0 {
+		t.Fatalf("expected no fixtures removed, got %d", removed)
+	}
+
+	column, err := resolver.Column(point)
+	if err != nil {
+		t.Fatalf("resolve column: %v", err)
+	}
+	if column.Version() != 1 || len(column.Sections()) != 2 {
+		t.Fatalf("expected untouched column, got version=%d sections=%d", column.Version(), len(column.Sections()))
+	}
+}
+
+// TestResolverReplaceFixturesMovesFootprint verifies atomic replacement across tiles.
+func TestResolverReplaceFixturesMovesFootprint(t *testing.T) {
+	oldPoint := grid.MustPoint(1, 1)
+	newPoint := grid.MustPoint(2, 1)
+	wideGrid, err := grid.Parse("xxxx\rx44x\rxxxx")
+	if err != nil {
+		t.Fatalf("parse grid: %v", err)
+	}
+	resolver, err := NewResolver(wideGrid, []Fixture{
+		fixtureForTest(t, FixtureParams{Point: oldPoint, Z: 6, Top: 6, State: StateBlocked, SourceID: 7}),
+	})
+	if err != nil {
+		t.Fatalf("create resolver: %v", err)
+	}
+
+	if err := resolver.ReplaceFixtures(7, []Fixture{
+		fixtureForTest(t, FixtureParams{Point: newPoint, Z: 6, Top: 6, State: StateBlocked, SourceID: 7}),
+	}); err != nil {
+		t.Fatalf("replace fixtures: %v", err)
+	}
+
+	oldColumn, err := resolver.Column(oldPoint)
+	if err != nil {
+		t.Fatalf("resolve old column: %v", err)
+	}
+	assertSection(t, oldColumn.Sections()[0], grid.Height(4), StateOpen, SourceBase)
+
+	newColumn, err := resolver.Column(newPoint)
+	if err != nil {
+		t.Fatalf("resolve new column: %v", err)
+	}
+	if len(newColumn.Sections()) != 2 {
+		t.Fatalf("expected fixture moved to new tile, got %d sections", len(newColumn.Sections()))
+	}
+	assertSection(t, newColumn.Sections()[1], grid.Height(6), StateBlocked, SourceFixture)
+}
+
+// TestResolverReplaceFixturesRejectsInvalidTile verifies replacement validation.
+func TestResolverReplaceFixturesRejectsInvalidTile(t *testing.T) {
+	resolver := resolverForTest(t, nil)
+
+	invalid := fixtureForTest(t, FixtureParams{Point: grid.MustPoint(0, 0), Z: 1, Top: 1, State: StateOpen})
+	err := resolver.ReplaceFixtures(7, []Fixture{invalid})
+	if !errors.Is(err, ErrInvalidTile) {
+		t.Fatalf("expected invalid tile, got %v", err)
+	}
+}
+
 // assertSection verifies a resolved section.
 func assertSection(t *testing.T, section Section, height grid.Height, state State, source Source) {
 	t.Helper()

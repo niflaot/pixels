@@ -6,6 +6,7 @@ import (
 
 	"github.com/niflaot/pixels/internal/realm/room/world/grid"
 	"github.com/niflaot/pixels/internal/realm/room/world/path"
+	"github.com/niflaot/pixels/internal/realm/room/world/surface"
 )
 
 // TestNewRejectsInvalidUnit verifies unit creation validation.
@@ -74,6 +75,72 @@ func TestUnitAdvancesPath(t *testing.T) {
 		t.Fatalf("expected settled movement moved=%v settled=%v", moved, settled)
 	}
 	assertNoStatus(t, roomUnit, StatusMove)
+}
+
+// TestUnitSetPathClearsSitAndLay verifies standing up when a new goal is set.
+func TestUnitSetPathClearsSitAndLay(t *testing.T) {
+	roomUnit := unitForTest(t)
+	roomUnit.SetStatus(StatusSit, "4")
+	roomUnit.SetStatus(StatusLay, "4")
+
+	roomUnit.SetPath(path.NewPath([]path.Step{{Position: positionForTest(2, 1, 0)}}))
+
+	assertNoStatus(t, roomUnit, StatusSit)
+	assertNoStatus(t, roomUnit, StatusLay)
+}
+
+// TestUnitSettleAppliesStatusAndForcedRotation verifies landed seat/lay state.
+func TestUnitSettleAppliesStatusAndForcedRotation(t *testing.T) {
+	roomUnit := unitForTest(t)
+	roomUnit.SetPath(path.NewPath([]path.Step{{Position: positionForTest(2, 1, 0)}}))
+	roomUnit.Advance()
+
+	roomUnit.Settle(StatusSit, "4", RotationNorth, RotationWest)
+
+	assertStatus(t, roomUnit, StatusSit, "4")
+	assertNoStatus(t, roomUnit, StatusMove)
+	if roomUnit.BodyRotation() != RotationNorth || roomUnit.HeadRotation() != RotationWest {
+		t.Fatalf("expected forced rotation body=%d head=%d", roomUnit.BodyRotation(), roomUnit.HeadRotation())
+	}
+}
+
+// TestUnitValidatePathDetectsStaleColumns verifies path staleness detection.
+func TestUnitValidatePathDetectsStaleColumns(t *testing.T) {
+	roomUnit := unitForTest(t)
+	if err := roomUnit.ValidatePath(nil); err != nil {
+		t.Fatalf("expected no validation without movement, got %v", err)
+	}
+
+	roomGrid, err := grid.Parse("000")
+	if err != nil {
+		t.Fatalf("parse grid: %v", err)
+	}
+	resolver, err := surface.NewResolver(roomGrid, nil)
+	if err != nil {
+		t.Fatalf("create resolver: %v", err)
+	}
+	finder := path.NewFinder(resolver, path.DefaultRules())
+	roomPath, err := finder.Find(path.Position{Point: grid.MustPoint(0, 0), Z: 0}, grid.MustPoint(2, 0))
+	if err != nil {
+		t.Fatalf("find path: %v", err)
+	}
+	roomUnit.SetPath(roomPath)
+
+	if err := roomUnit.ValidatePath(resolver); err != nil {
+		t.Fatalf("expected fresh path to validate, got %v", err)
+	}
+
+	changed, err := surface.NewFixture(surface.FixtureParams{Point: grid.MustPoint(1, 0), Z: 1, Top: 1, State: surface.StateOpen})
+	if err != nil {
+		t.Fatalf("create fixture: %v", err)
+	}
+	if err := resolver.AddFixture(changed); err != nil {
+		t.Fatalf("add fixture: %v", err)
+	}
+
+	if err := roomUnit.ValidatePath(resolver); !errors.Is(err, path.ErrInvalidPath) {
+		t.Fatalf("expected invalid path after fixture change, got %v", err)
+	}
 }
 
 // TestUnitClearPath verifies movement cancellation.
