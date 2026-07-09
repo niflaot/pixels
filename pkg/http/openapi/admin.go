@@ -19,6 +19,7 @@ func adminOperations() []operation {
 		adminRoomAction("/api/admin/rooms/{id}/forward", "Forward active room occupants", &RoomForwardRequest{}),
 		adminNavigatorRead("/api/admin/navigator/categories", "List navigator categories", &APIKeyRequest{}, &CategoryListResponse{}),
 		adminNavigatorRead("/api/admin/navigator/lifted", "List navigator lifted rooms", &APIKeyRequest{}, &LiftedListResponse{}),
+		adminNotificationAction("/api/admin/players/{id}/notifications", "Send localized player notification", &PlayerNotificationRequest{}),
 	}
 }
 
@@ -64,6 +65,23 @@ func adminRoomRead(path string, summary string, request any, body any) operation
 // adminNavigatorRead creates a read-only navigator admin operation.
 func adminNavigatorRead(path string, summary string, request any, body any) operation {
 	return adminTaggedRead("Admin Navigator", path, summary, request, body)
+}
+
+// adminNotificationAction creates a player notification operation.
+func adminNotificationAction(path string, summary string, request any) operation {
+	return operation{
+		method:      http.MethodPost,
+		path:        path,
+		tag:         "Admin Players",
+		summary:     summary,
+		description: summary + ".",
+		request:     request,
+		responses: append(
+			[]response{jsonResponse(http.StatusOK, &PlayerNotificationResponse{}, "Notification sent.")},
+			errorResponses(http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound)...,
+		),
+		secured: true,
+	}
 }
 
 // adminRoomAction creates a room runtime admin operation.

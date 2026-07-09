@@ -8,15 +8,18 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/niflaot/pixels/internal/auth/sso"
 	navservice "github.com/niflaot/pixels/internal/realm/navigator/service"
+	playerlive "github.com/niflaot/pixels/internal/realm/player/live"
 	roomlive "github.com/niflaot/pixels/internal/realm/room/live"
 	roomservice "github.com/niflaot/pixels/internal/realm/room/service"
 	netconn "github.com/niflaot/pixels/networking/connection"
 	"github.com/niflaot/pixels/pkg/build"
 	"github.com/niflaot/pixels/pkg/config"
+	notificationroutes "github.com/niflaot/pixels/pkg/http/notification/routes"
 	"github.com/niflaot/pixels/pkg/http/openapi"
 	roomroutes "github.com/niflaot/pixels/pkg/http/room/routes"
 	ws "github.com/niflaot/pixels/pkg/http/websocket"
 	wsroutes "github.com/niflaot/pixels/pkg/http/websocket/routes"
+	"github.com/niflaot/pixels/pkg/i18n"
 )
 
 const development = "development"
@@ -29,10 +32,11 @@ func registerPublic(app *fiber.App, config config.AppConfig, info build.Info, we
 }
 
 // registerPrivate registers private authenticated fallback routes.
-func registerPrivate(app *fiber.App, sso *sso.Service, registry *netconn.Registry, rooms roomservice.Manager, runtime *roomlive.Registry, navigator navservice.Manager) {
+func registerPrivate(app *fiber.App, sso *sso.Service, registry *netconn.Registry, players *playerlive.Registry, rooms roomservice.Manager, runtime *roomlive.Registry, navigator navservice.Manager, translations i18n.Translator) {
 	app.Post("/api/sso/tickets", createSSOTicketHandler(sso))
 	wsroutes.Register(app, registry)
 	roomroutes.Register(app, rooms, runtime, registry, navigator)
+	notificationroutes.Register(app, players, registry, translations)
 	app.Use(notFoundHandler)
 }
 

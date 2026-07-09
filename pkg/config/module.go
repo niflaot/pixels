@@ -3,6 +3,7 @@ package config
 import (
 	"github.com/niflaot/pixels/internal/auth/sso"
 	appconfig "github.com/niflaot/pixels/pkg/config/app"
+	"github.com/niflaot/pixels/pkg/i18n"
 	"github.com/niflaot/pixels/pkg/logger"
 	"github.com/niflaot/pixels/pkg/postgres"
 	"github.com/niflaot/pixels/pkg/redis"
@@ -16,6 +17,7 @@ var Module = fx.Module(
 		New,
 		App,
 		Logger,
+		I18N,
 		Postgres,
 		Redis,
 		SSO,
@@ -35,6 +37,11 @@ func App(config AppConfig) appconfig.Config {
 // Logger extracts logger settings from composed configuration.
 func Logger(config AppConfig) logger.Config {
 	return config.Logger
+}
+
+// I18N extracts translation settings from composed configuration.
+func I18N(config AppConfig) i18n.Config {
+	return config.I18N
 }
 
 // Postgres extracts PostgreSQL settings from composed configuration.

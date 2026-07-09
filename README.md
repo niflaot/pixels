@@ -55,6 +55,10 @@ go tool cover -func=coverage.out
 | `LOG_LEVEL` | `info` | Zap log level. |
 | `LOG_FORMAT` | `console` | Zap encoder, either `console` or `json`. |
 | `TOON_CONSOLE` | `false` | Emits each log entry as one inline TOON line for protocol tracing, without timestamp/caller and with normalized packet fields. |
+| `PIXELS_I18N_PATH` | `i18n/translations.json` | JSON translation catalog path. |
+| `PIXELS_I18N_DEFAULT_LOCALE` | `es` | Default locale used when no player locale is available. |
+| `PIXELS_I18N_FALLBACK_LOCALE` | `en` | Fallback locale used when a key is missing in the default locale. |
+| `PIXELS_I18N_MISSING_MODE` | `key` | Missing translation behavior, either `key` or `empty`. |
 | `REDIS_ADDRESS` | `127.0.0.1:6379` | Redis server address. |
 | `REDIS_USERNAME` | empty | Redis ACL username. |
 | `REDIS_PASSWORD` | empty | Redis password. |

@@ -59,3 +59,32 @@ type ReasonResponse struct {
 	// Reason stores the stable disconnect reason label.
 	Reason string `json:"reason" required:"true"`
 }
+
+// PlayerNotificationRequest contains one localized notification request.
+type PlayerNotificationRequest struct {
+	APIKeyRequest
+	// ID stores the target player id.
+	ID int64 `path:"id" required:"true"`
+	// Kind stores the notification kind.
+	Kind string `json:"kind" enum:"bubble,alert" default:"bubble"`
+	// Key stores the required i18n message key.
+	Key string `json:"key" required:"true" example:"admin.notification.default"`
+	// Locale stores an optional locale override.
+	Locale string `json:"locale,omitempty" example:"es"`
+	// BubbleKey stores an optional bubble alert type.
+	BubbleKey string `json:"bubbleKey,omitempty" example:"admin.notification"`
+	// Params stores optional translation parameters.
+	Params map[string]string `json:"params,omitempty"`
+}
+
+// PlayerNotificationResponse contains delivery status.
+type PlayerNotificationResponse struct {
+	// PlayerID stores the target player id.
+	PlayerID int64 `json:"playerId" required:"true"`
+	// Kind stores the delivered notification kind.
+	Kind string `json:"kind" required:"true"`
+	// Key stores the i18n message key.
+	Key string `json:"key" required:"true"`
+	// Sent reports whether the packet was sent.
+	Sent bool `json:"sent" required:"true"`
+}

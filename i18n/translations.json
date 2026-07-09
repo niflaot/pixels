@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "locales": {
+    "es": {
+      "session.bubble.furniture.invalid_move": "No puedes colocar eso ahí.",
+      "session.bubble.furniture.tile_has_units": "Hay alguien en esa posición.",
+      "session.bubble.furniture.cant_stack": "No se puede apilar ahí.",
+      "session.bubble.furniture.no_rights": "No tienes permiso para hacer eso.",
+      "session.bubble.furniture.item_not_in_inventory": "Ese objeto no está en tu inventario.",
+      "session.bubble.furniture.item_not_found": "No se encontró ese objeto.",
+      "admin.notification.default": "Mensaje del hotel."
+    },
+    "en": {
+      "session.bubble.furniture.invalid_move": "You cannot place that there.",
+      "session.bubble.furniture.tile_has_units": "Someone is standing there.",
+      "session.bubble.furniture.cant_stack": "That cannot be stacked there.",
+      "session.bubble.furniture.no_rights": "You do not have permission to do that.",
+      "session.bubble.furniture.item_not_in_inventory": "That item is not in your inventory.",
+      "session.bubble.furniture.item_not_found": "That item was not found.",
+      "admin.notification.default": "Hotel message."
+    }
+  }
+}

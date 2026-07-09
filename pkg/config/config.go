@@ -8,6 +8,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/niflaot/pixels/internal/auth/sso"
 	appconfig "github.com/niflaot/pixels/pkg/config/app"
+	"github.com/niflaot/pixels/pkg/i18n"
 	"github.com/niflaot/pixels/pkg/logger"
 	"github.com/niflaot/pixels/pkg/postgres"
 	"github.com/niflaot/pixels/pkg/redis"
@@ -20,6 +21,9 @@ type AppConfig struct {
 
 	// Logger contains zap logger settings.
 	Logger logger.Config
+
+	// I18N contains translation catalog settings.
+	I18N i18n.Config
 
 	// Postgres contains PostgreSQL storage settings.
 	Postgres postgres.Config
@@ -47,6 +51,11 @@ func Load(paths ...string) (AppConfig, error) {
 		return AppConfig{}, err
 	}
 
+	translations, err := i18n.LoadConfig()
+	if err != nil {
+		return AppConfig{}, err
+	}
+
 	postgres, err := postgres.LoadConfig()
 	if err != nil {
 		return AppConfig{}, err
@@ -65,6 +74,7 @@ func Load(paths ...string) (AppConfig, error) {
 	return AppConfig{
 		App:      app,
 		Logger:   log,
+		I18N:     translations,
 		Postgres: postgres,
 		Redis:    redis,
 		SSO:      sso,

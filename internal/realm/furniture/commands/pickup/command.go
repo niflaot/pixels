@@ -22,6 +22,7 @@ import (
 	outremove "github.com/niflaot/pixels/networking/outbound/room/furniture/remove"
 	outbubble "github.com/niflaot/pixels/networking/outbound/session/bubblealert"
 	"github.com/niflaot/pixels/pkg/bus"
+	"github.com/niflaot/pixels/pkg/i18n"
 	"go.uber.org/zap"
 )
 
@@ -64,6 +65,9 @@ type Handler struct {
 
 	// Events publishes furniture lifecycle events.
 	Events bus.Publisher
+
+	// Translations resolves end-user messages.
+	Translations i18n.Translator
 
 	// Log records rejected pickup attempts.
 	Log *zap.Logger
@@ -214,7 +218,12 @@ func (handler Handler) handleSoftError(ctx context.Context, cmd Command, err err
 
 // sendBubbleAlert notifies the actor of a rejected furniture pickup.
 func (handler Handler) sendBubbleAlert(ctx context.Context, connection netconn.Context, key string) error {
-	packet, err := outbubble.Encode(bubbleKeyFurniturePlacementError, key)
+	message := string(key)
+	if handler.Translations != nil {
+		message = handler.Translations.Default(i18n.Key(key))
+	}
+
+	packet, err := outbubble.Encode(bubbleKeyFurniturePlacementError, message, outbubble.WithDisplayBubble())
 	if err != nil {
 		return err
 	}
@@ -226,13 +235,13 @@ func (handler Handler) sendBubbleAlert(ctx context.Context, connection netconn.C
 func bubbleErrorKey(err error) (string, bool) {
 	switch {
 	case errors.Is(err, furnitureservice.ErrNotItemOwner):
-		return "no_rights", true
+		return "session.bubble.furniture.no_rights", true
 	case errors.Is(err, furnitureservice.ErrItemNotFound),
 		errors.Is(err, furnitureservice.ErrItemNotPlaced):
-		return "item_not_found", true
+		return "session.bubble.furniture.item_not_found", true
 	case errors.Is(err, furnitureservice.ErrInvalidItemID),
 		errors.Is(err, furnitureservice.ErrInvalidPlayerID):
-		return "invalid_move", true
+		return "session.bubble.furniture.invalid_move", true
 	default:
 		return "", false
 	}

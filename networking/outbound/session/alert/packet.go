@@ -9,9 +9,11 @@ const (
 )
 
 // Definition describes the GENERIC_ALERT payload fields.
-var Definition = codec.Definition{}
+var Definition = codec.Definition{
+	codec.Named("message", codec.StringField),
+}
 
 // Encode creates a GENERIC_ALERT packet.
-func Encode() (codec.Packet, error) {
-	return codec.NewPacket(Header, Definition)
+func Encode(message string) (codec.Packet, error) {
+	return codec.NewPacket(Header, Definition, codec.String(message))
 }

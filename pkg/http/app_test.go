@@ -20,6 +20,7 @@ import (
 	appconfig "github.com/niflaot/pixels/pkg/config/app"
 	"github.com/niflaot/pixels/pkg/http/openapi"
 	ws "github.com/niflaot/pixels/pkg/http/websocket"
+	"github.com/niflaot/pixels/pkg/i18n"
 	"github.com/niflaot/pixels/pkg/logger"
 	"github.com/niflaot/pixels/pkg/redis"
 	"go.uber.org/zap"
@@ -160,7 +161,7 @@ func testApp(t *testing.T, environment string) *fiber.App {
 	config := testConfig(environment)
 	adapter := ws.New(ws.Config{}, config.App, registry, realmconn.NewHandlers(service, testFinder{}, live.NewRegistry(), binding.NewRegistry(), bus.New()), zap.NewNop(), config.Logger)
 
-	return New(zap.NewNop(), config, testInfo(), service, adapter, registry, testRooms(), testRoomRuntime(), testNavigator())
+	return New(zap.NewNop(), config, testInfo(), service, adapter, registry, testPlayers(), testRooms(), testRoomRuntime(), testNavigator(), testTranslations())
 }
 
 // testConfig creates composed configuration for route tests.
@@ -182,6 +183,16 @@ func testConfig(environment string) config.AppConfig {
 			Prefix:     "pixels:sso",
 		},
 	}
+}
+
+// testPlayers creates an empty live player registry.
+func testPlayers() *live.Registry {
+	return live.NewRegistry()
+}
+
+// testTranslations creates a test translation catalog.
+func testTranslations() i18n.Translator {
+	return i18n.NewCatalog(i18n.Config{DefaultLocale: "en"}, nil)
 }
 
 // testSSO creates an SSO service for route tests.

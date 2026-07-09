@@ -16,6 +16,7 @@ import (
 	"github.com/niflaot/pixels/internal/realm/session/binding"
 	netconn "github.com/niflaot/pixels/networking/connection"
 	"github.com/niflaot/pixels/pkg/bus"
+	"github.com/niflaot/pixels/pkg/i18n"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 )
@@ -36,6 +37,8 @@ type HandlerDeps struct {
 	Connections *netconn.Registry
 	// Events publishes furniture lifecycle events.
 	Events *bus.Bus
+	// Translations resolves end-user messages.
+	Translations i18n.Translator
 	// Log records command dispatch.
 	Log *zap.Logger
 }
@@ -51,14 +54,14 @@ func RegisterConnectionHandlers(handlers *realmconn.Handlers, deps HandlerDeps) 
 	}, deps.Log))
 	placehandler.Register(handlers.Inbound, placehandler.New(placecmd.Handler{
 		Players: deps.Players, Bindings: deps.Bindings, Furniture: deps.Furniture,
-		Runtime: deps.Runtime, Connections: deps.Connections, Events: deps.Events, Log: deps.Log,
+		Runtime: deps.Runtime, Connections: deps.Connections, Events: deps.Events, Translations: deps.Translations, Log: deps.Log,
 	}, deps.Log))
 	movehandler.Register(handlers.Inbound, movehandler.New(movecmd.Handler{
 		Players: deps.Players, Bindings: deps.Bindings, Furniture: deps.Furniture,
-		Runtime: deps.Runtime, Connections: deps.Connections, Events: deps.Events, Log: deps.Log,
+		Runtime: deps.Runtime, Connections: deps.Connections, Events: deps.Events, Translations: deps.Translations, Log: deps.Log,
 	}, deps.Log))
 	pickuphandler.Register(handlers.Inbound, pickuphandler.New(pickupcmd.Handler{
 		Players: deps.Players, Bindings: deps.Bindings, Furniture: deps.Furniture,
-		Runtime: deps.Runtime, Connections: deps.Connections, Events: deps.Events, Log: deps.Log,
+		Runtime: deps.Runtime, Connections: deps.Connections, Events: deps.Events, Translations: deps.Translations, Log: deps.Log,
 	}, deps.Log))
 }

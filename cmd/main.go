@@ -15,6 +15,7 @@ import (
 	"github.com/niflaot/pixels/pkg/config"
 	pixelhttp "github.com/niflaot/pixels/pkg/http"
 	ws "github.com/niflaot/pixels/pkg/http/websocket"
+	"github.com/niflaot/pixels/pkg/i18n"
 	"github.com/niflaot/pixels/pkg/logger"
 	"github.com/niflaot/pixels/pkg/postgres"
 	"github.com/niflaot/pixels/pkg/redis"
@@ -33,11 +34,12 @@ func newApp() *fx.App {
 
 // options returns the dependency graph options.
 func options() []fx.Option {
-	options := make([]fx.Option, 0, 17)
+	options := make([]fx.Option, 0, 18)
 	options = append(options, build.Module)
 	options = append(options, config.Module)
 	options = append(options, netconn.Module)
 	options = append(options, bus.Module)
+	options = append(options, i18n.Module)
 	options = append(options, pixelhttp.Module)
 	options = append(options, realmconn.Module)
 	options = append(options, realmfurniture.Module)

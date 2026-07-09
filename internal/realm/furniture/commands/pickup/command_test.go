@@ -240,11 +240,11 @@ func TestBubbleErrorKeyMapsKnownErrors(t *testing.T) {
 		wantKey  string
 		wantSoft bool
 	}{
-		{furnitureservice.ErrNotItemOwner, "no_rights", true},
-		{furnitureservice.ErrItemNotFound, "item_not_found", true},
-		{furnitureservice.ErrItemNotPlaced, "item_not_found", true},
-		{furnitureservice.ErrInvalidItemID, "invalid_move", true},
-		{furnitureservice.ErrInvalidPlayerID, "invalid_move", true},
+		{furnitureservice.ErrNotItemOwner, "session.bubble.furniture.no_rights", true},
+		{furnitureservice.ErrItemNotFound, "session.bubble.furniture.item_not_found", true},
+		{furnitureservice.ErrItemNotPlaced, "session.bubble.furniture.item_not_found", true},
+		{furnitureservice.ErrInvalidItemID, "session.bubble.furniture.invalid_move", true},
+		{furnitureservice.ErrInvalidPlayerID, "session.bubble.furniture.invalid_move", true},
 		{errors.New("unmapped"), "", false},
 	}
 

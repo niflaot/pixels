@@ -8,7 +8,7 @@ import (
 
 // TestEncode verifies GENERIC_ALERT packet construction.
 func TestEncode(t *testing.T) {
-	packet, err := Encode()
+	packet, err := Encode("Hotel message")
 	if err != nil {
 		t.Fatalf("encode packet: %v", err)
 	}
@@ -22,8 +22,8 @@ func TestEncode(t *testing.T) {
 		t.Fatalf("decode packet: %v", err)
 	}
 
-	if len(values) != 0 {
-		t.Fatalf("expected %d fields, got %d", 0, len(values))
+	if len(values) != 1 || values[0].String != "Hotel message" {
+		t.Fatalf("unexpected values %#v", values)
 	}
 }
 

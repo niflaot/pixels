@@ -21,17 +21,14 @@ import (
 	"github.com/niflaot/pixels/internal/realm/session/binding"
 	netconn "github.com/niflaot/pixels/networking/connection"
 	outupdate "github.com/niflaot/pixels/networking/outbound/room/furniture/update"
-	outbubble "github.com/niflaot/pixels/networking/outbound/session/bubblealert"
 	"github.com/niflaot/pixels/pkg/bus"
+	"github.com/niflaot/pixels/pkg/i18n"
 	"go.uber.org/zap"
 )
 
 const (
 	// Name identifies the furniture move command.
 	Name command.Name = "furniture.move"
-
-	// bubbleKeyFurniturePlacementError matches Arcturus's BubbleAlertKeys.FURNITURE_PLACEMENT_ERROR.
-	bubbleKeyFurniturePlacementError = "furni_placement_error"
 )
 
 // ErrPlayerNotInRoom reports a move attempt without active room presence.
@@ -74,6 +71,9 @@ type Handler struct {
 
 	// Events publishes furniture lifecycle events.
 	Events bus.Publisher
+
+	// Translations resolves end-user messages.
+	Translations i18n.Translator
 
 	// Log records rejected move attempts.
 	Log *zap.Logger
@@ -218,65 +218,5 @@ func updateRecord(item furnituremodel.Item, definition furnituremodel.Definition
 		ExtraHeight: projection.ExtraHeightValue(definition),
 		ExtraData:   item.ExtraData,
 		OwnerID:     item.OwnerPlayerID,
-	}
-}
-
-// handleSoftError logs a rejected move attempt with placement context and sends a bubble alert when
-// the error maps to a client-facing key, swallowing the error so the client is not disconnected.
-func (handler Handler) handleSoftError(ctx context.Context, cmd Command, err error) error {
-	key, soft := bubbleErrorKey(err)
-	if !soft {
-		return err
-	}
-
-	if handler.Log != nil {
-		handler.Log.Warn("furniture move rejected",
-			zap.Int64("item_id", cmd.ItemID), zap.Int("x", cmd.X), zap.Int("y", cmd.Y), zap.Int("rotation", cmd.Rotation),
-			zap.Error(err),
-		)
-	}
-	if key == "" {
-		return nil
-	}
-
-	return handler.sendBubbleAlert(ctx, cmd.Handler, key)
-}
-
-// sendBubbleAlert notifies the actor of a rejected furniture placement.
-func (handler Handler) sendBubbleAlert(ctx context.Context, connection netconn.Context, key string) error {
-	packet, err := outbubble.Encode(bubbleKeyFurniturePlacementError, key)
-	if err != nil {
-		return err
-	}
-
-	return connection.Send(ctx, packet)
-}
-
-// bubbleErrorKey reports whether an error is a soft gameplay miss and its bubble alert key, if any.
-func bubbleErrorKey(err error) (string, bool) {
-	switch {
-	case errors.Is(err, roomlive.ErrInvalidPlacement),
-		errors.Is(err, roomfurniture.ErrInvalidTarget),
-		errors.Is(err, furnitureservice.ErrInvalidPlacement),
-		errors.Is(err, furnitureservice.ErrInvalidItemID),
-		errors.Is(err, furnitureservice.ErrInvalidRoomID),
-		errors.Is(err, furnitureservice.ErrInvalidPlayerID):
-		return "invalid_move", true
-	case errors.Is(err, roomlive.ErrTileOccupied):
-		return "tile_has_units", true
-	case errors.Is(err, roomlive.ErrCannotStack):
-		return "cant_stack", true
-	case errors.Is(err, furnitureservice.ErrNotItemOwner):
-		return "no_rights", true
-	case errors.Is(err, furnitureservice.ErrItemNotInInventory):
-		return "item_not_in_inventory", true
-	case errors.Is(err, furnitureservice.ErrItemNotFound),
-		errors.Is(err, furnitureservice.ErrItemNotPlaced),
-		errors.Is(err, roomfurniture.ErrDefinitionNotFound):
-		return "item_not_found", true
-	case errors.Is(err, roomlive.ErrWorldNotLoaded):
-		return "", true
-	default:
-		return "", false
 	}
 }

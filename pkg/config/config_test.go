@@ -7,6 +7,7 @@ import (
 
 	"github.com/niflaot/pixels/internal/auth/sso"
 	appconfig "github.com/niflaot/pixels/pkg/config/app"
+	"github.com/niflaot/pixels/pkg/i18n"
 	"github.com/niflaot/pixels/pkg/logger"
 	"github.com/niflaot/pixels/pkg/postgres"
 	"github.com/niflaot/pixels/pkg/redis"
@@ -23,6 +24,7 @@ func TestLoadUsesEnvironment(t *testing.T) {
 	t.Setenv("LOG_LEVEL", "debug")
 	t.Setenv("LOG_FORMAT", "json")
 	t.Setenv("TOON_CONSOLE", "true")
+	t.Setenv("PIXELS_I18N_PATH", "custom-i18n.json")
 	t.Setenv("PIXELS_POSTGRES_HOST", "db")
 	t.Setenv("PIXELS_POSTGRES_DATABASE", "pixels_test")
 	t.Setenv("REDIS_ADDRESS", "localhost:6380")
@@ -54,6 +56,10 @@ func TestLoadUsesEnvironment(t *testing.T) {
 		t.Fatal("expected toon console from environment")
 	}
 
+	if config.I18N.Path != "custom-i18n.json" {
+		t.Fatalf("expected i18n path from environment, got %q", config.I18N.Path)
+	}
+
 	if config.Postgres.Database != "pixels_test" {
 		t.Fatalf("expected PostgreSQL database from environment, got %q", config.Postgres.Database)
 	}
@@ -69,10 +75,10 @@ func TestLoadUsesEnvironment(t *testing.T) {
 
 // TestLoadUsesDotenv verifies dotenv files populate environment variables.
 func TestLoadUsesDotenv(t *testing.T) {
-	clearEnv(t, "PIXELS_ENV", "PIXELS_HOST", "PIXELS_PORT", "PIXELS_ACCESS_KEY", "LOG_LEVEL", "LOG_FORMAT", "TOON_CONSOLE", "PIXELS_POSTGRES_HOST", "REDIS_ADDRESS", "SSO_DEFAULT_TTL", "SSO_KEY")
+	clearEnv(t, "PIXELS_ENV", "PIXELS_HOST", "PIXELS_PORT", "PIXELS_ACCESS_KEY", "LOG_LEVEL", "LOG_FORMAT", "TOON_CONSOLE", "PIXELS_I18N_PATH", "PIXELS_POSTGRES_HOST", "REDIS_ADDRESS", "SSO_DEFAULT_TTL", "SSO_KEY")
 
 	path := filepath.Join(t.TempDir(), ".env")
-	content := "PIXELS_ENV=dotenv\nPIXELS_HOST=localhost\nPIXELS_PORT=9090\nPIXELS_ACCESS_KEY=dotenv-key\nLOG_LEVEL=warn\nLOG_FORMAT=console\nTOON_CONSOLE=true\nPIXELS_POSTGRES_HOST=dotenv-db\nREDIS_ADDRESS=localhost:6381\nSSO_DEFAULT_TTL=15m\nSSO_KEY=dotenv-sso-key\n"
+	content := "PIXELS_ENV=dotenv\nPIXELS_HOST=localhost\nPIXELS_PORT=9090\nPIXELS_ACCESS_KEY=dotenv-key\nLOG_LEVEL=warn\nLOG_FORMAT=console\nTOON_CONSOLE=true\nPIXELS_I18N_PATH=dotenv-i18n.json\nPIXELS_POSTGRES_HOST=dotenv-db\nREDIS_ADDRESS=localhost:6381\nSSO_DEFAULT_TTL=15m\nSSO_KEY=dotenv-sso-key\n"
 
 	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatalf("write dotenv: %v", err)
@@ -99,6 +105,10 @@ func TestLoadUsesDotenv(t *testing.T) {
 		t.Fatal("expected dotenv toon console")
 	}
 
+	if config.I18N.Path != "dotenv-i18n.json" {
+		t.Fatalf("expected dotenv i18n path, got %q", config.I18N.Path)
+	}
+
 	if config.Postgres.Host != "dotenv-db" {
 		t.Fatalf("expected dotenv PostgreSQL host, got %q", config.Postgres.Host)
 	}
@@ -122,7 +132,7 @@ func TestLoadReturnsDotenvError(t *testing.T) {
 
 // TestLoadReturnsEnvironmentError verifies invalid environment values are returned.
 func TestLoadReturnsEnvironmentError(t *testing.T) {
-	clearEnv(t, "PIXELS_ENV", "PIXELS_HOST", "PIXELS_ACCESS_KEY", "LOG_LEVEL", "LOG_FORMAT", "TOON_CONSOLE", "REDIS_ADDRESS", "SSO_DEFAULT_TTL")
+	clearEnv(t, "PIXELS_ENV", "PIXELS_HOST", "PIXELS_ACCESS_KEY", "LOG_LEVEL", "LOG_FORMAT", "TOON_CONSOLE", "PIXELS_I18N_PATH", "REDIS_ADDRESS", "SSO_DEFAULT_TTL")
 	t.Setenv("PIXELS_PORT", "invalid")
 
 	_, err := Load()
@@ -133,13 +143,13 @@ func TestLoadReturnsEnvironmentError(t *testing.T) {
 
 // TestModuleProvidesConfig verifies the Fx module exposes composed and focused config.
 func TestModuleProvidesConfig(t *testing.T) {
-	clearEnv(t, "PIXELS_ENV", "PIXELS_HOST", "PIXELS_PORT", "PIXELS_ACCESS_KEY", "LOG_LEVEL", "LOG_FORMAT", "TOON_CONSOLE", "PIXELS_POSTGRES_HOST", "REDIS_ADDRESS", "SSO_DEFAULT_TTL", "SSO_KEY")
+	clearEnv(t, "PIXELS_ENV", "PIXELS_HOST", "PIXELS_PORT", "PIXELS_ACCESS_KEY", "LOG_LEVEL", "LOG_FORMAT", "TOON_CONSOLE", "PIXELS_I18N_PATH", "PIXELS_POSTGRES_HOST", "REDIS_ADDRESS", "SSO_DEFAULT_TTL", "SSO_KEY")
 
 	var invoked bool
 	app := fxtest.New(
 		t,
 		Module,
-		fx.Invoke(func(config AppConfig, app appconfig.Config, log logger.Config, postgres postgres.Config, redis redis.Config, sso sso.Config) {
+		fx.Invoke(func(config AppConfig, app appconfig.Config, log logger.Config, translations i18n.Config, postgres postgres.Config, redis redis.Config, sso sso.Config) {
 			invoked = true
 
 			if config.App != app {
@@ -148,6 +158,10 @@ func TestModuleProvidesConfig(t *testing.T) {
 
 			if config.Logger != log {
 				t.Fatalf("expected logger config provider to match composed config")
+			}
+
+			if config.I18N != translations {
+				t.Fatalf("expected i18n config provider to match composed config")
 			}
 
 			if config.Postgres != postgres {

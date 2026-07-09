@@ -77,6 +77,13 @@ This repository contains Pixels, a fast and idiomatic Go emulator for the pixel 
 - Protect private routes with the configured API key header.
 - Return meaningful HTTP errors instead of generic status failures, and make logs include enough context to explain why a request failed.
 
+## End-User Communication
+
+- Localize every hotel-facing message before sending it to users, including bubbles, alerts, cautions, room entry errors with text, and future notification packets.
+- Use `pkg/i18n` for server-side end-user text; packets must serialize already-resolved text and must not own translation logic.
+- Keep technical logs, internal error values, and protocol disconnect diagnostics outside i18n unless they are shown to users.
+- Prefer stable namespaced translation keys such as `session.bubble.furniture.no_rights` over raw text or short unscoped keys.
+
 ## Testing
 
 - All code must maintain more than 80% test coverage.
@@ -103,12 +110,15 @@ minimum manual checks expected when touching it.
 
 - Owns `pkg/http` and `pkg/http/openapi`.
 - Provides `/status`, `/ws`, development-only `/docs`, SSO ticket creation,
-  connection admin routes, room admin routes, and navigator admin routes.
+  connection admin routes, localized player notifications, room admin routes,
+  and navigator admin routes.
 - Private routes require `X-API-Key`; `/status`, `/ws`, and `/docs` stay public.
 - Test after changes:
   - `go test ./pkg/http/...`
   - Open `/docs` in development and verify route groups are visible.
   - Call private routes with and without `X-API-Key`.
+  - Send `POST /api/admin/players/:id/notifications` to an online player and
+    verify the localized bubble or alert packet arrives.
 
 ### FEATURE: Redis SSO
 
