@@ -1,18 +1,56 @@
 package enter
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/niflaot/pixels/internal/command"
+	roomentry "github.com/niflaot/pixels/internal/realm/room/entry"
 	roomlive "github.com/niflaot/pixels/internal/realm/room/live"
+	outentryerror "github.com/niflaot/pixels/networking/outbound/room/entryerror"
+	outdesktop "github.com/niflaot/pixels/networking/outbound/session/desktop"
+	outerror "github.com/niflaot/pixels/networking/outbound/session/error"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 // TestCommandName verifies the stable command name.
 func TestCommandName(t *testing.T) {
 	if (Command{}).CommandName() != Name {
 		t.Fatalf("unexpected command name %s", (Command{}).CommandName())
+	}
+}
+
+// TestCommandLoggingRedactsPassword verifies command diagnostics never expose plaintext.
+func TestCommandLoggingRedactsPassword(t *testing.T) {
+	var output bytes.Buffer
+	encoder := zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig())
+	logger := zap.New(zapcore.NewCore(encoder, zapcore.AddSync(&output), zap.DebugLevel))
+	logger.Debug("command", zap.Object("command", Command{RoomID: 9, Password: "private-room-password", Trusted: true}))
+	logged := output.String()
+	if strings.Contains(logged, "private-room-password") || !strings.Contains(logged, "password_provided") {
+		t.Fatalf("unexpected command log %s", logged)
+	}
+}
+
+// TestSendEntryErrorUsesNitroProtocol verifies password and room rejection packets.
+func TestSendEntryErrorUsesNitroProtocol(t *testing.T) {
+	connection, sent := sessionConnectionForTest(t)
+	handler := Handler{}
+	if err := handler.sendEntryError(context.Background(), connection, roomentry.ErrWrongPassword); err != nil {
+		t.Fatalf("send wrong password: %v", err)
+	}
+	if err := handler.sendEntryError(context.Background(), connection, roomentry.ErrAccessDenied); err != nil {
+		t.Fatalf("send access denied: %v", err)
+	}
+	if err := handler.sendEntryError(context.Background(), connection, roomentry.ErrEntryLocked); err != nil {
+		t.Fatalf("send entry locked: %v", err)
+	}
+	if len(*sent) != 3 || (*sent)[0].Header != outerror.Header || (*sent)[1].Header != outentryerror.Header || (*sent)[2].Header != outdesktop.Header {
+		t.Fatalf("unexpected packets %#v", *sent)
 	}
 }
 

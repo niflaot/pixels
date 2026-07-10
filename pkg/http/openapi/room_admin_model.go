@@ -23,6 +23,17 @@ type RoomForwardRequest struct {
 	TargetRoomID int64 `json:"targetRoomId" required:"true" minimum:"1"`
 }
 
+// RoomTeleportRequest contains a single-player room forwarding request.
+type RoomTeleportRequest struct {
+	APIKeyRequest
+	// PlayerID identifies the live player.
+	PlayerID int64 `path:"playerId" required:"true" minimum:"1"`
+	// TargetRoomID identifies the destination room.
+	TargetRoomID int64 `json:"targetRoomId" required:"true" minimum:"1" maximum:"2147483647"`
+	// Bypass skips password, doorbell, and invisible gating once.
+	Bypass bool `json:"bypass"`
+}
+
 // RoomListResponse contains room list results.
 type RoomListResponse struct {
 	// Total stores the returned room count.

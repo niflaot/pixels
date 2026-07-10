@@ -21,6 +21,7 @@ func adminOperations() []operation {
 		adminRoomRead("/api/admin/rooms/{id}/occupancy", "Read active room occupancy", &RoomIDRequest{}, &RoomOccupancyResponse{}),
 		adminRoomAction("/api/admin/rooms/{id}/close", "Close active room", &RoomIDRequest{}),
 		adminRoomAction("/api/admin/rooms/{id}/forward", "Forward active room occupants", &RoomForwardRequest{}),
+		adminRoomAction("/api/admin/rooms/players/{playerId}/teleport", "Teleport one live player", &RoomTeleportRequest{}),
 		adminNavigatorRead("/api/admin/navigator/categories", "List navigator categories", &APIKeyRequest{}, &CategoryListResponse{}),
 		adminNavigatorRead("/api/admin/navigator/lifted", "List navigator lifted rooms", &APIKeyRequest{}, &LiftedListResponse{}),
 		adminNotificationAction("/api/admin/notifications/send", "Send localized player notification", &NotificationRequest{}),

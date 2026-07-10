@@ -2,10 +2,12 @@ package enter
 
 import (
 	"context"
+	"time"
 
 	"github.com/niflaot/pixels/internal/command"
 	playerlive "github.com/niflaot/pixels/internal/realm/player/live"
 	leavecmd "github.com/niflaot/pixels/internal/realm/room/commands/leave"
+	roomdoorbell "github.com/niflaot/pixels/internal/realm/room/doorbell"
 	roomentered "github.com/niflaot/pixels/internal/realm/room/events/entered"
 	roomfurniture "github.com/niflaot/pixels/internal/realm/room/furniture"
 	"github.com/niflaot/pixels/internal/realm/room/layout"
@@ -16,6 +18,8 @@ import (
 	worldpath "github.com/niflaot/pixels/internal/realm/room/world/path"
 	worldunit "github.com/niflaot/pixels/internal/realm/room/world/unit"
 	netconn "github.com/niflaot/pixels/networking/connection"
+	outdoorbelladd "github.com/niflaot/pixels/networking/outbound/room/doorbell/add"
+	outdoorbelldenied "github.com/niflaot/pixels/networking/outbound/room/doorbell/denied"
 	"github.com/niflaot/pixels/pkg/bus"
 )
 
@@ -38,7 +42,7 @@ func (handler Handler) join(ctx context.Context, player *playerlive.Player, conn
 	}
 	snapshot := player.Snapshot()
 
-	_, err = handler.Runtime.Join(ctx, room.ID, roomlive.Occupant{
+	occupant := roomlive.Occupant{
 		PlayerID:       player.ID(),
 		Username:       player.Username(),
 		Motto:          snapshot.Motto,
@@ -46,12 +50,100 @@ func (handler Handler) join(ctx context.Context, player *playerlive.Player, conn
 		Gender:         string(snapshot.Gender),
 		ConnectionID:   connection.ConnectionID,
 		ConnectionKind: connection.ConnectionKind,
-	})
+	}
+	_, err = handler.Runtime.Join(ctx, room.ID, occupant)
+	if err == roomlive.ErrRoomFull && handler.Entry != nil {
+		allowed, permissionErr := handler.Entry.CanEnterFull(ctx, player.ID())
+		if permissionErr != nil {
+			return nil, permissionErr
+		}
+		if allowed {
+			_, err = handler.Runtime.JoinWithCapacity(ctx, room.ID, occupant, true)
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
 
 	return active, handler.publish(ctx, roomentered.Name, roomentered.Payload{PlayerID: player.ID(), RoomID: room.ID})
+}
+
+// requestDoorbell queues a player and notifies every authorized responder.
+func (handler Handler) requestDoorbell(ctx context.Context, player *playerlive.Player, connection netconn.Context, room roommodel.Room) error {
+	active, found := handler.Runtime.Find(room.ID)
+	if !found {
+		return handler.sendDoorbellDenied(ctx, connection)
+	}
+	approvers, err := handler.doorbellApprovers(ctx, active, room)
+	if err != nil {
+		return err
+	}
+	entry := roomdoorbell.Entry{
+		PlayerID: player.ID(), Username: player.Username(), Handler: connection, RequestedAt: time.Now(),
+	}
+	if !active.RequestDoorbell(entry, len(approvers) > 0) {
+		return handler.sendDoorbellDenied(ctx, connection)
+	}
+	waiting, err := outdoorbelladd.Encode("")
+	if err != nil {
+		return err
+	}
+	if err := connection.Send(ctx, waiting); err != nil {
+		return err
+	}
+	notice, err := outdoorbelladd.Encode(player.Username())
+	if err != nil {
+		return err
+	}
+	if handler.Connections == nil {
+		active.ResolveDoorbell(player.Username())
+
+		return handler.sendDoorbellDenied(ctx, connection)
+	}
+	delivered := false
+	for _, occupant := range approvers {
+		approver, found := handler.Connections.Get(occupant.ConnectionKind, occupant.ConnectionID)
+		if found && approver.Send(ctx, notice) == nil {
+			delivered = true
+		}
+	}
+	if delivered {
+		return nil
+	}
+	active.ResolveDoorbell(player.Username())
+
+	return handler.sendDoorbellDenied(ctx, connection)
+}
+
+// doorbellApprovers returns room occupants allowed to resolve waiting requests.
+func (handler Handler) doorbellApprovers(ctx context.Context, active *roomlive.Room, room roommodel.Room) ([]roomlive.Occupant, error) {
+	occupants := active.Occupants()
+	approvers := make([]roomlive.Occupant, 0, len(occupants))
+	for _, occupant := range occupants {
+		allowed := occupant.PlayerID == room.OwnerPlayerID
+		if !allowed && handler.Entry != nil {
+			var err error
+			allowed, err = handler.Entry.CanAnswerDoorbell(ctx, room.ID, room.OwnerPlayerID, occupant.PlayerID)
+			if err != nil {
+				return nil, err
+			}
+		}
+		if allowed {
+			approvers = append(approvers, occupant)
+		}
+	}
+
+	return approvers, nil
+}
+
+// sendDoorbellDenied rejects a waiting room entry.
+func (handler Handler) sendDoorbellDenied(ctx context.Context, connection netconn.Context) error {
+	packet, err := outdoorbelldenied.Encode("")
+	if err != nil {
+		return err
+	}
+
+	return connection.Send(ctx, packet)
 }
 
 // leavePreviousRoom runs the standard room leave command.

@@ -159,7 +159,7 @@ minimum manual checks expected when touching it.
   packets, and `pkg/http/permission/routes`.
 - Provides typed registered nodes, wildcard grants, inheritable weighted groups,
   direct player allow/deny overrides, local plus Redis caching, live projection,
-  default `member` assignment, and seeded `admin` access.
+  default `member` assignment, and seeded `admin` and `moderator` access.
 - Permission resolution order is direct player override, highest-weight matching
   group, then specificity and nearest child within that group's inheritance chain.
 - Catalog page access uses optional `required_node`; player-originated currency
@@ -174,6 +174,8 @@ minimum manual checks expected when touching it.
   - Assign and revoke a group/direct node while a player is online and verify
     `USER_PERMISSIONS` and `USER_PERKS` are projected immediately.
   - Create a player and verify membership in the seeded `member` group.
+  - Verify demo resolves `admin`, Alice resolves `moderator`, and Bob and Carol
+    resolve `member` as their highest-weight groups.
 
 ### FEATURE: Pixel Codec and Packets
 
@@ -275,6 +277,27 @@ minimum manual checks expected when touching it.
   - Change furniture during a walk and verify the unit stops on its current tile.
   - Fill a runtime room to capacity and verify `room.entry_error`.
   - Verify `room.occupancy_changed`, `room.entered`, and `room.left` events.
+
+### FEATURE: Closed Room Entry
+
+- Owns `internal/realm/room/entry`, `internal/realm/room/doorbell`, room
+  doorbell commands, and room doorbell packets.
+- Supports bcrypt room passwords, Redis-backed attempt windows and lockouts,
+  doorbell approval queues, timeout cleanup on the existing room tick, localized
+  human durations, global `room.enter.any`, `room.enter.full`, and
+  `room.doorbell.answer.any` nodes, and one-time admin entry bypasses.
+- Room-scoped rights are not persistent yet. Owners and global doorbell responders
+  may answer waiting requests; owners bypass password, doorbell, and invisible
+  modes. Future room-rights persistence must use the existing
+  `entry.RightsChecker` boundary.
+- Test after changes:
+  - `go test ./internal/realm/room/entry ./internal/realm/room/doorbell/...`
+  - `go test ./internal/realm/room/commands/doorbell/... ./networking/...`
+  - Enter password rooms with correct and incorrect passwords; verify lockout
+    closes the password prompt and reports the configured localized duration.
+  - Ring a doorbell, accept and reject it as owner and moderator, then verify the
+    queue remains while an authorized responder is present and expires otherwise.
+  - Call `POST /api/admin/rooms/players/:playerId/teleport` with `bypass` both ways.
 
 ### FEATURE: Room and Navigator Admin Routes
 

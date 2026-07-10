@@ -3,6 +3,10 @@ package live
 import (
 	"errors"
 	"testing"
+	"time"
+
+	roomdoorbell "github.com/niflaot/pixels/internal/realm/room/doorbell"
+	netconn "github.com/niflaot/pixels/networking/connection"
 )
 
 // TestNewRoomRejectsInvalidSnapshot verifies snapshot validation.
@@ -10,6 +14,50 @@ func TestNewRoomRejectsInvalidSnapshot(t *testing.T) {
 	_, err := NewRoom(Snapshot{})
 	if !errors.Is(err, ErrInvalidRoom) {
 		t.Fatalf("expected invalid room, got %v", err)
+	}
+}
+
+// TestRoomDoorbellRequiresOwnerAndDrainsAfterLeave verifies owner-bound waiting state.
+func TestRoomDoorbellRequiresOwnerAndDrainsAfterLeave(t *testing.T) {
+	room, err := NewRoom(Snapshot{ID: 9, OwnerPlayerID: 7, MaxUsers: 2})
+	if err != nil {
+		t.Fatalf("create room: %v", err)
+	}
+	entry := roomdoorbell.Entry{PlayerID: 8, Username: "Guest", Handler: netconn.Context{ConnectionID: "guest", ConnectionKind: "websocket"}, RequestedAt: time.Now()}
+	if room.RequestDoorbell(entry, false) {
+		t.Fatal("expected request rejected without owner")
+	}
+	if _, err := room.Join(occupantForTest(7)); err != nil {
+		t.Fatalf("join owner: %v", err)
+	}
+	if !room.RequestDoorbell(entry, true) || room.DoorbellLen() != 1 {
+		t.Fatal("expected queued request")
+	}
+	if _, removed := room.Leave(7); !removed {
+		t.Fatal("expected owner removed")
+	}
+	expired := room.DrainDoorbellWithoutApprover(false)
+	if len(expired) != 1 || expired[0].Reason != roomdoorbell.ExpiredNoRightsHolder {
+		t.Fatalf("unexpected drained requests %#v", expired)
+	}
+}
+
+// TestRoomJoinWithCapacityAllowsExplicitBypass verifies capacity remains opt-in.
+func TestRoomJoinWithCapacityAllowsExplicitBypass(t *testing.T) {
+	room, err := NewRoom(Snapshot{ID: 9, MaxUsers: 1})
+	if err != nil {
+		t.Fatalf("create room: %v", err)
+	}
+	if _, err := room.Join(occupantForTest(7)); err != nil {
+		t.Fatalf("join first occupant: %v", err)
+	}
+	second := occupantForTest(8)
+	second.ConnectionID = "second"
+	if _, err := room.Join(second); !errors.Is(err, ErrRoomFull) {
+		t.Fatalf("expected full room, got %v", err)
+	}
+	if _, err := room.JoinWithCapacity(second, true); err != nil {
+		t.Fatalf("join with capacity bypass: %v", err)
 	}
 }
 
@@ -86,5 +134,24 @@ func TestRoomCloseRejectsFutureJoins(t *testing.T) {
 	_, err = room.Join(occupantForTest(7))
 	if !errors.Is(err, ErrRoomClosed) {
 		t.Fatalf("expected room closed, got %v", err)
+	}
+}
+
+// TestRoomCloseDrainsDoorbell verifies close releases waiting connection state.
+func TestRoomCloseDrainsDoorbell(t *testing.T) {
+	room, err := NewRoom(Snapshot{ID: 9, OwnerPlayerID: 7, MaxUsers: 2})
+	if err != nil {
+		t.Fatalf("create room: %v", err)
+	}
+	if _, err := room.Join(occupantForTest(7)); err != nil {
+		t.Fatalf("join owner: %v", err)
+	}
+	entry := roomdoorbell.Entry{PlayerID: 8, Username: "Guest", Handler: netconn.Context{ConnectionID: "guest", ConnectionKind: "websocket"}, RequestedAt: time.Now()}
+	if !room.RequestDoorbell(entry, true) {
+		t.Fatal("queue guest")
+	}
+	_, expired := room.CloseWithDoorbell()
+	if len(expired) != 1 || expired[0].Reason != roomdoorbell.ExpiredRoomClosed || room.DoorbellLen() != 0 {
+		t.Fatalf("unexpected close drain %#v", expired)
 	}
 }

@@ -3,6 +3,7 @@ package room
 import (
 	"testing"
 
+	roomentry "github.com/niflaot/pixels/internal/realm/room/entry"
 	roomcreated "github.com/niflaot/pixels/internal/realm/room/events/created"
 	roomdeleted "github.com/niflaot/pixels/internal/realm/room/events/deleted"
 	roomentered "github.com/niflaot/pixels/internal/realm/room/events/entered"
@@ -33,12 +34,19 @@ func TestEventNames(t *testing.T) {
 	}
 }
 
+// TestEntryPermissionNodes verifies room entry nodes are registered.
+func TestEntryPermissionNodes(t *testing.T) {
+	if EnterAny != "room.enter.any" || EnterFull != "room.enter.full" {
+		t.Fatalf("unexpected entry nodes enterAny=%q enterFull=%q", EnterAny, EnterFull)
+	}
+}
+
 // TestProvidersExposeContracts verifies module helper providers return contracts.
 func TestProvidersExposeContracts(t *testing.T) {
 	layoutService := layout.NewService(nil)
 	roomService := service.New(nil, layoutService)
 
-	if NewLiveRegistry(bus.New(), netconn.NewRegistry()) == nil {
+	if NewLiveRegistry(bus.New(), netconn.NewRegistry(), roomentry.Config{}, nil) == nil {
 		t.Fatal("expected live registry")
 	}
 	if NewLayoutStore(nil) == nil {

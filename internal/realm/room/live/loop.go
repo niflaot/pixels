@@ -6,8 +6,8 @@ import (
 )
 
 // startLoop starts the room owner goroutine.
-func (room *Room) startLoop(ctx context.Context, interval time.Duration, publisher MovementPublisher) {
-	if publisher == nil || interval <= 0 {
+func (room *Room) startLoop(ctx context.Context, interval time.Duration, movementPublisher MovementPublisher, doorbellPublisher DoorbellPublisher, doorbellTimeout time.Duration) {
+	if (movementPublisher == nil && doorbellPublisher == nil) || interval <= 0 {
 		return
 	}
 
@@ -22,7 +22,7 @@ func (room *Room) startLoop(ctx context.Context, interval time.Duration, publish
 	room.loopDone = done
 	room.mutex.Unlock()
 
-	go room.runLoop(loopCtx, interval, publisher, done)
+	go room.runLoop(loopCtx, interval, movementPublisher, doorbellPublisher, doorbellTimeout, done)
 }
 
 // stopLoop stops the room owner goroutine.
@@ -44,7 +44,7 @@ func (room *Room) stopLoop() {
 }
 
 // runLoop runs room ticks until stopped.
-func (room *Room) runLoop(ctx context.Context, interval time.Duration, publisher MovementPublisher, done chan<- struct{}) {
+func (room *Room) runLoop(ctx context.Context, interval time.Duration, movementPublisher MovementPublisher, doorbellPublisher DoorbellPublisher, doorbellTimeout time.Duration, done chan<- struct{}) {
 	defer close(done)
 
 	ticker := time.NewTicker(interval)
@@ -55,10 +55,13 @@ func (room *Room) runLoop(ctx context.Context, interval time.Duration, publisher
 			return
 		case <-ticker.C:
 			movements := room.Tick()
-			if len(movements) == 0 {
-				continue
+			if len(movements) > 0 && movementPublisher != nil {
+				_ = movementPublisher(ctx, room, movements)
 			}
-			_ = publisher(ctx, room, movements)
+			expired := room.SweepDoorbell(time.Now(), doorbellTimeout)
+			if len(expired) > 0 && doorbellPublisher != nil {
+				_ = doorbellPublisher(ctx, room, expired)
+			}
 		}
 	}
 }

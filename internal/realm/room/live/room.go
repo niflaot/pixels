@@ -2,26 +2,12 @@ package live
 
 import (
 	"context"
-	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 
-	worldfurniture "github.com/niflaot/pixels/internal/realm/room/world/furniture"
-	"github.com/niflaot/pixels/internal/realm/room/world/grid"
-	worldunit "github.com/niflaot/pixels/internal/realm/room/world/unit"
+	roomdoorbell "github.com/niflaot/pixels/internal/realm/room/doorbell"
 )
-
-// TileHeight describes one resolved tile's current walkable height and stacking state.
-type TileHeight struct {
-	// Valid reports whether the tile is part of the room.
-	Valid bool
-
-	// Height stores the current walkable top height.
-	Height grid.Height
-
-	// StackingBlocked reports whether new items cannot stack on this tile.
-	StackingBlocked bool
-}
 
 // Room stores active runtime state for one loaded room.
 type Room struct {
@@ -33,6 +19,9 @@ type Room struct {
 
 	// occupants stores occupants by player id.
 	occupants map[int64]Occupant
+
+	// doorbell stores waiting entry requests and remains nil until first use.
+	doorbell atomic.Pointer[roomdoorbell.Queue]
 
 	// world stores loaded room world behavior.
 	world *World
@@ -80,6 +69,11 @@ func (room *Room) Snapshot() Snapshot {
 
 // Join adds or replaces an active room occupant.
 func (room *Room) Join(occupant Occupant) (Occupancy, error) {
+	return room.JoinWithCapacity(occupant, false)
+}
+
+// JoinWithCapacity adds an occupant with an optional capacity bypass.
+func (room *Room) JoinWithCapacity(occupant Occupant, bypassCapacity bool) (Occupancy, error) {
 	if !occupant.Valid() {
 		return Occupancy{}, ErrInvalidOccupant
 	}
@@ -90,7 +84,7 @@ func (room *Room) Join(occupant Occupant) (Occupancy, error) {
 	if room.closed {
 		return Occupancy{}, ErrRoomClosed
 	}
-	if _, exists := room.occupants[occupant.PlayerID]; !exists && len(room.occupants) >= room.snapshot.MaxUsers {
+	if _, exists := room.occupants[occupant.PlayerID]; !exists && len(room.occupants) >= room.snapshot.MaxUsers && !bypassCapacity {
 		return Occupancy{}, ErrRoomFull
 	}
 
@@ -147,11 +141,16 @@ func (room *Room) Occupants() []Occupant {
 
 // Close marks the active room as closed.
 func (room *Room) Close() Occupancy {
+	occupancy, _ := room.CloseWithDoorbell()
+
+	return occupancy
+}
+
+// CloseWithDoorbell closes the room and returns every pending entry request.
+func (room *Room) CloseWithDoorbell() (Occupancy, []roomdoorbell.Expired) {
 	room.stopLoop()
 
 	room.mutex.Lock()
-	defer room.mutex.Unlock()
-
 	room.closed = true
 	room.occupants = make(map[int64]Occupant)
 	if room.world != nil {
@@ -159,8 +158,14 @@ func (room *Room) Close() Occupancy {
 	}
 	now := time.Now()
 	room.idleSince = &now
+	queue := room.doorbell.Swap(nil)
+	occupancy := room.occupancyLocked()
+	room.mutex.Unlock()
+	if queue == nil {
+		return occupancy, nil
+	}
 
-	return room.occupancyLocked()
+	return occupancy, queue.Drain(roomdoorbell.ExpiredRoomClosed)
 }
 
 // IdleSince returns when the room became empty.
@@ -185,117 +190,4 @@ func (room *Room) occupancyLocked() Occupancy {
 	}
 
 	return Occupancy{RoomID: room.snapshot.ID, CategoryID: room.snapshot.CategoryID, Count: len(room.occupants), MaxUsers: room.snapshot.MaxUsers, PlayerIDs: playerIDs}
-}
-
-// Units returns stable world unit snapshots.
-func (room *Room) Units() []UnitSnapshot {
-	room.mutex.RLock()
-	defer room.mutex.RUnlock()
-
-	if room.world == nil {
-		return nil
-	}
-
-	playerIDs := make([]int64, 0, len(room.world.units))
-	for playerID := range room.world.units {
-		playerIDs = append(playerIDs, playerID)
-	}
-	sort.Slice(playerIDs, func(left int, right int) bool {
-		return playerIDs[left] < playerIDs[right]
-	})
-
-	units := make([]UnitSnapshot, 0, len(playerIDs))
-	for _, playerID := range playerIDs {
-		roomUnit := room.world.units[playerID]
-		units = append(units, unitSnapshot(playerID, roomUnit))
-	}
-
-	return units
-}
-
-// FurnitureItems returns stable placed furniture item snapshots.
-func (room *Room) FurnitureItems() []worldfurniture.Item {
-	room.mutex.RLock()
-	defer room.mutex.RUnlock()
-
-	if room.world == nil {
-		return nil
-	}
-
-	ids := make([]int64, 0, len(room.world.furniture))
-	for id := range room.world.furniture {
-		ids = append(ids, id)
-	}
-	sort.Slice(ids, func(left int, right int) bool {
-		return ids[left] < ids[right]
-	})
-
-	items := make([]worldfurniture.Item, 0, len(ids))
-	for _, id := range ids {
-		items = append(items, room.world.furniture[id])
-	}
-
-	return items
-}
-
-// SurfaceHeights returns the room's current per-tile walkable heights, row-major by (y*width+x).
-func (room *Room) SurfaceHeights() (uint16, uint16, []TileHeight) {
-	room.mutex.RLock()
-	defer room.mutex.RUnlock()
-
-	if room.world == nil {
-		return 0, 0, nil
-	}
-
-	width, height := room.world.grid.Width(), room.world.grid.Height()
-	tiles := make([]TileHeight, 0, int(width)*int(height))
-	for y := uint16(0); y < height; y++ {
-		for x := uint16(0); x < width; x++ {
-			section, err := room.world.resolver.TopSection(grid.Point{X: x, Y: y})
-			if err != nil {
-				tiles = append(tiles, TileHeight{})
-
-				continue
-			}
-			tiles = append(tiles, TileHeight{Valid: true, Height: section.Z(), StackingBlocked: !section.Stacking()})
-		}
-	}
-
-	return width, height, tiles
-}
-
-// SlotOccupant returns a player id currently occupying any sit/lay slot of a placed furniture item.
-func (room *Room) SlotOccupant(itemID int64) (int64, bool) {
-	room.mutex.RLock()
-	defer room.mutex.RUnlock()
-
-	if room.world == nil {
-		return 0, false
-	}
-	item, found := room.world.furniture[itemID]
-	if !found {
-		return 0, false
-	}
-
-	for _, slot := range worldfurniture.Slots(item) {
-		if playerID, occupied := room.world.slotOccupants[slot.Point]; occupied {
-			return playerID, true
-		}
-	}
-
-	return 0, false
-}
-
-// unitSnapshot maps a world unit to a runtime snapshot.
-func unitSnapshot(playerID int64, roomUnit *worldunit.Unit) UnitSnapshot {
-	return UnitSnapshot{
-		PlayerID:     playerID,
-		UnitID:       roomUnit.ID(),
-		Position:     roomUnit.Position(),
-		Previous:     roomUnit.Previous(),
-		BodyRotation: roomUnit.BodyRotation(),
-		HeadRotation: roomUnit.HeadRotation(),
-		Moving:       roomUnit.Moving(),
-		Statuses:     roomUnit.Statuses(),
-	}
 }

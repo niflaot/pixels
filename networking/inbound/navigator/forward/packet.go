@@ -9,18 +9,23 @@ const (
 )
 
 // Payload contains the unpacked FORWARD_TO_SOME_ROOM fields.
-type Payload struct{}
+type Payload struct {
+	// Action identifies the configured navigator forwarding action.
+	Action string
+}
 
 // Definition describes the FORWARD_TO_SOME_ROOM payload fields.
-var Definition = codec.Definition{}
+var Definition = codec.Definition{codec.Named("action", codec.StringField)}
 
 // Decode unpacks a FORWARD_TO_SOME_ROOM packet payload.
 func Decode(packet codec.Packet) (Payload, error) {
 	if packet.Header != Header {
 		return Payload{}, codec.ErrUnexpectedHeader
 	}
-	if _, err := codec.DecodePacketExact(packet, Definition); err != nil {
+	values, err := codec.DecodePacketExact(packet, Definition)
+	if err != nil {
 		return Payload{}, err
 	}
-	return Payload{}, nil
+
+	return Payload{Action: values[0].String}, nil
 }

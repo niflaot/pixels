@@ -13,19 +13,30 @@ import (
 func scanRoom(row pgx.Row) (roommodel.Room, error) {
 	var room roommodel.Room
 	var categoryID pgtype.Int8
+	var passwordHash pgtype.Text
 	var deletedAt pgtype.Timestamptz
 	var doorMode int16
 	var tradeMode int16
-	err := row.Scan(&room.ID, &room.OwnerPlayerID, &room.OwnerName, &room.Name, &room.Description, &room.ModelName, &doorMode, &room.MaxUsers, &room.Score, &categoryID, &tradeMode, &room.AllowWalkthrough, &room.AllowPets, &room.AllowPetsEat, &room.HideWalls, &room.WallThickness, &room.FloorThickness, &room.ChatMode, &room.ChatWeight, &room.ChatSpeed, &room.ChatDistance, &room.ChatProtection, &room.StaffPicked, &room.PublicRoom, &room.CreatedAt, &room.UpdatedAt, &deletedAt, &room.Version.Version)
+	err := row.Scan(&room.ID, &room.OwnerPlayerID, &room.OwnerName, &room.Name, &room.Description, &room.ModelName, &doorMode, &passwordHash, &room.MaxUsers, &room.Score, &categoryID, &tradeMode, &room.AllowWalkthrough, &room.AllowPets, &room.AllowPetsEat, &room.HideWalls, &room.WallThickness, &room.FloorThickness, &room.ChatMode, &room.ChatWeight, &room.ChatSpeed, &room.ChatDistance, &room.ChatProtection, &room.StaffPicked, &room.PublicRoom, &room.CreatedAt, &room.UpdatedAt, &deletedAt, &room.Version.Version)
 	if err != nil {
 		return roommodel.Room{}, err
 	}
 	room.CategoryID = int64Pointer(categoryID)
+	room.PasswordHash = stringPointer(passwordHash)
 	room.DeletedAt = timePointer(deletedAt)
 	room.DoorMode = roommodel.DoorMode(doorMode)
 	room.TradeMode = roommodel.TradeMode(tradeMode)
 
 	return room, nil
+}
+
+// stringPointer converts PostgreSQL text to an optional string.
+func stringPointer(value pgtype.Text) *string {
+	if !value.Valid {
+		return nil
+	}
+
+	return &value.String
 }
 
 // scanRooms scans room rows.

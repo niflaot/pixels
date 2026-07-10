@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/niflaot/pixels/internal/command"
+	"github.com/niflaot/pixels/internal/permission"
+	roomentry "github.com/niflaot/pixels/internal/realm/room/entry"
 	roomentered "github.com/niflaot/pixels/internal/realm/room/events/entered"
 	roomleft "github.com/niflaot/pixels/internal/realm/room/events/left"
 	"github.com/niflaot/pixels/internal/realm/room/layout"
@@ -16,6 +18,19 @@ import (
 	netconn "github.com/niflaot/pixels/networking/connection"
 	sharedmodel "github.com/niflaot/pixels/pkg/model"
 )
+
+// doorbellPermissions resolves one global responder node.
+type doorbellPermissions struct {
+	// playerID identifies the allowed player.
+	playerID int64
+	// node identifies the allowed node.
+	node permission.Node
+}
+
+// HasPermission reports whether a player holds the responder fixture node.
+func (permissions doorbellPermissions) HasPermission(_ context.Context, playerID int64, node permission.Node) (bool, error) {
+	return playerID == permissions.playerID && node == permissions.node, nil
+}
 
 // TestRoomSnapshotMapsRuntimeFields verifies persistent room to runtime mapping.
 func TestRoomSnapshotMapsRuntimeFields(t *testing.T) {
@@ -204,6 +219,23 @@ func TestLoadRoomRejectsMissingRecords(t *testing.T) {
 	}
 }
 
+// TestDoorbellApproversIncludesGlobalPermission verifies non-owner responder selection.
+func TestDoorbellApproversIncludesGlobalPermission(t *testing.T) {
+	const node permission.Node = "room.doorbell.answer.any"
+	active, err := roomlive.NewRoom(roomlive.Snapshot{ID: 9, OwnerPlayerID: 7, MaxUsers: 25})
+	if err != nil {
+		t.Fatalf("create active room: %v", err)
+	}
+	if _, err := active.Join(occupantForTest(2)); err != nil {
+		t.Fatalf("join moderator: %v", err)
+	}
+	entryService := roomentry.New(roomentry.Config{}, nil, doorbellPermissions{playerID: 2, node: node}, nil, roomentry.Nodes{AnswerAnyDoorbell: node})
+	approvers, err := (Handler{Entry: entryService}).doorbellApprovers(context.Background(), active, roomForTest())
+	if err != nil || len(approvers) != 1 || approvers[0].PlayerID != 2 {
+		t.Fatalf("unexpected approvers=%#v err=%v", approvers, err)
+	}
+}
+
 // TestSendEntryErrorMapsRoomFull verifies protocol entry error handling.
 func TestSendEntryErrorMapsRoomFull(t *testing.T) {
 	handler := Handler{}
@@ -211,7 +243,6 @@ func TestSendEntryErrorMapsRoomFull(t *testing.T) {
 	if err == nil || err.Error() != "other" {
 		t.Fatalf("expected original error, got %v", err)
 	}
-
 	err = handler.sendEntryError(context.Background(), netconn.Context{}, roomlive.ErrRoomFull)
 	if !errors.Is(err, netconn.ErrInvalidConnection) {
 		t.Fatalf("expected invalid connection, got %v", err)

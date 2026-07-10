@@ -3,6 +3,8 @@ package routes
 import (
 	"github.com/gofiber/fiber/v2"
 	navservice "github.com/niflaot/pixels/internal/realm/navigator/service"
+	playerlive "github.com/niflaot/pixels/internal/realm/player/live"
+	roomentry "github.com/niflaot/pixels/internal/realm/room/entry"
 	roomlive "github.com/niflaot/pixels/internal/realm/room/live"
 	roomservice "github.com/niflaot/pixels/internal/realm/room/service"
 	netconn "github.com/niflaot/pixels/networking/connection"
@@ -17,12 +19,13 @@ const (
 )
 
 // Register mounts protected room and navigator administration routes.
-func Register(app *fiber.App, rooms roomservice.Manager, runtime *roomlive.Registry, connections *netconn.Registry, navigator navservice.Manager) {
+func Register(app *fiber.App, rooms roomservice.Manager, runtime *roomlive.Registry, connections *netconn.Registry, navigator navservice.Manager, players *playerlive.Registry, entry *roomentry.Service) {
 	app.Get(roomPath, listHandler(rooms))
 	app.Get(roomPath+"/:id", detailHandler(rooms))
 	app.Get(roomPath+"/:id/occupancy", occupancyHandler(rooms, runtime))
 	app.Post(roomPath+"/:id/close", closeHandler(runtime))
 	app.Post(roomPath+"/:id/forward", forwardHandler(runtime, connections))
+	app.Post(roomPath+"/players/:playerId/teleport", teleportHandler(rooms, players, connections, entry))
 	app.Get(navigatorPath+"/categories", categoriesHandler(rooms))
 	app.Get(navigatorPath+"/lifted", liftedHandler(navigator))
 }

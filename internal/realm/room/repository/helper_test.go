@@ -135,6 +135,8 @@ func assignValue(destination any, value any) {
 		*target = value.(time.Time)
 	case *pgtype.Int8:
 		*target = value.(pgtype.Int8)
+	case *pgtype.Text:
+		*target = value.(pgtype.Text)
 	case *pgtype.Timestamptz:
 		*target = value.(pgtype.Timestamptz)
 	}

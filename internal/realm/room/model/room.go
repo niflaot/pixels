@@ -57,6 +57,9 @@ type Room struct {
 	// DoorMode describes how the room accepts entry.
 	DoorMode DoorMode
 
+	// PasswordHash stores the optional bcrypt room password hash.
+	PasswordHash *string
+
 	// MaxUsers stores the maximum user count.
 	MaxUsers int
 

@@ -5,6 +5,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/niflaot/pixels/internal/auth/sso"
 	navservice "github.com/niflaot/pixels/internal/realm/navigator/service"
+	roomentry "github.com/niflaot/pixels/internal/realm/room/entry"
 	roomlive "github.com/niflaot/pixels/internal/realm/room/live"
 	roomservice "github.com/niflaot/pixels/internal/realm/room/service"
 	"github.com/niflaot/pixels/pkg/build"
@@ -17,17 +18,17 @@ import (
 )
 
 // New creates the Fiber application without permission administration.
-func New(log *zap.Logger, config config.AppConfig, info build.Info, sso *sso.Service, websocket *ws.Adapter, rooms roomservice.Manager, runtime *roomlive.Registry, navigator navservice.Manager, currencyAdmin currencyroutes.Dependencies, catalogAdmin catalogroutes.Dependencies) *fiber.App {
-	return newApplication(log, config, info, sso, websocket, rooms, runtime, navigator, currencyAdmin, catalogAdmin, permissionroutes.Dependencies{})
+func New(log *zap.Logger, config config.AppConfig, info build.Info, sso *sso.Service, websocket *ws.Adapter, rooms roomservice.Manager, runtime *roomlive.Registry, roomEntry *roomentry.Service, navigator navservice.Manager, currencyAdmin currencyroutes.Dependencies, catalogAdmin catalogroutes.Dependencies) *fiber.App {
+	return newApplication(log, config, info, sso, websocket, rooms, runtime, roomEntry, navigator, currencyAdmin, catalogAdmin, permissionroutes.Dependencies{})
 }
 
 // NewWithPermissions creates the complete Fiber application.
-func NewWithPermissions(log *zap.Logger, config config.AppConfig, info build.Info, sso *sso.Service, websocket *ws.Adapter, rooms roomservice.Manager, runtime *roomlive.Registry, navigator navservice.Manager, currencyAdmin currencyroutes.Dependencies, catalogAdmin catalogroutes.Dependencies, permissionAdmin permissionroutes.Dependencies) *fiber.App {
-	return newApplication(log, config, info, sso, websocket, rooms, runtime, navigator, currencyAdmin, catalogAdmin, permissionAdmin)
+func NewWithPermissions(log *zap.Logger, config config.AppConfig, info build.Info, sso *sso.Service, websocket *ws.Adapter, rooms roomservice.Manager, runtime *roomlive.Registry, roomEntry *roomentry.Service, navigator navservice.Manager, currencyAdmin currencyroutes.Dependencies, catalogAdmin catalogroutes.Dependencies, permissionAdmin permissionroutes.Dependencies) *fiber.App {
+	return newApplication(log, config, info, sso, websocket, rooms, runtime, roomEntry, navigator, currencyAdmin, catalogAdmin, permissionAdmin)
 }
 
 // newApplication creates the Fiber application with optional permission administration.
-func newApplication(log *zap.Logger, config config.AppConfig, info build.Info, sso *sso.Service, websocket *ws.Adapter, rooms roomservice.Manager, runtime *roomlive.Registry, navigator navservice.Manager, currencyAdmin currencyroutes.Dependencies, catalogAdmin catalogroutes.Dependencies, permissionAdmin permissionroutes.Dependencies) *fiber.App {
+func newApplication(log *zap.Logger, config config.AppConfig, info build.Info, sso *sso.Service, websocket *ws.Adapter, rooms roomservice.Manager, runtime *roomlive.Registry, roomEntry *roomentry.Service, navigator navservice.Manager, currencyAdmin currencyroutes.Dependencies, catalogAdmin catalogroutes.Dependencies, permissionAdmin permissionroutes.Dependencies) *fiber.App {
 	app := fiber.New(fiber.Config{
 		DisableStartupMessage: true,
 		ErrorHandler:          errorHandler,
@@ -41,7 +42,7 @@ func newApplication(log *zap.Logger, config config.AppConfig, info build.Info, s
 
 	registerPublic(app, config, info, websocket, currencyAdmin.Currencies, currencyAdmin.Translations)
 	app.Use(auth(config.App.AccessKey))
-	registerPrivate(app, sso, rooms, runtime, navigator, currencyAdmin, catalogAdmin, permissionAdmin)
+	registerPrivate(app, sso, rooms, runtime, roomEntry, navigator, currencyAdmin, catalogAdmin, permissionAdmin)
 
 	return app
 }

@@ -26,6 +26,15 @@ type Registry struct {
 	// movementPublish publishes movement changes.
 	movementPublish MovementPublisher
 
+	// doorbellPublish publishes expired entry requests.
+	doorbellPublish DoorbellPublisher
+
+	// doorbellApprover checks whether a waiting request still has a responder.
+	doorbellApprover DoorbellApprover
+
+	// doorbellTimeout stores maximum waiting request duration.
+	doorbellTimeout time.Duration
+
 	// tickInterval stores active room movement cadence.
 	tickInterval time.Duration
 }
@@ -33,10 +42,11 @@ type Registry struct {
 // NewRegistry creates an active room registry.
 func NewRegistry(publisher OccupancyPublisher, options ...RegistryOption) *Registry {
 	registry := &Registry{
-		rooms:        make(map[int64]*Room),
-		byPlayer:     make(map[int64]int64),
-		publish:      publisher,
-		tickInterval: DefaultTickInterval,
+		rooms:           make(map[int64]*Room),
+		byPlayer:        make(map[int64]int64),
+		publish:         publisher,
+		tickInterval:    DefaultTickInterval,
+		doorbellTimeout: 5 * time.Minute,
 	}
 	for _, option := range options {
 		option(registry)
@@ -59,7 +69,7 @@ func (registry *Registry) Activate(snapshot Snapshot) (*Room, error) {
 		return active, nil
 	}
 
-	room.startLoop(context.Background(), registry.tickInterval, registry.movementPublish)
+	room.startLoop(context.Background(), registry.tickInterval, registry.movementPublish, registry.doorbellPublish, registry.doorbellTimeout)
 	registry.rooms[snapshot.ID] = room
 
 	return room, nil
@@ -91,6 +101,11 @@ func (registry *Registry) FindByPlayer(playerID int64) (*Room, bool) {
 
 // Join adds a player to an active room.
 func (registry *Registry) Join(ctx context.Context, roomID int64, occupant Occupant) (Occupancy, error) {
+	return registry.JoinWithCapacity(ctx, roomID, occupant, false)
+}
+
+// JoinWithCapacity adds a player with an optional room-capacity bypass.
+func (registry *Registry) JoinWithCapacity(ctx context.Context, roomID int64, occupant Occupant, bypassCapacity bool) (Occupancy, error) {
 	if !occupant.Valid() {
 		return Occupancy{}, ErrInvalidOccupant
 	}
@@ -103,7 +118,7 @@ func (registry *Registry) Join(ctx context.Context, roomID int64, occupant Occup
 	if previousID, found := registry.indexedRoom(occupant.PlayerID); found && previousID != roomID {
 		registry.removeIndexedPlayer(ctx, occupant.PlayerID)
 	}
-	occupancy, err := room.Join(occupant)
+	occupancy, err := room.JoinWithCapacity(occupant, bypassCapacity)
 	if err != nil {
 		return Occupancy{}, err
 	}
@@ -143,6 +158,17 @@ func (registry *Registry) Leave(ctx context.Context, playerID int64) (Occupancy,
 	registry.mutex.Lock()
 	delete(registry.byPlayer, playerID)
 	registry.mutex.Unlock()
+	approverPresent := room.OwnerPresent()
+	if room.DoorbellLen() > 0 && registry.doorbellApprover != nil {
+		resolved, resolveErr := registry.doorbellApprover(ctx, room)
+		if resolveErr == nil {
+			approverPresent = resolved
+		}
+	}
+	expired := room.DrainDoorbellWithoutApprover(approverPresent)
+	if len(expired) > 0 && registry.doorbellPublish != nil {
+		_ = registry.doorbellPublish(ctx, room, expired)
+	}
 
 	return occupancy, true, registry.publishOccupancy(ctx, occupancy)
 }
@@ -168,7 +194,10 @@ func (registry *Registry) Close(ctx context.Context, roomID int64) (Occupancy, b
 	}
 	registry.mutex.Unlock()
 
-	occupancy := room.Close()
+	occupancy, expired := room.CloseWithDoorbell()
+	if len(expired) > 0 && registry.doorbellPublish != nil {
+		_ = registry.doorbellPublish(ctx, room, expired)
+	}
 
 	return occupancy, true, registry.publishOccupancy(ctx, occupancy)
 }
@@ -197,27 +226,6 @@ func (registry *Registry) UnloadIdle(ctx context.Context, idleFor time.Duration,
 	}
 
 	return closedOccupancies, nil
-}
-
-// Count returns the number of active rooms.
-func (registry *Registry) Count() int {
-	registry.mutex.RLock()
-	defer registry.mutex.RUnlock()
-
-	return len(registry.rooms)
-}
-
-// Snapshot returns stable active room references.
-func (registry *Registry) Snapshot() []*Room {
-	registry.mutex.RLock()
-	defer registry.mutex.RUnlock()
-
-	rooms := make([]*Room, 0, len(registry.rooms))
-	for _, room := range registry.rooms {
-		rooms = append(rooms, room)
-	}
-
-	return rooms
 }
 
 // removeIndexedPlayer removes a player from any indexed room.

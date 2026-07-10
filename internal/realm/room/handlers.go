@@ -5,6 +5,7 @@ import (
 	furnitureservice "github.com/niflaot/pixels/internal/realm/furniture/service"
 	playerlive "github.com/niflaot/pixels/internal/realm/player/live"
 	playerservice "github.com/niflaot/pixels/internal/realm/player/service"
+	respondcmd "github.com/niflaot/pixels/internal/realm/room/commands/doorbell/respond"
 	entercmd "github.com/niflaot/pixels/internal/realm/room/commands/enter"
 	entrytilecmd "github.com/niflaot/pixels/internal/realm/room/commands/entrytile"
 	leavecmd "github.com/niflaot/pixels/internal/realm/room/commands/leave"
@@ -12,7 +13,9 @@ import (
 	modelcmd "github.com/niflaot/pixels/internal/realm/room/commands/model"
 	tagscmd "github.com/niflaot/pixels/internal/realm/room/commands/tags"
 	walkcmd "github.com/niflaot/pixels/internal/realm/room/commands/walk"
+	roomentry "github.com/niflaot/pixels/internal/realm/room/entry"
 	desktophandler "github.com/niflaot/pixels/internal/realm/room/handlers/desktop"
+	respondhandler "github.com/niflaot/pixels/internal/realm/room/handlers/doorbell/respond"
 	enterhandler "github.com/niflaot/pixels/internal/realm/room/handlers/enter"
 	entrytilehandler "github.com/niflaot/pixels/internal/realm/room/handlers/entrytile"
 	lookhandler "github.com/niflaot/pixels/internal/realm/room/handlers/look"
@@ -53,6 +56,8 @@ type HandlerDeps struct {
 	Events *bus.Bus
 	// Log records command dispatch.
 	Log *zap.Logger
+	// Entry decides closed-room access.
+	Entry *roomentry.Service
 }
 
 // RegisterConnectionHandlers registers room packet handlers.
@@ -65,6 +70,16 @@ func RegisterConnectionHandlers(handlers *realmconn.Handlers, deps HandlerDeps) 
 		Players: deps.Players, Bindings: deps.Bindings, Rooms: deps.Rooms,
 		Layouts: deps.Layouts, Furniture: deps.Furniture, PlayerDirectory: deps.PlayerDirectory,
 		Runtime: deps.Runtime, Connections: deps.Connections, Events: deps.Events,
+		Entry: deps.Entry,
+	}, deps.Log))
+	respondhandler.Register(handlers.Inbound, respondhandler.New(respondcmd.Handler{
+		Players: deps.Players, Bindings: deps.Bindings, Runtime: deps.Runtime,
+		Connections: deps.Connections, Entry: deps.Entry,
+		Enter: entercmd.Handler{
+			Players: deps.Players, Bindings: deps.Bindings, Rooms: deps.Rooms,
+			Layouts: deps.Layouts, Furniture: deps.Furniture, PlayerDirectory: deps.PlayerDirectory,
+			Runtime: deps.Runtime, Connections: deps.Connections, Events: deps.Events, Entry: deps.Entry,
+		},
 	}, deps.Log))
 	modelhandler.Register(handlers.Inbound, modelhandler.New(modelcmd.Handler{
 		Players: deps.Players, Bindings: deps.Bindings, Rooms: deps.Rooms, Layouts: deps.Layouts,

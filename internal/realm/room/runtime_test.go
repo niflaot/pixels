@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	playerdisconnected "github.com/niflaot/pixels/internal/realm/player/events/disconnected"
+	roomentry "github.com/niflaot/pixels/internal/realm/room/entry"
 	roomoccupancy "github.com/niflaot/pixels/internal/realm/room/events/occupancychanged"
 	"github.com/niflaot/pixels/internal/realm/room/live"
 	netconn "github.com/niflaot/pixels/networking/connection"
@@ -23,7 +24,7 @@ func TestNewLiveRegistryPublishesRoomEvents(t *testing.T) {
 		t.Fatalf("subscribe: %v", err)
 	}
 
-	registry := NewLiveRegistry(local, netconn.NewRegistry())
+	registry := NewLiveRegistry(local, netconn.NewRegistry(), roomentry.Config{}, nil)
 	if _, err := registry.Activate(live.Snapshot{ID: 9, MaxUsers: 1}); err != nil {
 		t.Fatalf("activate room: %v", err)
 	}
@@ -40,7 +41,7 @@ func TestNewLiveRegistryPublishesRoomEvents(t *testing.T) {
 func TestRegisterRuntimeCleanupRemovesDisconnectedPlayer(t *testing.T) {
 	lifecycle := fxtest.NewLifecycle(t)
 	local := bus.New()
-	registry := NewLiveRegistry(local, netconn.NewRegistry())
+	registry := NewLiveRegistry(local, netconn.NewRegistry(), roomentry.Config{}, nil)
 	if err := RegisterRuntimeCleanup(lifecycle, local, local, registry, netconn.NewRegistry()); err != nil {
 		t.Fatalf("register cleanup: %v", err)
 	}
@@ -67,7 +68,7 @@ func TestRegisterRuntimeCleanupRemovesDisconnectedPlayer(t *testing.T) {
 func TestRegisterRuntimeCleanupIgnoresUnknownPayload(t *testing.T) {
 	lifecycle := fxtest.NewLifecycle(t)
 	local := bus.New()
-	registry := NewLiveRegistry(local, netconn.NewRegistry())
+	registry := NewLiveRegistry(local, netconn.NewRegistry(), roomentry.Config{}, nil)
 	if err := RegisterRuntimeCleanup(lifecycle, local, local, registry, netconn.NewRegistry()); err != nil {
 		t.Fatalf("register cleanup: %v", err)
 	}

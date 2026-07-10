@@ -7,6 +7,7 @@ import (
 
 	"github.com/niflaot/pixels/internal/auth/sso"
 	currencyconfig "github.com/niflaot/pixels/internal/realm/inventory/currency"
+	roomentry "github.com/niflaot/pixels/internal/realm/room/entry"
 	appconfig "github.com/niflaot/pixels/pkg/config/app"
 	"github.com/niflaot/pixels/pkg/i18n"
 	"github.com/niflaot/pixels/pkg/logger"
@@ -158,7 +159,7 @@ func TestModuleProvidesConfig(t *testing.T) {
 	app := fxtest.New(
 		t,
 		Module,
-		fx.Invoke(func(config AppConfig, app appconfig.Config, log logger.Config, translations i18n.Config, currency currencyconfig.Config, postgres postgres.Config, redis redis.Config, sso sso.Config) {
+		fx.Invoke(func(config AppConfig, app appconfig.Config, log logger.Config, translations i18n.Config, currency currencyconfig.Config, entry roomentry.Config, postgres postgres.Config, redis redis.Config, sso sso.Config) {
 			invoked = true
 
 			if config.App != app {
@@ -174,6 +175,9 @@ func TestModuleProvidesConfig(t *testing.T) {
 			}
 			if config.Currency.CatalogPath != currency.CatalogPath {
 				t.Fatalf("expected currency config provider to match composed config")
+			}
+			if config.RoomEntry != entry {
+				t.Fatalf("expected room entry config provider to match composed config")
 			}
 
 			if config.Postgres != postgres {

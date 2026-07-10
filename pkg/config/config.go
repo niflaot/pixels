@@ -8,6 +8,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/niflaot/pixels/internal/auth/sso"
 	currencyconfig "github.com/niflaot/pixels/internal/realm/inventory/currency"
+	roomentry "github.com/niflaot/pixels/internal/realm/room/entry"
 	appconfig "github.com/niflaot/pixels/pkg/config/app"
 	"github.com/niflaot/pixels/pkg/i18n"
 	"github.com/niflaot/pixels/pkg/logger"
@@ -28,6 +29,9 @@ type AppConfig struct {
 
 	// Currency contains inventory currency settings.
 	Currency currencyconfig.Config
+
+	// RoomEntry contains closed-room entry settings.
+	RoomEntry roomentry.Config
 
 	// Postgres contains PostgreSQL storage settings.
 	Postgres postgres.Config
@@ -65,6 +69,11 @@ func Load(paths ...string) (AppConfig, error) {
 		return AppConfig{}, err
 	}
 
+	roomEntry, err := roomentry.LoadConfig()
+	if err != nil {
+		return AppConfig{}, err
+	}
+
 	postgres, err := postgres.LoadConfig()
 	if err != nil {
 		return AppConfig{}, err
@@ -81,13 +90,14 @@ func Load(paths ...string) (AppConfig, error) {
 	}
 
 	return AppConfig{
-		App:      app,
-		Logger:   log,
-		I18N:     translations,
-		Currency: currency,
-		Postgres: postgres,
-		Redis:    redis,
-		SSO:      sso,
+		App:       app,
+		Logger:    log,
+		I18N:      translations,
+		Currency:  currency,
+		RoomEntry: roomEntry,
+		Postgres:  postgres,
+		Redis:     redis,
+		SSO:       sso,
 	}, nil
 }
 

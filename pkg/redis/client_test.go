@@ -93,3 +93,29 @@ func TestClientTake(t *testing.T) {
 		t.Fatal("expected taken value to be missing")
 	}
 }
+
+// TestClientIncrementPreservesFirstExpiration verifies atomic counters keep their first window.
+func TestClientIncrementPreservesFirstExpiration(t *testing.T) {
+	server := miniredis.RunT(t)
+	client := New(Config{Address: server.Addr()})
+	t.Cleanup(func() { _ = client.Close() })
+	ctx := context.Background()
+	for expected := int64(1); expected <= 3; expected++ {
+		value, err := client.Increment(ctx, "pixels:counter", time.Minute)
+		if err != nil || value != expected {
+			t.Fatalf("increment expected=%d value=%d err=%v", expected, value, err)
+		}
+	}
+	if ttl := server.TTL("pixels:counter"); ttl != time.Minute {
+		t.Fatalf("expected stable ttl, got %s", ttl)
+	}
+	created, err := client.SetIfAbsent(ctx, "pixels:lock", []byte{'1'}, time.Minute)
+	if err != nil || !created {
+		t.Fatalf("set lock created=%v err=%v", created, err)
+	}
+	created, err = client.SetIfAbsent(ctx, "pixels:lock", []byte{'2'}, time.Hour)
+	stored, getErr := server.Get("pixels:lock")
+	if err != nil || getErr != nil || created || stored != "1" {
+		t.Fatalf("expected existing lock preserved created=%v err=%v", created, err)
+	}
+}

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	roomdoorbell "github.com/niflaot/pixels/internal/realm/room/doorbell"
 	worldpath "github.com/niflaot/pixels/internal/realm/room/world/path"
 	netconn "github.com/niflaot/pixels/networking/connection"
 )
@@ -153,6 +154,40 @@ func TestRegistryUnloadIdleClosesEmptyRooms(t *testing.T) {
 	}
 	if len(closed) != 1 || registry.Count() != 0 {
 		t.Fatalf("unexpected closed=%#v count=%d", closed, registry.Count())
+	}
+}
+
+// TestRegistryKeepsDoorbellWhileApproverRemains verifies authorized responder draining.
+func TestRegistryKeepsDoorbellWhileApproverRemains(t *testing.T) {
+	var expired []roomdoorbell.Expired
+	registry := NewRegistry(nil,
+		WithDoorbellApprover(func(_ context.Context, room *Room) (bool, error) {
+			return room.Occupancy().Count > 0, nil
+		}),
+		WithDoorbellPublisher(func(_ context.Context, _ *Room, entries []roomdoorbell.Expired) error {
+			expired = append(expired, entries...)
+			return nil
+		}),
+	)
+	active, err := registry.Activate(Snapshot{ID: 9, OwnerPlayerID: 7, MaxUsers: 3})
+	if err != nil {
+		t.Fatalf("activate room: %v", err)
+	}
+	if _, err := registry.Join(context.Background(), 9, occupantForTest(7)); err != nil {
+		t.Fatalf("join owner: %v", err)
+	}
+	if _, err := registry.Join(context.Background(), 9, occupantForTest(2)); err != nil {
+		t.Fatalf("join moderator: %v", err)
+	}
+	entry := roomdoorbell.Entry{PlayerID: 8, Username: "Guest", Handler: netconn.Context{ConnectionID: "guest", ConnectionKind: "websocket"}, RequestedAt: time.Now()}
+	if !active.RequestDoorbell(entry, true) {
+		t.Fatal("queue doorbell")
+	}
+	if _, _, err := registry.Leave(context.Background(), 7); err != nil || active.DoorbellLen() != 1 {
+		t.Fatalf("owner leave drained queue len=%d err=%v", active.DoorbellLen(), err)
+	}
+	if _, _, err := registry.Leave(context.Background(), 2); err != nil || active.DoorbellLen() != 0 || len(expired) != 1 {
+		t.Fatalf("moderator leave queue=%d expired=%#v err=%v", active.DoorbellLen(), expired, err)
 	}
 }
 

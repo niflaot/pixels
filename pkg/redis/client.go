@@ -55,9 +55,26 @@ func (client *Client) Find(ctx context.Context, key string) ([]byte, bool, error
 	return value, true, nil
 }
 
+// Increment atomically increments a key and sets its expiration only on first use.
+func (client *Client) Increment(ctx context.Context, key string, ttl time.Duration) (int64, error) {
+	pipe := client.client.Pipeline()
+	counter := pipe.Incr(ctx, key)
+	pipe.ExpireNX(ctx, key, ttl)
+	if _, err := pipe.Exec(ctx); err != nil {
+		return 0, err
+	}
+
+	return counter.Val(), nil
+}
+
 // Set writes a Redis key with an optional expiration duration.
 func (client *Client) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {
 	return client.client.Set(ctx, key, value, ttl).Err()
+}
+
+// SetIfAbsent writes a key only when it does not already exist.
+func (client *Client) SetIfAbsent(ctx context.Context, key string, value []byte, ttl time.Duration) (bool, error) {
+	return client.client.SetNX(ctx, key, value, ttl).Result()
 }
 
 // Take reads and deletes a Redis key atomically.

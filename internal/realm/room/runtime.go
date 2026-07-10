@@ -7,6 +7,7 @@ import (
 	playerdisconnected "github.com/niflaot/pixels/internal/realm/player/events/disconnected"
 	"github.com/niflaot/pixels/internal/realm/room/broadcast"
 	leavecmd "github.com/niflaot/pixels/internal/realm/room/commands/leave"
+	roomentry "github.com/niflaot/pixels/internal/realm/room/entry"
 	roomoccupancy "github.com/niflaot/pixels/internal/realm/room/events/occupancychanged"
 	"github.com/niflaot/pixels/internal/realm/room/live"
 	netconn "github.com/niflaot/pixels/networking/connection"
@@ -15,10 +16,36 @@ import (
 )
 
 // NewLiveRegistry creates the active room registry.
-func NewLiveRegistry(publisher bus.Publisher, connections *netconn.Registry) *live.Registry {
+func NewLiveRegistry(publisher bus.Publisher, connections *netconn.Registry, config roomentry.Config, entryService *roomentry.Service) *live.Registry {
 	return live.NewRegistry(func(ctx context.Context, occupancy live.Occupancy) error {
 		return publisher.Publish(ctx, bus.Event{Name: roomoccupancy.Name, Payload: occupancyEvent(occupancy)})
-	}, live.WithMovementPublisher(broadcast.NewMovementPublisher(connections)))
+	},
+		live.WithMovementPublisher(broadcast.NewMovementPublisher(connections)),
+		live.WithDoorbellPublisher(broadcast.NewDoorbellPublisher(connections)),
+		live.WithDoorbellApprover(newDoorbellApprover(entryService)),
+		live.WithDoorbellTimeout(config.Normalize().HangoutTimeout),
+	)
+}
+
+// newDoorbellApprover creates a room responder presence check.
+func newDoorbellApprover(entryService *roomentry.Service) live.DoorbellApprover {
+	if entryService == nil {
+		return func(_ context.Context, active *live.Room) (bool, error) {
+			return active.OwnerPresent(), nil
+		}
+	}
+
+	return func(ctx context.Context, active *live.Room) (bool, error) {
+		snapshot := active.Snapshot()
+		for _, occupant := range active.Occupants() {
+			allowed, err := entryService.CanAnswerDoorbell(ctx, snapshot.ID, snapshot.OwnerPlayerID, occupant.PlayerID)
+			if err != nil || allowed {
+				return allowed, err
+			}
+		}
+
+		return false, nil
+	}
 }
 
 // RegisterRuntimeCleanup removes room occupancy on player disconnect.

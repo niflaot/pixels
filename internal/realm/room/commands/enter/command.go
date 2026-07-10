@@ -10,6 +10,7 @@ import (
 	playerlive "github.com/niflaot/pixels/internal/realm/player/live"
 	playerservice "github.com/niflaot/pixels/internal/realm/player/service"
 	roomsession "github.com/niflaot/pixels/internal/realm/room/commands/session"
+	roomentry "github.com/niflaot/pixels/internal/realm/room/entry"
 	"github.com/niflaot/pixels/internal/realm/room/layout"
 	roomlive "github.com/niflaot/pixels/internal/realm/room/live"
 	roommodel "github.com/niflaot/pixels/internal/realm/room/model"
@@ -18,7 +19,11 @@ import (
 	netconn "github.com/niflaot/pixels/networking/connection"
 	outentered "github.com/niflaot/pixels/networking/outbound/room/entered"
 	outentryerror "github.com/niflaot/pixels/networking/outbound/room/entryerror"
+	outalert "github.com/niflaot/pixels/networking/outbound/session/alert"
+	outdesktop "github.com/niflaot/pixels/networking/outbound/session/desktop"
+	outerror "github.com/niflaot/pixels/networking/outbound/session/error"
 	"github.com/niflaot/pixels/pkg/bus"
+	"go.uber.org/zap/zapcore"
 )
 
 const (
@@ -26,6 +31,14 @@ const (
 	Name command.Name = "room.enter"
 	// ErrorRoomFull is the protocol room-full error code.
 	ErrorRoomFull int32 = 1
+	// ErrorAccessDenied is the protocol closed-room error code.
+	ErrorAccessDenied int32 = 2
+	// ErrorQueue is the protocol room-queue error code.
+	ErrorQueue int32 = 3
+	// ErrorBanned is the protocol room-ban error code.
+	ErrorBanned int32 = 4
+	// ErrorWrongPassword is the generic wrong-password error code.
+	ErrorWrongPassword int32 = -100002
 )
 
 // Command joins a room.
@@ -36,6 +49,8 @@ type Command struct {
 	RoomID int64
 	// Password stores the optional room entry password.
 	Password string
+	// Trusted marks a direct server-controlled entry.
+	Trusted bool
 }
 
 // Handler handles room entry commands.
@@ -58,11 +73,22 @@ type Handler struct {
 	Connections *netconn.Registry
 	// Events publishes room lifecycle events.
 	Events bus.Publisher
+	// Entry decides closed-room access.
+	Entry *roomentry.Service
 }
 
 // CommandName returns the stable command name.
 func (Command) CommandName() command.Name {
 	return Name
+}
+
+// MarshalLogObject writes command fields without exposing plaintext passwords.
+func (command Command) MarshalLogObject(encoder zapcore.ObjectEncoder) error {
+	encoder.AddInt64("room_id", command.RoomID)
+	encoder.AddBool("password_provided", command.Password != "")
+	encoder.AddBool("trusted", command.Trusted)
+
+	return nil
 }
 
 // Handle handles a room enter command.
@@ -75,6 +101,21 @@ func (handler Handler) Handle(ctx context.Context, envelope command.Envelope[Com
 	room, roomLayout, err := handler.loadRoom(ctx, envelope.Command.RoomID)
 	if err != nil {
 		return err
+	}
+	result, err := handler.authorize(ctx, roomentry.Request{
+		Room: room, PlayerID: player.ID(), Password: envelope.Command.Password, Trusted: envelope.Command.Trusted,
+	})
+	if errors.Is(err, roomentry.ErrDoorbellRequired) {
+		return handler.requestDoorbell(ctx, player, envelope.Command.Handler, room)
+	}
+	if err != nil {
+		if result.Alert != "" {
+			if sendErr := handler.sendAlert(ctx, envelope.Command.Handler, result.Alert); sendErr != nil {
+				return sendErr
+			}
+		}
+
+		return handler.sendEntryError(ctx, envelope.Command.Handler, err)
 	}
 	active, err := handler.join(ctx, player, envelope.Command.Handler, room, roomLayout)
 	if err != nil {
@@ -89,6 +130,29 @@ func (handler Handler) Handle(ctx context.Context, envelope command.Envelope[Com
 	}
 
 	return handler.broadcastJoined(ctx, active, player.ID())
+}
+
+// authorize checks room entry policy when configured.
+func (handler Handler) authorize(ctx context.Context, request roomentry.Request) (roomentry.Result, error) {
+	if handler.Entry == nil {
+		if request.Room.DoorMode == roommodel.DoorModeOpen {
+			return roomentry.Result{}, nil
+		}
+
+		return roomentry.Result{}, roomentry.ErrAccessDenied
+	}
+
+	return handler.Entry.Authorize(ctx, request)
+}
+
+// sendAlert sends a localized entry protection message.
+func (handler Handler) sendAlert(ctx context.Context, connection netconn.Context, message string) error {
+	packet, err := outalert.Encode(message)
+	if err != nil {
+		return err
+	}
+
+	return connection.Send(ctx, packet)
 }
 
 // loadRoom loads room and layout data.
@@ -138,14 +202,45 @@ func (handler Handler) sendEntered(ctx context.Context, connection netconn.Conte
 
 // sendEntryError sends a room entry error when possible.
 func (handler Handler) sendEntryError(ctx context.Context, connection netconn.Context, err error) error {
-	if !errors.Is(err, roomlive.ErrRoomFull) {
+	if errors.Is(err, roomentry.ErrEntryLocked) {
+		packet, encodeErr := outdesktop.Encode()
+		if encodeErr != nil {
+			return encodeErr
+		}
+
+		return connection.Send(ctx, packet)
+	}
+	if errors.Is(err, roomentry.ErrWrongPassword) {
+		packet, encodeErr := outerror.Encode(ErrorWrongPassword)
+		if encodeErr != nil {
+			return encodeErr
+		}
+
+		return connection.Send(ctx, packet)
+	}
+	code, found := entryErrorCode(err)
+	if !found {
 		return err
 	}
 
-	packet, encodeErr := outentryerror.Encode(ErrorRoomFull)
+	packet, encodeErr := outentryerror.Encode(code)
 	if encodeErr != nil {
 		return encodeErr
 	}
 
 	return connection.Send(ctx, packet)
+}
+
+// entryErrorCode maps internal entry errors to protocol codes.
+func entryErrorCode(err error) (int32, bool) {
+	switch {
+	case errors.Is(err, roomlive.ErrRoomFull):
+		return ErrorRoomFull, true
+	case errors.Is(err, roomentry.ErrBanned):
+		return ErrorBanned, true
+	case errors.Is(err, roomentry.ErrAccessDenied):
+		return ErrorAccessDenied, true
+	default:
+		return 0, false
+	}
 }

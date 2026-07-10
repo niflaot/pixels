@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	roomdoorbell "github.com/niflaot/pixels/internal/realm/room/doorbell"
 	worldfurniture "github.com/niflaot/pixels/internal/realm/room/world/furniture"
 	"github.com/niflaot/pixels/internal/realm/room/world/grid"
 	worldpath "github.com/niflaot/pixels/internal/realm/room/world/path"
@@ -149,6 +150,12 @@ type Movement struct {
 // MovementPublisher publishes room tick movements.
 type MovementPublisher func(context.Context, *Room, []Movement) error
 
+// DoorbellPublisher publishes expired room entry requests.
+type DoorbellPublisher func(context.Context, *Room, []roomdoorbell.Expired) error
+
+// DoorbellApprover reports whether an authorized responder remains in a room.
+type DoorbellApprover func(context.Context, *Room) (bool, error)
+
 // RegistryOption configures a room registry.
 type RegistryOption func(*Registry)
 
@@ -156,6 +163,29 @@ type RegistryOption func(*Registry)
 func WithMovementPublisher(publisher MovementPublisher) RegistryOption {
 	return func(registry *Registry) {
 		registry.movementPublish = publisher
+	}
+}
+
+// WithDoorbellPublisher configures doorbell expiration publishing.
+func WithDoorbellPublisher(publisher DoorbellPublisher) RegistryOption {
+	return func(registry *Registry) {
+		registry.doorbellPublish = publisher
+	}
+}
+
+// WithDoorbellApprover configures authorized responder presence checks.
+func WithDoorbellApprover(approver DoorbellApprover) RegistryOption {
+	return func(registry *Registry) {
+		registry.doorbellApprover = approver
+	}
+}
+
+// WithDoorbellTimeout configures waiting request duration.
+func WithDoorbellTimeout(timeout time.Duration) RegistryOption {
+	return func(registry *Registry) {
+		if timeout > 0 {
+			registry.doorbellTimeout = timeout
+		}
 	}
 }
 

@@ -47,6 +47,14 @@ type ForwardRequest struct {
 	TargetRoomID int64 `json:"targetRoomId"`
 }
 
+// TeleportRequest contains one player forwarding request.
+type TeleportRequest struct {
+	// TargetRoomID identifies the destination room.
+	TargetRoomID int64 `json:"targetRoomId"`
+	// Bypass reports whether closed-room gating should be skipped once.
+	Bypass bool `json:"bypass"`
+}
+
 // ActionResponse contains admin runtime action counts.
 type ActionResponse struct {
 	// Matched stores matched runtime occupants.

@@ -17,6 +17,7 @@ require (
 	github.com/swaggest/openapi-go v0.2.61
 	go.uber.org/fx v1.24.0
 	go.uber.org/zap v1.28.0
+	golang.org/x/crypto v0.31.0
 )
 
 require (
