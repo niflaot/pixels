@@ -26,13 +26,13 @@ returning ` + roomColumns
 	listRoomsByOwnerSQL = `select ` + roomColumns + ` from rooms where owner_player_id = $1 and deleted_at is null order by id desc`
 
 	// listPopularRoomsSQL reads active rooms by score and recency.
-	listPopularRoomsSQL = `select ` + roomColumns + ` from rooms where deleted_at is null order by score desc, updated_at desc limit $1`
+	listPopularRoomsSQL = `select ` + roomColumns + ` from rooms where deleted_at is null and door_mode <> 3 order by score desc, updated_at desc limit $1`
 
 	// listHighestScoreRoomsSQL reads active rooms by score.
-	listHighestScoreRoomsSQL = `select ` + roomColumns + ` from rooms where deleted_at is null order by score desc, id asc limit $1`
+	listHighestScoreRoomsSQL = `select ` + roomColumns + ` from rooms where deleted_at is null and door_mode <> 3 order by score desc, id asc limit $1`
 
 	// searchRoomsSQL reads active rooms matching public navigator text.
-	searchRoomsSQL = `select ` + roomColumns + ` from rooms where deleted_at is null and (name ilike $1 or owner_name ilike $1 or description ilike $1 or exists (select 1 from room_tags where room_tags.room_id = rooms.id and room_tags.tag ilike $1)) order by score desc, updated_at desc limit $2`
+	searchRoomsSQL = `select ` + roomColumns + ` from rooms where deleted_at is null and door_mode <> 3 and (name ilike $1 or owner_name ilike $1 or description ilike $1 or exists (select 1 from room_tags where room_tags.room_id = rooms.id and room_tags.tag ilike $1)) order by score desc, updated_at desc limit $2`
 
 	// softDeleteRoomSQL soft deletes one active room.
 	softDeleteRoomSQL = `update rooms set deleted_at = now(), updated_at = now(), version = version + 1 where id = $1 and deleted_at is null`

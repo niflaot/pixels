@@ -28,6 +28,9 @@ var (
 	// ErrUnitNotFound reports a missing room world unit.
 	ErrUnitNotFound = errors.New("room unit not found")
 
+	// ErrUnitExiting reports client movement while a server-controlled exit is active.
+	ErrUnitExiting = errors.New("room unit is exiting")
+
 	// ErrInvalidPlacement reports a footprint tile outside the room grid.
 	ErrInvalidPlacement = errors.New("invalid furniture placement")
 

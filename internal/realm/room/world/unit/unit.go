@@ -48,6 +48,9 @@ type Unit struct {
 	// settling reports whether movement needs a final clean status.
 	settling bool
 
+	// exiting reports whether server-controlled movement must finish at the room door.
+	exiting bool
+
 	// activePath stores the accepted path used to validate staleness against the world.
 	activePath path.Path
 

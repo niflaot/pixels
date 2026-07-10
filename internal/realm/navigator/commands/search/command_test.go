@@ -49,6 +49,31 @@ func TestVisibleRoomIDsExtractsResultRooms(t *testing.T) {
 	}
 }
 
+// TestFavoriteVisibleProtectsInvisibleRooms verifies owner and rights visibility.
+func TestFavoriteVisibleProtectsInvisibleRooms(t *testing.T) {
+	room := roommodel.Room{
+		Base:          sharedmodel.Base{Identity: sharedmodel.Identity{ID: 9}},
+		OwnerPlayerID: 7, DoorMode: roommodel.DoorModeInvisible,
+	}
+	if visible, err := (Handler{}).favoriteVisible(context.Background(), 8, room); err != nil || visible {
+		t.Fatalf("expected hidden guest favorite visible=%v err=%v", visible, err)
+	}
+	if visible, err := (Handler{}).favoriteVisible(context.Background(), 7, room); err != nil || !visible {
+		t.Fatalf("expected owner favorite visible=%v err=%v", visible, err)
+	}
+	if visible, err := (Handler{Rights: testRights(true)}).favoriteVisible(context.Background(), 8, room); err != nil || !visible {
+		t.Fatalf("expected rights favorite visible=%v err=%v", visible, err)
+	}
+}
+
+// testRights provides fixed room rights for search tests.
+type testRights bool
+
+// HasRights returns the configured room rights result.
+func (rights testRights) HasRights(context.Context, int64, int64) (bool, error) {
+	return bool(rights), nil
+}
+
 // testRooms provides room data for search tests.
 type testRooms struct{}
 

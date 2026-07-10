@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 
-	"github.com/niflaot/pixels/internal/command"
 	playerlive "github.com/niflaot/pixels/internal/realm/player/live"
 	"github.com/niflaot/pixels/internal/realm/room/broadcast"
 	leavecmd "github.com/niflaot/pixels/internal/realm/room/commands/leave"
@@ -16,7 +15,6 @@ import (
 	outentryerror "github.com/niflaot/pixels/networking/outbound/room/entryerror"
 	outmuted "github.com/niflaot/pixels/networking/outbound/room/moderation/muted"
 	outunbanned "github.com/niflaot/pixels/networking/outbound/room/moderation/unbanned"
-	outdesktop "github.com/niflaot/pixels/networking/outbound/session/desktop"
 	outerror "github.com/niflaot/pixels/networking/outbound/session/error"
 	"github.com/niflaot/pixels/pkg/bus"
 )
@@ -46,14 +44,27 @@ func New(players *playerlive.Registry, bindings *binding.Registry, runtime *room
 	}
 }
 
-// Kick notifies and removes one active room occupant.
+// Kick notifies one occupant and walks it to the room door when reachable.
 func (broadcaster *Broadcaster) Kick(ctx context.Context, roomID int64, playerID int64) error {
 	packet, err := outerror.Encode(kickedErrorCode)
 	if err != nil {
 		return err
 	}
+	active, found := broadcaster.runtime.FindByPlayer(playerID)
+	if !found || active.ID() != roomID {
+		return nil
+	}
+	target, targetFound := broadcaster.targetConnection(active, playerID)
+	var noticeErr error
+	if targetFound {
+		noticeErr = target.Send(ctx, packet)
+	}
+	walking, _ := active.ExitToDoor(playerID)
+	if walking {
+		return noticeErr
+	}
 
-	return broadcaster.remove(ctx, roomID, playerID, packet)
+	return errors.Join(noticeErr, broadcaster.leave.ToDesktop(ctx, playerID))
 }
 
 // Ban notifies and removes one active room occupant.
@@ -101,17 +112,7 @@ func (broadcaster *Broadcaster) remove(ctx context.Context, roomID int64, player
 	if targetFound {
 		noticeErr = target.Send(ctx, packet)
 	}
-	leaveErr := broadcaster.leave.Handle(ctx, command.Envelope[leavecmd.Command]{Command: leavecmd.Command{PlayerID: playerID}})
-	desktop, err := outdesktop.Encode()
-	if err != nil {
-		return errors.Join(noticeErr, leaveErr, err)
-	}
-	var desktopErr error
-	if targetFound {
-		desktopErr = target.Send(ctx, desktop)
-	}
-
-	return errors.Join(noticeErr, leaveErr, desktopErr)
+	return errors.Join(noticeErr, broadcaster.leave.ToDesktop(ctx, playerID))
 }
 
 // sendTarget sends one packet to a target only while present in the selected room.

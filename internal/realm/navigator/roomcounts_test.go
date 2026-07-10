@@ -30,7 +30,7 @@ func TestRoomCountBroadcasterRefreshesAffectedViewer(t *testing.T) {
 	mustActivateCountRoom(t, runtime, room.ID)
 	mustJoinCountRoom(t, runtime, room.ID, player.ID(), connection)
 
-	broadcaster := NewRoomCountBroadcaster(players, connections, nil, countRooms{rooms: []roommodel.Room{room}}, runtime)
+	broadcaster := NewRoomCountBroadcaster(players, connections, nil, countRooms{rooms: []roommodel.Room{room}}, runtime, nil)
 	broadcaster.pending[room.ID] = struct{}{}
 	broadcaster.Flush()
 
@@ -50,7 +50,7 @@ func TestRoomCountBroadcasterSkipsUnaffectedViewer(t *testing.T) {
 	mustCount(t, players.Add(player))
 	mustCount(t, connections.Register(connection))
 
-	broadcaster := NewRoomCountBroadcaster(players, connections, nil, countRooms{rooms: []roommodel.Room{roomForCountTest(7)}}, runtime)
+	broadcaster := NewRoomCountBroadcaster(players, connections, nil, countRooms{rooms: []roommodel.Room{roomForCountTest(7)}}, runtime, nil)
 	broadcaster.pending[7] = struct{}{}
 	broadcaster.Flush()
 

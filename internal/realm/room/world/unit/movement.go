@@ -62,6 +62,16 @@ func (unit *Unit) PendingSteps() int {
 	return len(unit.steps)
 }
 
+// MarkExiting prevents client movement from replacing a server-controlled exit path.
+func (unit *Unit) MarkExiting() {
+	unit.exiting = true
+}
+
+// Exiting reports whether the unit is following a server-controlled exit path.
+func (unit *Unit) Exiting() bool {
+	return unit.exiting
+}
+
 // Advance moves the unit by one pending step.
 func (unit *Unit) Advance() (path.Step, bool, bool) {
 	if len(unit.steps) == 0 {

@@ -10,6 +10,7 @@ import (
 	playerlive "github.com/niflaot/pixels/internal/realm/player/live"
 	roomoccupancy "github.com/niflaot/pixels/internal/realm/room/events/occupancychanged"
 	roomlive "github.com/niflaot/pixels/internal/realm/room/live"
+	roomrights "github.com/niflaot/pixels/internal/realm/room/rights"
 	roomservice "github.com/niflaot/pixels/internal/realm/room/service"
 	netconn "github.com/niflaot/pixels/networking/connection"
 	outsearch "github.com/niflaot/pixels/networking/outbound/navigator/searchresult"
@@ -41,11 +42,11 @@ type RoomCountBroadcaster struct {
 }
 
 // NewRoomCountBroadcaster creates a room count broadcaster.
-func NewRoomCountBroadcaster(players *playerlive.Registry, connections *netconn.Registry, navigator navservice.Manager, rooms roomservice.Manager, runtime *roomlive.Registry) *RoomCountBroadcaster {
+func NewRoomCountBroadcaster(players *playerlive.Registry, connections *netconn.Registry, navigator navservice.Manager, rooms roomservice.Manager, runtime *roomlive.Registry, rights roomrights.Manager) *RoomCountBroadcaster {
 	return &RoomCountBroadcaster{
 		players:     players,
 		connections: connections,
-		search:      searchcmd.Handler{Navigator: navigator, Rooms: rooms, Runtime: runtime},
+		search:      searchcmd.Handler{Navigator: navigator, Rooms: rooms, Runtime: runtime, Rights: rights},
 		pending:     make(map[int64]struct{}),
 		delay:       RoomCountDebounce,
 	}

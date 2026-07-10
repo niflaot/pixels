@@ -18,6 +18,7 @@ import (
 	unmutedevent "github.com/niflaot/pixels/internal/realm/room/events/unmuted"
 	roomupdated "github.com/niflaot/pixels/internal/realm/room/events/updated"
 	"github.com/niflaot/pixels/internal/realm/room/layout"
+	roomrights "github.com/niflaot/pixels/internal/realm/room/rights"
 	"github.com/niflaot/pixels/internal/realm/room/service"
 	netconn "github.com/niflaot/pixels/networking/connection"
 	"github.com/niflaot/pixels/pkg/bus"
@@ -71,7 +72,7 @@ func TestProvidersExposeContracts(t *testing.T) {
 	layoutService := layout.NewService(nil)
 	roomService := service.New(nil, layoutService)
 
-	if NewLiveRegistry(bus.New(), netconn.NewRegistry(), roomentry.Config{}, nil) == nil {
+	if NewLiveRegistry(bus.New(), netconn.NewRegistry(), nil, roomentry.Config{}, nil) == nil {
 		t.Fatal("expected live registry")
 	}
 	if NewLayoutStore(nil) == nil {
@@ -85,5 +86,8 @@ func TestProvidersExposeContracts(t *testing.T) {
 	}
 	if NewManager(roomService) == nil {
 		t.Fatal("expected room manager")
+	}
+	if NewRightsManager(roomrights.New(nil, nil, nil, nil, roomrights.Nodes{})) == nil {
+		t.Fatal("expected room rights manager")
 	}
 }

@@ -89,6 +89,9 @@ func (handler Handler) Handle(ctx context.Context, envelope command.Envelope[Com
 
 // handleMoveError handles gameplay movement misses without closing the session.
 func (handler Handler) handleMoveError(ctx context.Context, active *roomlive.Room, playerID int64, point grid.Point, err error) error {
+	if errors.Is(err, roomlive.ErrUnitExiting) {
+		return nil
+	}
 	if !isSoftMoveError(err) {
 		return err
 	}

@@ -145,6 +145,9 @@ type Movement struct {
 
 	// Settled reports whether the tick cleared movement status.
 	Settled bool
+
+	// Exited reports whether the unit completed or could not continue a room exit.
+	Exited bool
 }
 
 // MovementPublisher publishes room tick movements.

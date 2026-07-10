@@ -23,6 +23,7 @@ import (
 	navservice "github.com/niflaot/pixels/internal/realm/navigator/service"
 	playerlive "github.com/niflaot/pixels/internal/realm/player/live"
 	roomlive "github.com/niflaot/pixels/internal/realm/room/live"
+	roomrights "github.com/niflaot/pixels/internal/realm/room/rights"
 	roomservice "github.com/niflaot/pixels/internal/realm/room/service"
 	"github.com/niflaot/pixels/internal/realm/session/binding"
 	"github.com/niflaot/pixels/pkg/bus"
@@ -49,6 +50,7 @@ func RegisterConnectionHandlers(handlers *realmconn.Handlers, deps HandlerDeps) 
 		Navigator: deps.Navigator,
 		Rooms:     deps.Rooms,
 		Runtime:   deps.Runtime,
+		Rights:    deps.Rights,
 		Events:    deps.Events,
 	}, deps.Log))
 	cancreatehandler.Register(handlers.Inbound, cancreatehandler.New(cancreatecmd.Handler{
@@ -102,6 +104,8 @@ type HandlerDeps struct {
 	Rooms roomservice.Manager
 	// Runtime stores active room runtime state.
 	Runtime *roomlive.Registry
+	// Rights resolves persistent room-scoped visibility.
+	Rights roomrights.Manager
 	// Counts stores current navigator category counts.
 	Counts *CategoryCountBroadcaster
 	// Events publishes realm events.

@@ -2,9 +2,11 @@ package room
 
 import (
 	"context"
+	"errors"
 
 	"github.com/niflaot/pixels/internal/command"
 	playerdisconnected "github.com/niflaot/pixels/internal/realm/player/events/disconnected"
+	playerlive "github.com/niflaot/pixels/internal/realm/player/live"
 	"github.com/niflaot/pixels/internal/realm/room/broadcast"
 	leavecmd "github.com/niflaot/pixels/internal/realm/room/commands/leave"
 	roomentry "github.com/niflaot/pixels/internal/realm/room/entry"
@@ -16,15 +18,35 @@ import (
 )
 
 // NewLiveRegistry creates the active room registry.
-func NewLiveRegistry(publisher bus.Publisher, connections *netconn.Registry, config roomentry.Config, entryService *roomentry.Service) *live.Registry {
-	return live.NewRegistry(func(ctx context.Context, occupancy live.Occupancy) error {
+func NewLiveRegistry(publisher bus.Publisher, connections *netconn.Registry, players *playerlive.Registry, config roomentry.Config, entryService *roomentry.Service) *live.Registry {
+	var registry *live.Registry
+	registry = live.NewRegistry(func(ctx context.Context, occupancy live.Occupancy) error {
 		return publisher.Publish(ctx, bus.Event{Name: roomoccupancy.Name, Payload: occupancyEvent(occupancy)})
 	},
-		live.WithMovementPublisher(broadcast.NewMovementPublisher(connections)),
+		live.WithMovementPublisher(newMovementPublisher(connections, players, publisher, func() *live.Registry { return registry })),
 		live.WithDoorbellPublisher(broadcast.NewDoorbellPublisher(connections)),
 		live.WithDoorbellApprover(newDoorbellApprover(entryService)),
 		live.WithDoorbellTimeout(config.Normalize().HangoutTimeout),
 	)
+
+	return registry
+}
+
+// newMovementPublisher broadcasts movement before completing door exits.
+func newMovementPublisher(connections *netconn.Registry, players *playerlive.Registry, publisher bus.Publisher, registry func() *live.Registry) live.MovementPublisher {
+	broadcastMovement := broadcast.NewMovementPublisher(connections)
+
+	return func(ctx context.Context, active *live.Room, movements []live.Movement) error {
+		movementErr := broadcastMovement(ctx, active, movements)
+		leave := leavecmd.Handler{Players: players, Runtime: registry(), Connections: connections, Events: publisher}
+		for _, movement := range movements {
+			if movement.Exited {
+				movementErr = errors.Join(movementErr, leave.ToDesktop(ctx, movement.PlayerID))
+			}
+		}
+
+		return movementErr
+	}
 }
 
 // newDoorbellApprover creates a room responder presence check.

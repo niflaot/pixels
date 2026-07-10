@@ -2,6 +2,7 @@ package broadcast
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	bannedevent "github.com/niflaot/pixels/internal/realm/room/events/banned"
@@ -10,6 +11,8 @@ import (
 	unbannedevent "github.com/niflaot/pixels/internal/realm/room/events/unbanned"
 	unmutedevent "github.com/niflaot/pixels/internal/realm/room/events/unmuted"
 	roomlive "github.com/niflaot/pixels/internal/realm/room/live"
+	"github.com/niflaot/pixels/internal/realm/room/world/grid"
+	worldpath "github.com/niflaot/pixels/internal/realm/room/world/path"
 	"github.com/niflaot/pixels/networking/codec"
 	netconn "github.com/niflaot/pixels/networking/connection"
 	outdesktop "github.com/niflaot/pixels/networking/outbound/session/desktop"
@@ -27,6 +30,34 @@ func TestBroadcasterKickUsesStandardRoomLeave(t *testing.T) {
 	}
 	if active.Occupancy().Count != 0 {
 		t.Fatalf("expected empty room, got %#v", active.Occupancy())
+	}
+}
+
+// TestBroadcasterKickWalksReachableTargetToDoor verifies soft kicks defer removal while A-star has a path.
+func TestBroadcasterKickWalksReachableTargetToDoor(t *testing.T) {
+	runtime, active := occupiedRoomForTest(t)
+	roomGrid, err := grid.Parse("000", grid.WithDoor(0, 0))
+	if err != nil {
+		t.Fatalf("parse room grid: %v", err)
+	}
+	if err := active.LoadWorld(roomlive.WorldConfig{Grid: roomGrid, Door: worldpath.Position{Point: grid.MustPoint(0, 0)}}); err != nil {
+		t.Fatalf("load room world: %v", err)
+	}
+	if _, err := active.MoveTo(2, grid.MustPoint(2, 0)); err != nil {
+		t.Fatalf("move target away from door: %v", err)
+	}
+	active.Tick()
+	active.Tick()
+	active.Tick()
+
+	if err := New(nil, nil, runtime, nil, nil).Kick(context.Background(), 9, 2); err != nil {
+		t.Fatalf("kick projection: %v", err)
+	}
+	if active.Occupancy().Count != 1 {
+		t.Fatalf("expected walking occupant, got %#v", active.Occupancy())
+	}
+	if _, err := active.MoveTo(2, grid.MustPoint(1, 0)); !errors.Is(err, roomlive.ErrUnitExiting) {
+		t.Fatalf("expected forced exit path, got %v", err)
 	}
 }
 

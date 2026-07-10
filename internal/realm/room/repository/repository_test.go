@@ -55,7 +55,7 @@ func TestListPopularRoomsUsesQuery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list popular rooms: %v", err)
 	}
-	if !strings.Contains(executor.query, "order by score desc") {
+	if !strings.Contains(executor.query, "door_mode <> 3") || !strings.Contains(executor.query, "order by score desc") {
 		t.Fatalf("unexpected query %q", executor.query)
 	}
 }
@@ -67,7 +67,18 @@ func TestListHighestScoreRoomsUsesQuery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list highest score rooms: %v", err)
 	}
-	if !strings.Contains(executor.query, "id asc") {
+	if !strings.Contains(executor.query, "door_mode <> 3") || !strings.Contains(executor.query, "id asc") {
+		t.Fatalf("unexpected query %q", executor.query)
+	}
+}
+
+// TestSearchRoomsExcludesInvisibleRooms verifies public text search visibility.
+func TestSearchRoomsExcludesInvisibleRooms(t *testing.T) {
+	executor := &fakeExecutor{rows: &fakeRows{values: [][]any{roomValuesForTest()}}}
+	if _, err := New(executor).SearchRooms(context.Background(), "pixels", 10); err != nil {
+		t.Fatalf("search rooms: %v", err)
+	}
+	if !strings.Contains(executor.query, "door_mode <> 3") {
 		t.Fatalf("unexpected query %q", executor.query)
 	}
 }

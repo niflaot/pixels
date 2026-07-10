@@ -13,6 +13,29 @@ import (
 // MoveTo sets a unit movement goal. Goals inside a slotted furniture item's footprint snap to the
 // item's matching slot tile, so clicking anywhere on a bed walks the unit to its anchor slot.
 func (room *Room) MoveTo(playerID int64, goal grid.Point) (worldpath.Path, error) {
+	return room.moveTo(playerID, goal, false)
+}
+
+// ExitToDoor starts a server-controlled path to the room door.
+func (room *Room) ExitToDoor(playerID int64) (bool, error) {
+	room.mutex.RLock()
+	if room.world == nil {
+		room.mutex.RUnlock()
+		return false, ErrWorldNotLoaded
+	}
+	door := room.world.door.Point
+	room.mutex.RUnlock()
+
+	roomPath, err := room.moveTo(playerID, door, true)
+	if err != nil {
+		return false, err
+	}
+
+	return roomPath.Len() > 0, nil
+}
+
+// moveTo sets client or server-controlled unit movement.
+func (room *Room) moveTo(playerID int64, goal grid.Point, exiting bool) (worldpath.Path, error) {
 	runtime, start, occupancy, goal, err := room.movementSnapshot(playerID, goal)
 	if err != nil {
 		return worldpath.Path{}, err
@@ -41,11 +64,17 @@ func (room *Room) MoveTo(playerID int64, goal grid.Point) (worldpath.Path, error
 	if !ok {
 		return worldpath.Path{}, ErrUnitNotFound
 	}
+	if roomUnit.Exiting() && !exiting {
+		return worldpath.Path{}, ErrUnitExiting
+	}
 	if err := roomPath.Validate(room.world.resolver); err != nil {
 		return worldpath.Path{}, err
 	}
 	room.world.releaseSlot(playerID)
 	roomUnit.SetPath(roomPath)
+	if exiting {
+		roomUnit.MarkExiting()
+	}
 
 	return roomPath, nil
 }
@@ -62,6 +91,9 @@ func (room *Room) FaceTo(playerID int64, target grid.Point) (UnitSnapshot, error
 	roomUnit, ok := room.world.units[playerID]
 	if !ok {
 		return UnitSnapshot{}, ErrUnitNotFound
+	}
+	if roomUnit.Exiting() {
+		return unitSnapshot(playerID, roomUnit), nil
 	}
 	if roomUnit.Settled() {
 		return unitSnapshot(playerID, roomUnit), nil
@@ -87,12 +119,13 @@ func (room *Room) Tick() []Movement {
 		roomUnit := room.world.units[playerID]
 		if roomUnit.Moving() {
 			if err := roomUnit.ValidatePath(room.world.resolver); err != nil {
+				exited := roomUnit.Exiting()
 				roomUnit.ClearPath()
 				if section, sectionErr := room.world.resolver.TopSection(roomUnit.Position().Point); sectionErr == nil {
 					roomUnit.SetHeight(section.Z())
 				}
 				movements = append(movements, Movement{
-					PlayerID: playerID, Unit: unitSnapshot(playerID, roomUnit), Settled: true,
+					PlayerID: playerID, Unit: unitSnapshot(playerID, roomUnit), Settled: true, Exited: exited,
 				})
 
 				continue
@@ -105,12 +138,14 @@ func (room *Room) Tick() []Movement {
 		if settled {
 			room.world.settleUnit(playerID, roomUnit)
 		}
+		exited := settled && roomUnit.Position().Point == room.world.door.Point
 		movements = append(movements, Movement{
 			PlayerID: playerID,
 			Unit:     unitSnapshot(playerID, roomUnit),
 			Step:     step,
 			Moved:    moved,
 			Settled:  settled,
+			Exited:   exited,
 		})
 	}
 

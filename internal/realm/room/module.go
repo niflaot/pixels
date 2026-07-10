@@ -35,6 +35,7 @@ var Module = fx.Module(
 		NewManager,
 		NewRightsStore,
 		NewRightsService,
+		NewRightsManager,
 		NewModerationStore,
 		NewModerationService,
 		NewModerationReader,
@@ -72,6 +73,11 @@ func NewRightsService(store rightsrepo.Store, rooms *service.Service, permission
 		OwnGrant: RightsOwnGrant, OwnRevoke: RightsOwnRevoke,
 		AnyGrant: RightsAnyGrant, AnyRevoke: RightsAnyRevoke,
 	})
+}
+
+// NewRightsManager exposes room rights behavior through its contract.
+func NewRightsManager(service *roomrights.Service) roomrights.Manager {
+	return service
 }
 
 // NewModerationStore creates room moderation persistence.

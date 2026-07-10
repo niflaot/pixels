@@ -53,6 +53,8 @@ type Handler struct {
 	Rooms roomservice.Manager
 	// Runtime reads active room occupancy.
 	Runtime *roomlive.Registry
+	// Rights resolves persistent room-scoped visibility.
+	Rights RightsChecker
 	// Events publishes navigator search events.
 	Events bus.Publisher
 }
