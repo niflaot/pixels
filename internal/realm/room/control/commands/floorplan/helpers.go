@@ -3,12 +3,10 @@ package floorplan
 import (
 	"context"
 	"errors"
-	"strconv"
 	"strings"
 
 	domain "github.com/niflaot/pixels/internal/realm/room/control/floorplan"
 	roommodel "github.com/niflaot/pixels/internal/realm/room/record/model"
-	roomlayout "github.com/niflaot/pixels/internal/realm/room/world/layout"
 	netconn "github.com/niflaot/pixels/networking/connection"
 	outbubble "github.com/niflaot/pixels/networking/outbound/session/bubblealert"
 	"github.com/niflaot/pixels/pkg/i18n"
@@ -23,20 +21,6 @@ const (
 type RoomFinder interface {
 	// FindByID finds one active room record.
 	FindByID(context.Context, int64) (roommodel.Room, bool, error)
-}
-
-// formatHeight serializes one protocol height value.
-func formatHeight(value int) string {
-	return strconv.FormatFloat(float64(value), 'f', 1, 64)
-}
-
-// visualizationThickness resolves custom values before persistent room defaults.
-func visualizationThickness(room roommodel.Room, roomLayout roomlayout.Layout) (int, int) {
-	if roomLayout.RoomID > 0 {
-		return roomLayout.WallThickness, roomLayout.FloorThickness
-	}
-
-	return room.WallThickness, room.FloorThickness
 }
 
 // sendError sends expected floor plan failures without disconnecting the player.

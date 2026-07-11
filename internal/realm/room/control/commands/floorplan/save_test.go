@@ -18,6 +18,7 @@ import (
 	"github.com/niflaot/pixels/internal/realm/session/binding"
 	"github.com/niflaot/pixels/networking/codec"
 	netconn "github.com/niflaot/pixels/networking/connection"
+	outforward "github.com/niflaot/pixels/networking/outbound/room/forward"
 	"github.com/niflaot/pixels/pkg/bus"
 	sharedmodel "github.com/niflaot/pixels/pkg/model"
 )
@@ -115,8 +116,8 @@ func TestSaveHandlePersistsAndPublishes(t *testing.T) {
 	}
 }
 
-// TestSaveHandleReloadsAndBroadcastsActiveWorld verifies hot reload without forwarding.
-func TestSaveHandleReloadsAndBroadcastsActiveWorld(t *testing.T) {
+// TestSaveHandleReloadsAndForwardsActiveWorld verifies server reload and Nitro renderer rebuild.
+func TestSaveHandleReloadsAndForwardsActiveWorld(t *testing.T) {
 	players, bindings, player := floorplanActorForTest(t)
 	if err := player.EnterRoom(9); err != nil {
 		t.Fatalf("enter room: %v", err)
@@ -152,13 +153,8 @@ func TestSaveHandleReloadsAndBroadcastsActiveWorld(t *testing.T) {
 	if err = handler.Handle(context.Background(), command.Envelope[SaveCommand]{Command: input}); err != nil {
 		t.Fatalf("save active floor plan: %v", err)
 	}
-	if len(*sent) != 7 {
-		t.Fatalf("expected complete refresh, got %#v", *sent)
-	}
-	for _, packet := range *sent {
-		if packet.Header == 160 {
-			t.Fatal("floor plan reload must not forward occupants")
-		}
+	if len(*sent) != 1 || (*sent)[0].Header != outforward.Header {
+		t.Fatalf("expected same-room forward, got %#v", *sent)
 	}
 	unit, found := active.Unit(7)
 	if !found || unit.Position.Point != grid.MustPoint(0, 0) || unit.BodyRotation != 4 {

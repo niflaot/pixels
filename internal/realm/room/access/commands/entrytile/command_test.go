@@ -47,7 +47,7 @@ func TestHandleSendsEntryTile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("decode entry tile: %v", err)
 	}
-	if values[0].Int32 != 1 || values[1].Int32 != 1 || values[2].String != "0.0" || values[3].Int32 != 2 {
+	if values[0].Int32 != 1 || values[1].Int32 != 1 || values[2].Int32 != 2 {
 		t.Fatalf("unexpected entry tile values %#v", values)
 	}
 }

@@ -52,7 +52,7 @@ func TestSendModelSendsEntryTileBeforeScaledHeightmap(t *testing.T) {
 	if err != nil {
 		t.Fatalf("decode entry tile packet: %v", err)
 	}
-	if entryValues[0].Int32 != 0 || entryValues[1].Int32 != 0 || entryValues[2].String != "0.0" || entryValues[3].Int32 != 2 {
+	if entryValues[0].Int32 != 0 || entryValues[1].Int32 != 0 || entryValues[2].Int32 != 2 {
 		t.Fatalf("unexpected entry tile values %#v", entryValues)
 	}
 

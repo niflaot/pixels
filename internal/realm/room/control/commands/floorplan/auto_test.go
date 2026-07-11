@@ -14,6 +14,9 @@ import (
 	"github.com/niflaot/pixels/internal/realm/room/world/grid"
 	worldpath "github.com/niflaot/pixels/internal/realm/room/world/path"
 	netconn "github.com/niflaot/pixels/networking/connection"
+	outrefresh "github.com/niflaot/pixels/networking/outbound/inventory/furniture/refresh"
+	outunseen "github.com/niflaot/pixels/networking/outbound/inventory/unseen"
+	outforward "github.com/niflaot/pixels/networking/outbound/room/forward"
 	sharedmodel "github.com/niflaot/pixels/pkg/model"
 )
 
@@ -94,7 +97,10 @@ func TestSaveHandleAutoPicksBlockingFurniture(t *testing.T) {
 	if err = handler.Handle(context.Background(), command.Envelope[SaveCommand]{Command: input}); err != nil {
 		t.Fatalf("save with auto-pickup: %v", err)
 	}
-	if len(furniture.picked) != 1 || furniture.picked[0] != 5 || len(*sent) != 9 {
+	if len(furniture.picked) != 1 || furniture.picked[0] != 5 || len(*sent) != 3 {
 		t.Fatalf("picked=%#v packets=%d", furniture.picked, len(*sent))
+	}
+	if (*sent)[0].Header != outforward.Header || (*sent)[1].Header != outunseen.Header || (*sent)[2].Header != outrefresh.Header {
+		t.Fatalf("unexpected packets %#v", *sent)
 	}
 }

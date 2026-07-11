@@ -369,14 +369,17 @@ minimum manual checks expected when touching it.
 - Owns `internal/realm/room/control/floorplan`, its commands and handlers,
   `room_custom_layouts`, and floor plan packets under `networking`.
 - Resolves custom geometry by room id before falling back to the room's fixed
-  model. Nitro packet `875` persists the confirmed seven floor plan fields;
-  packet `3559` reuses the existing entry-tile handler and also projects room
-  thickness, while packet `1687` returns furniture-occupied tiles.
+  model. Nitro packet `875` consumes its confirmed seven wire fields, while
+  authoritative door height is derived from the parsed map. Packet `3559`
+  reuses the existing entry-tile handler and also projects room thickness,
+  while packet `1687` returns furniture-occupied tiles. Packet `1664` contains
+  only door x, door y, and direction; door height must not be serialized there.
 - Validates 64 by 64 geometry, charset, row shape, usable tiles, door, rotation,
   thickness, wall height, blocking furniture, and a distributed save cooldown.
-- Successful active-room saves replace the room world in place, move occupants
-  to the new door, and resend geometry, furniture, heightmap, and unit state.
-  Do not forward or reconnect occupants during a floor plan save.
+- Successful active-room saves replace the server world in place and send a
+  same-room `ROOM_FORWARD` to every occupant. Nitro cannot replace an existing
+  room renderer from a new model packet alone; the forward rebuilds its local
+  room session without disconnecting the WebSocket.
 - Nitro does not send an auto-pickup field. The internal save contract supports
   bounded transactional auto-pickup for controlled server callers, while the
   Nitro packet handler always uses the conservative disabled value.
@@ -386,8 +389,8 @@ minimum manual checks expected when touching it.
   - Run `BenchmarkValidateSave` and `BenchmarkBlockedItems` with `-benchmem`.
   - Open the editor as an owner, rights holder, ordinary visitor, and staff
     member; verify only authorized users can request or save floor plans.
-  - Save an empty room and verify every occupant stays connected, respawns at
-    the new door, sees the same geometry, and receives no `ROOM_FORWARD`.
+  - Save an empty room and verify every occupant stays connected, receives one
+    same-room `ROOM_FORWARD`, and automatically respawns at the new door.
   - Place furniture over a changed tile and verify save is rejected with a
     localized floor-plan bubble until the furniture is removed.
 

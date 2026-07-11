@@ -19,7 +19,7 @@ func TestDecodeReadsNitroFloorplanFields(t *testing.T) {
 	if err != nil {
 		t.Fatalf("decode packet: %v", err)
 	}
-	if payload.Heightmap != "00\r00" || payload.DoorX != 1 || payload.WallHeight != 4 {
+	if payload.Heightmap != "00\r00" || payload.DoorX != 1 || payload.DoorDirection != 2 || payload.WallHeight != 4 {
 		t.Fatalf("unexpected payload %#v", payload)
 	}
 }

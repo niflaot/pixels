@@ -218,7 +218,6 @@ func SendEntryTile(ctx context.Context, connection netconn.Context, roomLayout l
 	entryPacket, err := outentrytile.Encode(
 		int32(roomLayout.DoorX),
 		int32(roomLayout.DoorY),
-		strconv.FormatFloat(float64(roomLayout.DoorZ), 'f', 1, 64),
 		int32(roomLayout.DoorDirection),
 	)
 	if err != nil {
