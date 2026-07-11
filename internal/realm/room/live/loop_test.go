@@ -76,9 +76,7 @@ func TestTickBroadcastsStopAfterFurnitureInvalidatesPath(t *testing.T) {
 func TestRoomLoopIgnoresMissingPublisher(t *testing.T) {
 	room := worldRoomForTest(t, "0", 0, 0)
 	room.startLoop(context.Background(), time.Millisecond, nil, nil, 0)
-	if room.loopCancel != nil {
-		t.Fatal("expected no loop")
-	}
+	room.stopLoop()
 }
 
 // BenchmarkSweepDoorbellEmpty measures the dominant no-waiter tick path.

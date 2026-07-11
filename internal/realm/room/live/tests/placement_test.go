@@ -1,9 +1,10 @@
-package live
+package live_test
 
 import (
 	"errors"
 	"testing"
 
+	. "github.com/niflaot/pixels/internal/realm/room/live"
 	"github.com/niflaot/pixels/internal/realm/room/world/grid"
 	"github.com/niflaot/pixels/internal/realm/room/world/surface"
 )

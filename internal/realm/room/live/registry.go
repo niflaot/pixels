@@ -13,28 +13,20 @@ type OccupancyPublisher func(context.Context, Occupancy) error
 type Registry struct {
 	// mutex protects active room indexes.
 	mutex sync.RWMutex
-
 	// rooms stores active rooms by room id.
 	rooms map[int64]*Room
-
 	// byPlayer stores active room ids by player id.
 	byPlayer map[int64]int64
-
 	// publish publishes occupancy changes.
 	publish OccupancyPublisher
-
 	// movementPublish publishes movement changes.
 	movementPublish MovementPublisher
-
 	// doorbellPublish publishes expired entry requests.
 	doorbellPublish DoorbellPublisher
-
 	// doorbellApprover checks whether a waiting request still has a responder.
 	doorbellApprover DoorbellApprover
-
 	// doorbellTimeout stores maximum waiting request duration.
 	doorbellTimeout time.Duration
-
 	// tickInterval stores active room movement cadence.
 	tickInterval time.Duration
 }
@@ -51,7 +43,6 @@ func NewRegistry(publisher OccupancyPublisher, options ...RegistryOption) *Regis
 	for _, option := range options {
 		option(registry)
 	}
-
 	return registry
 }
 
@@ -68,10 +59,8 @@ func (registry *Registry) Activate(snapshot Snapshot) (*Room, error) {
 	if active, found := registry.rooms[snapshot.ID]; found {
 		return active, nil
 	}
-
 	room.startLoop(context.Background(), registry.tickInterval, registry.movementPublish, registry.doorbellPublish, registry.doorbellTimeout)
 	registry.rooms[snapshot.ID] = room
-
 	return room, nil
 }
 
@@ -81,7 +70,6 @@ func (registry *Registry) Find(roomID int64) (*Room, bool) {
 	defer registry.mutex.RUnlock()
 
 	room, found := registry.rooms[roomID]
-
 	return room, found
 }
 
@@ -95,7 +83,6 @@ func (registry *Registry) FindByPlayer(playerID int64) (*Room, bool) {
 		return nil, false
 	}
 	room, found := registry.rooms[roomID]
-
 	return room, found
 }
 
@@ -126,7 +113,6 @@ func (registry *Registry) JoinWithCapacity(ctx context.Context, roomID int64, oc
 	registry.mutex.Lock()
 	registry.byPlayer[occupant.PlayerID] = roomID
 	registry.mutex.Unlock()
-
 	return occupancy, registry.publishOccupancy(ctx, occupancy)
 }
 
@@ -136,7 +122,6 @@ func (registry *Registry) indexedRoom(playerID int64) (int64, bool) {
 	defer registry.mutex.RUnlock()
 
 	roomID, found := registry.byPlayer[playerID]
-
 	return roomID, found
 }
 
@@ -169,7 +154,6 @@ func (registry *Registry) Leave(ctx context.Context, playerID int64) (Occupancy,
 	if len(expired) > 0 && registry.doorbellPublish != nil {
 		_ = registry.doorbellPublish(ctx, room, expired)
 	}
-
 	return occupancy, true, registry.publishOccupancy(ctx, occupancy)
 }
 
@@ -198,7 +182,6 @@ func (registry *Registry) Close(ctx context.Context, roomID int64) (Occupancy, b
 	if len(expired) > 0 && registry.doorbellPublish != nil {
 		_ = registry.doorbellPublish(ctx, room, expired)
 	}
-
 	return occupancy, true, registry.publishOccupancy(ctx, occupancy)
 }
 
@@ -224,7 +207,6 @@ func (registry *Registry) UnloadIdle(ctx context.Context, idleFor time.Duration,
 			closedOccupancies = append(closedOccupancies, occupancy)
 		}
 	}
-
 	return closedOccupancies, nil
 }
 
@@ -242,6 +224,25 @@ func (registry *Registry) publishOccupancy(ctx context.Context, occupancy Occupa
 	if registry.publish == nil {
 		return nil
 	}
-
 	return registry.publish(ctx, occupancy)
+}
+
+// Count returns the number of active rooms.
+func (registry *Registry) Count() int {
+	registry.mutex.RLock()
+	defer registry.mutex.RUnlock()
+
+	return len(registry.rooms)
+}
+
+// Snapshot returns stable active room references.
+func (registry *Registry) Snapshot() []*Room {
+	registry.mutex.RLock()
+	defer registry.mutex.RUnlock()
+	rooms := make([]*Room, 0, len(registry.rooms))
+	for _, room := range registry.rooms {
+		rooms = append(rooms, room)
+	}
+
+	return rooms
 }

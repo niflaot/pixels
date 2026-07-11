@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	worldfurniture "github.com/niflaot/pixels/internal/realm/room/world/furniture"
+	"github.com/niflaot/pixels/internal/realm/room/world/grid"
 	worldpath "github.com/niflaot/pixels/internal/realm/room/world/path"
 	"github.com/niflaot/pixels/internal/realm/room/world/surface"
 	worldunit "github.com/niflaot/pixels/internal/realm/room/world/unit"
@@ -16,7 +17,6 @@ func TestRoomMoveToAndTickAdvancesUnit(t *testing.T) {
 	if _, err := room.Join(occupantForTest(7)); err != nil {
 		t.Fatalf("join room: %v", err)
 	}
-
 	path, err := room.MoveTo(7, pointForTest(t, 2, 0))
 	if err != nil {
 		t.Fatalf("move unit: %v", err)
@@ -127,17 +127,23 @@ func TestRoomMoveToAvoidsReservedGoal(t *testing.T) {
 // TestRoomTickAppliesSitStatusOnSettle verifies seat resolution after settling.
 func TestRoomTickAppliesSitStatusOnSettle(t *testing.T) {
 	seat := pointForTest(t, 1, 0)
-	fixture := fixtureForLiveTest(t, surface.FixtureParams{Point: seat, Z: 3, Top: 4, State: surface.StateSit, SourceID: 5})
-	room := worldRoomWithFixturesForTest(t, "00", 0, 0, []surface.Fixture{fixture})
+	room := worldRoomForTest(t, "00", 0, 0)
 	if _, err := room.Join(occupantForTest(7)); err != nil {
 		t.Fatalf("join room: %v", err)
 	}
-
-	room.mutex.Lock()
-	room.world.units[7].SetPath(worldpath.NewPath([]worldpath.Step{
-		{Position: worldpath.Position{Point: seat, Z: 3}},
-	}))
-	room.mutex.Unlock()
+	chair := worldfurniture.Item{
+		ID: 5, Point: seat, Rotation: worldunit.RotationNorth,
+		Definition: worldfurniture.Definition{
+			Width: 1, Length: 1, StackHeight: 1, AllowStack: true, AllowSit: true,
+			Slots: []worldfurniture.SlotDefinition{{Status: worldfurniture.SlotStatusSit}},
+		},
+	}
+	if _, err := room.ReloadFurniture(5, &chair); err != nil {
+		t.Fatalf("place chair: %v", err)
+	}
+	if _, err := room.MoveTo(7, seat); err != nil {
+		t.Fatalf("move to seat: %v", err)
+	}
 
 	first := room.Tick()
 	if len(first) != 1 || !first[0].Moved {
@@ -148,8 +154,8 @@ func TestRoomTickAppliesSitStatusOnSettle(t *testing.T) {
 	if len(second) != 1 || !second[0].Settled {
 		t.Fatalf("unexpected settle tick %#v", second)
 	}
-	if !hasStatusValue(second[0].Unit.Statuses, worldunit.StatusSit, "3") {
-		t.Fatalf("expected sit status at height 3, got %#v", second[0].Unit.Statuses)
+	if !hasStatusValue(second[0].Unit.Statuses, worldunit.StatusSit, "1") {
+		t.Fatalf("expected sit status at height 1, got %#v", second[0].Unit.Statuses)
 	}
 }
 
@@ -219,7 +225,7 @@ func TestRoomReloadFurnitureTracksSnapshotAndFixtures(t *testing.T) {
 		Point:    pointForTest(t, 2, 0),
 		Rotation: worldunit.RotationNorth,
 		Definition: worldfurniture.Definition{
-			Width: 1, Length: 1, StackHeight: 1, AllowStack: true,
+			Width: 1, Length: 1, StackHeight: 1,
 		},
 	}
 
@@ -230,12 +236,9 @@ func TestRoomReloadFurnitureTracksSnapshotAndFixtures(t *testing.T) {
 		t.Fatalf("unexpected furniture snapshot %#v", items)
 	}
 
-	column, err := room.world.resolver.Column(pointForTest(t, 2, 0))
-	if err != nil {
-		t.Fatalf("resolve column: %v", err)
-	}
-	if top, ok := column.TopSection(); !ok || top.State() != surface.StateBlocked {
-		t.Fatalf("expected blocked section from reloaded furniture, got %#v found=%v", top, ok)
+	_, err := room.ResolveFurniturePlacement(99, []grid.Point{pointForTest(t, 2, 0)})
+	if !errors.Is(err, ErrCannotStack) {
+		t.Fatalf("expected blocked surface from reloaded furniture, got %v", err)
 	}
 
 	if _, err := room.ReloadFurniture(5, nil); err != nil {
@@ -244,49 +247,4 @@ func TestRoomReloadFurnitureTracksSnapshotAndFixtures(t *testing.T) {
 	if items := room.FurnitureItems(); len(items) != 0 {
 		t.Fatalf("expected furniture removed, got %#v", items)
 	}
-}
-
-// hasStatusValue reports whether a status key holds an exact value.
-func hasStatusValue(statuses []worldunit.Status, key string, value string) bool {
-	for _, status := range statuses {
-		if status.Key == key && status.Value == value {
-			return true
-		}
-	}
-
-	return false
-}
-
-// fixtureForLiveTest creates a surface fixture for live package tests.
-func fixtureForLiveTest(t *testing.T, params surface.FixtureParams) surface.Fixture {
-	t.Helper()
-
-	fixture, err := surface.NewFixture(params)
-	if err != nil {
-		t.Fatalf("create fixture: %v", err)
-	}
-
-	return fixture
-}
-
-// worldRoomWithFixturesForTest creates a room with loaded world behavior and initial fixtures.
-func worldRoomWithFixturesForTest(t testing.TB, heightmap string, doorX int, doorY int, fixtures []surface.Fixture) *Room {
-	t.Helper()
-
-	room, err := NewRoom(Snapshot{ID: 9, MaxUsers: 128})
-	if err != nil {
-		t.Fatalf("create room: %v", err)
-	}
-	roomGrid := gridForTest(t, heightmap, doorX, doorY)
-	if err := room.LoadWorld(WorldConfig{
-		Grid:     roomGrid,
-		Fixtures: fixtures,
-		Door:     worldpath.Position{Point: pointForTest(t, doorX, doorY)},
-		Body:     worldunit.RotationSouth,
-		Head:     worldunit.RotationSouth,
-	}); err != nil {
-		t.Fatalf("load world: %v", err)
-	}
-
-	return room
 }

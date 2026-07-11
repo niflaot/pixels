@@ -1,15 +1,13 @@
+// Package live contains active room lifecycle and registry state.
 package live
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	roomdoorbell "github.com/niflaot/pixels/internal/realm/room/doorbell"
-	worldfurniture "github.com/niflaot/pixels/internal/realm/room/world/furniture"
-	"github.com/niflaot/pixels/internal/realm/room/world/grid"
-	worldpath "github.com/niflaot/pixels/internal/realm/room/world/path"
-	"github.com/niflaot/pixels/internal/realm/room/world/surface"
-	worldunit "github.com/niflaot/pixels/internal/realm/room/world/unit"
+	worldruntime "github.com/niflaot/pixels/internal/realm/room/world/runtime"
 	netconn "github.com/niflaot/pixels/networking/connection"
 )
 
@@ -18,23 +16,59 @@ const (
 	DefaultTickInterval = 500 * time.Millisecond
 )
 
+var (
+	// ErrInvalidRoom reports malformed active room data.
+	ErrInvalidRoom = errors.New("invalid active room")
+	// ErrRoomClosed reports a closed active room.
+	ErrRoomClosed = errors.New("room closed")
+	// ErrRoomNotFound reports a missing active room.
+	ErrRoomNotFound = errors.New("active room not found")
+	// ErrInvalidOccupant reports malformed occupant data.
+	ErrInvalidOccupant = errors.New("invalid room occupant")
+	// ErrRoomFull reports an active room at capacity.
+	ErrRoomFull = errors.New("room full")
+	// ErrWorldNotLoaded reports world behavior before room world loading.
+	ErrWorldNotLoaded = worldruntime.ErrWorldNotLoaded
+	// ErrInvalidWorld reports malformed room world loading input.
+	ErrInvalidWorld = worldruntime.ErrInvalidWorld
+	// ErrUnitNotFound reports a missing room world unit.
+	ErrUnitNotFound = worldruntime.ErrUnitNotFound
+	// ErrUnitExiting reports client movement while a server-controlled exit is active.
+	ErrUnitExiting = worldruntime.ErrUnitExiting
+	// ErrInvalidPlacement reports a footprint tile outside the room grid.
+	ErrInvalidPlacement = worldruntime.ErrInvalidPlacement
+	// ErrTileOccupied reports a footprint tile currently occupied by a unit.
+	ErrTileOccupied = worldruntime.ErrTileOccupied
+	// ErrCannotStack reports a footprint tile that does not accept stacking.
+	ErrCannotStack = worldruntime.ErrCannotStack
+	// ErrNoFurnitureRights reports furniture management without room rights.
+	ErrNoFurnitureRights = errors.New("player has no furniture rights in room")
+)
+
+// WorldConfig aliases mutable world loading input.
+type WorldConfig = worldruntime.Config
+
+// UnitSnapshot aliases stable world unit state.
+type UnitSnapshot = worldruntime.UnitSnapshot
+
+// Movement aliases one unit tick movement.
+type Movement = worldruntime.Movement
+
+// TileHeight aliases one resolved tile height.
+type TileHeight = worldruntime.TileHeight
+
 // Snapshot stores room metadata needed by runtime occupancy.
 type Snapshot struct {
 	// ID identifies the room.
 	ID int64
-
-	// OwnerPlayerID identifies the player with furniture management rights.
+	// OwnerPlayerID identifies the room owner.
 	OwnerPlayerID int64
-
 	// CategoryID optionally identifies the room category.
 	CategoryID *int64
-
 	// MaxUsers stores the maximum active occupancy.
 	MaxUsers int
-
 	// ChatDistance stores the normal chat hearing radius in tiles.
 	ChatDistance int16
-
 	// ChatProtection stores the room flood-control tier.
 	ChatProtection int16
 }
@@ -43,7 +77,6 @@ type Snapshot struct {
 type Presence struct {
 	// Occupant stores connection and visible identity state.
 	Occupant Occupant
-
 	// Unit stores position and room-local unit state.
 	Unit UnitSnapshot
 }
@@ -52,16 +85,12 @@ type Presence struct {
 type Occupancy struct {
 	// RoomID identifies the room.
 	RoomID int64
-
 	// CategoryID optionally identifies the room category.
 	CategoryID *int64
-
 	// Count stores the active occupancy count.
 	Count int
-
 	// MaxUsers stores the maximum active occupancy.
 	MaxUsers int
-
 	// PlayerIDs stores active player ids.
 	PlayerIDs []int64
 }
@@ -70,102 +99,20 @@ type Occupancy struct {
 type Occupant struct {
 	// PlayerID identifies the player.
 	PlayerID int64
-
 	// Username stores a display snapshot for diagnostics.
 	Username string
-
 	// Motto stores the visible player motto.
 	Motto string
-
 	// Figure stores the visible player figure.
 	Figure string
-
 	// Gender stores the visible player gender.
 	Gender string
-
 	// ConnectionID identifies the active connection.
 	ConnectionID netconn.ID
-
 	// ConnectionKind identifies the active connection family.
 	ConnectionKind netconn.Kind
-
 	// JoinedAt stores when the player joined the active room.
 	JoinedAt time.Time
-}
-
-// WorldConfig stores loaded room world input.
-type WorldConfig struct {
-	// Grid stores the immutable base room grid.
-	Grid grid.Grid
-
-	// Fixtures stores dynamic initial column fixtures.
-	Fixtures []surface.Fixture
-
-	// Furniture stores placed furniture items projected into fixtures on load.
-	Furniture []worldfurniture.Item
-
-	// Door stores the room entry position.
-	Door worldpath.Position
-
-	// Body stores the initial body rotation.
-	Body worldunit.Rotation
-
-	// Head stores the initial head rotation.
-	Head worldunit.Rotation
-
-	// Rules stores movement pathfinding rules.
-	Rules worldpath.Rules
-}
-
-// UnitSnapshot stores stable world unit state.
-type UnitSnapshot struct {
-	// PlayerID stores the owning player id.
-	PlayerID int64
-
-	// UnitID stores the room-local unit id.
-	UnitID int64
-
-	// Position stores the current unit position.
-	Position worldpath.Position
-
-	// Previous stores the previous unit position.
-	Previous worldpath.Position
-
-	// BodyRotation stores the unit body rotation.
-	BodyRotation worldunit.Rotation
-
-	// HeadRotation stores the unit head rotation.
-	HeadRotation worldunit.Rotation
-
-	// Moving reports whether the unit has pending steps.
-	Moving bool
-
-	// Statuses stores ordered unit statuses.
-	Statuses []worldunit.Status
-}
-
-// Movement stores one unit tick movement.
-type Movement struct {
-	// PlayerID stores the owning player id.
-	PlayerID int64
-
-	// Unit stores the moved unit snapshot.
-	Unit UnitSnapshot
-
-	// Step stores the accepted path step.
-	Step worldpath.Step
-
-	// Moved reports whether the tick advanced to Step.
-	Moved bool
-
-	// Settled reports whether the tick cleared movement status.
-	Settled bool
-
-	// Exited reports whether the unit completed or could not continue a room exit.
-	Exited bool
-
-	// ForcedExit reports whether server moderation initiated the room exit.
-	ForcedExit bool
 }
 
 // MovementPublisher publishes room tick movements.
@@ -182,23 +129,17 @@ type RegistryOption func(*Registry)
 
 // WithMovementPublisher configures room movement publishing.
 func WithMovementPublisher(publisher MovementPublisher) RegistryOption {
-	return func(registry *Registry) {
-		registry.movementPublish = publisher
-	}
+	return func(registry *Registry) { registry.movementPublish = publisher }
 }
 
 // WithDoorbellPublisher configures doorbell expiration publishing.
 func WithDoorbellPublisher(publisher DoorbellPublisher) RegistryOption {
-	return func(registry *Registry) {
-		registry.doorbellPublish = publisher
-	}
+	return func(registry *Registry) { registry.doorbellPublish = publisher }
 }
 
 // WithDoorbellApprover configures authorized responder presence checks.
 func WithDoorbellApprover(approver DoorbellApprover) RegistryOption {
-	return func(registry *Registry) {
-		registry.doorbellApprover = approver
-	}
+	return func(registry *Registry) { registry.doorbellApprover = approver }
 }
 
 // WithDoorbellTimeout configures waiting request duration.
@@ -222,11 +163,6 @@ func WithTickInterval(interval time.Duration) RegistryOption {
 // Valid reports whether the snapshot can back an active room.
 func (snapshot Snapshot) Valid() bool {
 	return snapshot.ID > 0 && snapshot.MaxUsers > 0
-}
-
-// CanManageFurniture reports whether a player may place, move, or pick up room furniture.
-func (room *Room) CanManageFurniture(playerID int64) bool {
-	return room.HasRights(playerID)
 }
 
 // Valid reports whether the occupant can join a room.

@@ -2,13 +2,11 @@ package live
 
 import (
 	"errors"
-	"strings"
 	"testing"
 
 	worldfurniture "github.com/niflaot/pixels/internal/realm/room/world/furniture"
 	"github.com/niflaot/pixels/internal/realm/room/world/grid"
 	worldpath "github.com/niflaot/pixels/internal/realm/room/world/path"
-	"github.com/niflaot/pixels/internal/realm/room/world/surface"
 	worldunit "github.com/niflaot/pixels/internal/realm/room/world/unit"
 )
 
@@ -40,7 +38,7 @@ func TestRoomLoadWorldProjectsFurnitureIntoFixturesAndSnapshot(t *testing.T) {
 		Point:    pointForTest(t, 2, 0),
 		Rotation: worldunit.RotationNorth,
 		Definition: worldfurniture.Definition{
-			Width: 1, Length: 1, StackHeight: 1, AllowStack: true,
+			Width: 1, Length: 1, StackHeight: 1,
 		},
 	}
 
@@ -59,16 +57,9 @@ func TestRoomLoadWorldProjectsFurnitureIntoFixturesAndSnapshot(t *testing.T) {
 		t.Fatalf("unexpected furniture snapshot %#v", items)
 	}
 
-	column, err := room.world.resolver.Column(pointForTest(t, 2, 0))
-	if err != nil {
-		t.Fatalf("resolve column: %v", err)
-	}
-	if column.Len() != 1 {
-		t.Fatalf("expected the furniture block to replace the walkable base, got %d sections", column.Len())
-	}
-	top, ok := column.TopSection()
-	if !ok || top.State() != surface.StateBlocked || top.SourceID() != 11 {
-		t.Fatalf("expected blocked section from furniture, got %#v found=%v", top, ok)
+	_, err = room.ResolveFurniturePlacement(99, []grid.Point{pointForTest(t, 2, 0)})
+	if !errors.Is(err, ErrCannotStack) {
+		t.Fatalf("expected blocked furniture surface, got %v", err)
 	}
 
 	if _, err := room.Join(occupantForTest(7)); err != nil {
@@ -223,53 +214,4 @@ func hasStatus(statuses []worldunit.Status, key string) bool {
 	}
 
 	return false
-}
-
-// BenchmarkRoomMoveTo measures runtime path assignment cost.
-func BenchmarkRoomMoveTo(b *testing.B) {
-	room := worldRoomForTest(b, heightmapForBenchmark(24), 0, 0)
-	if _, err := room.Join(occupantForTest(7)); err != nil {
-		b.Fatalf("join room: %v", err)
-	}
-	goal := pointForTest(b, 23, 23)
-
-	b.ResetTimer()
-	for index := 0; index < b.N; index++ {
-		if _, err := room.MoveTo(7, goal); err != nil {
-			b.Fatalf("move unit: %v", err)
-		}
-	}
-}
-
-// BenchmarkRoomTickManyUnits measures one tick over many moving units.
-func BenchmarkRoomTickManyUnits(b *testing.B) {
-	room := worldRoomForTest(b, heightmapForBenchmark(16), 0, 0)
-	for playerID := int64(1); playerID <= 64; playerID++ {
-		if _, err := room.Join(occupantForTest(playerID)); err != nil {
-			b.Fatalf("join room: %v", err)
-		}
-	}
-
-	b.ResetTimer()
-	for index := 0; index < b.N; index++ {
-		room.mutex.Lock()
-		for playerID := int64(1); playerID <= 64; playerID++ {
-			room.world.units[playerID].SetPath(worldpath.NewPath([]worldpath.Step{{
-				Position: worldpath.Position{Point: pointForTest(b, int((playerID+int64(index))%16), int(playerID/16))},
-			}}))
-		}
-		room.mutex.Unlock()
-		_ = room.Tick()
-	}
-}
-
-// heightmapForBenchmark creates a square flat heightmap.
-func heightmapForBenchmark(size int) string {
-	row := strings.Repeat("0", size)
-	rows := make([]string, size)
-	for index := range rows {
-		rows[index] = row
-	}
-
-	return strings.Join(rows, "\r")
 }

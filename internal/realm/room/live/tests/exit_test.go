@@ -1,8 +1,10 @@
-package live
+package live_test
 
 import (
 	"errors"
 	"testing"
+
+	. "github.com/niflaot/pixels/internal/realm/room/live"
 )
 
 // TestExitToDoorForcesPathAndMarksDeparture verifies kicked movement cannot be replaced.
