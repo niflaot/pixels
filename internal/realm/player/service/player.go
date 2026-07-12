@@ -94,6 +94,27 @@ func (service *Service) FindByUsername(ctx context.Context, username string) (Re
 	return service.record(ctx, player)
 }
 
+// UpdatePrivacy persists messenger privacy fields.
+func (service *Service) UpdatePrivacy(ctx context.Context, playerID int64, params PrivacyParams) (Record, error) {
+	player, found, err := service.store.FindPlayerByID(ctx, playerID)
+	if err != nil {
+		return Record{}, err
+	}
+	if !found {
+		return Record{}, ErrPlayerNotFound
+	}
+	profile, err := service.store.UpdatePrivacy(ctx, playerID, repository.PrivacyParams{
+		BlockFriendRequests: params.BlockFriendRequests,
+		BlockRoomInvites:    params.BlockRoomInvites,
+		BlockFollowing:      params.BlockFollowing,
+	})
+	if err != nil {
+		return Record{}, fmt.Errorf("update player messenger privacy: %w", err)
+	}
+
+	return Record{Player: player, Profile: profile}, nil
+}
+
 // record loads a complete player record.
 func (service *Service) record(ctx context.Context, player playermodel.Player) (Record, bool, error) {
 	profile, found, err := service.store.FindProfileByPlayerID(ctx, player.ID)

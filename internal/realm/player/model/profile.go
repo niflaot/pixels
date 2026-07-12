@@ -45,6 +45,15 @@ type Profile struct {
 	// BubbleStyle stores the validated Nitro chat bubble style.
 	BubbleStyle int32
 
+	// BlockFriendRequests reports whether incoming friend requests are disabled.
+	BlockFriendRequests bool
+
+	// BlockRoomInvites reports whether incoming messenger room invites are disabled.
+	BlockRoomInvites bool
+
+	// BlockFollowing reports whether friends may follow this player to a room.
+	BlockFollowing bool
+
 	// Timestamps contains durable record timestamps.
 	sharedmodel.Timestamps
 

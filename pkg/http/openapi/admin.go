@@ -31,6 +31,10 @@ func adminOperations() []operation {
 		adminNavigatorRead("/api/admin/navigator/categories", "List navigator categories", &APIKeyRequest{}, &CategoryListResponse{}),
 		adminNavigatorRead("/api/admin/navigator/lifted", "List navigator lifted rooms", &APIKeyRequest{}, &LiftedListResponse{}),
 		adminNotificationAction("/api/admin/notifications/send", "Send localized player notification", &NotificationRequest{}),
+		adminMessenger(http.MethodGet, "/api/admin/players/{playerId}/friends", "List player friends", &MessengerPlayerRequest{}, &MessengerFriendsResponse{}, http.StatusOK),
+		adminMessenger(http.MethodGet, "/api/admin/players/{playerId}/friends/requests", "List player friend requests", &MessengerPlayerRequest{}, &MessengerRequestsResponse{}, http.StatusOK),
+		adminMessenger(http.MethodDelete, "/api/admin/players/{playerId}/friends/{friendId}", "Remove player friendship", &MessengerFriendRequest{}, &MessengerMutationResponse{}, http.StatusOK),
+		adminMessenger(http.MethodPost, "/api/admin/players/{playerId}/privacy", "Update player messenger privacy", &MessengerPrivacyRequest{}, &MessengerPrivacyResponse{}, http.StatusOK),
 		adminCurrencyRead("/api/admin/currencies/wallet", "Read player currency wallet", &CurrencyWalletRequest{}, &CurrencyWalletResponse{}),
 		adminCurrencyRead("/api/admin/currencies/types", "List configured currency types", &APIKeyRequest{}, &CurrencyTypesResponse{}),
 		adminCurrencyAction("/api/admin/currencies/grant", "Grant player currency"),
@@ -66,6 +70,14 @@ func adminOperations() []operation {
 		adminPermission(http.MethodGet, "/api/admin/permissions/players/{playerId}/effective", "List effective player permissions", &permissionapi.PlayerRequest{}, &permissionapi.EffectiveResponse{}, http.StatusOK),
 		adminPermission(http.MethodGet, "/api/admin/permissions/players/{playerId}/check", "Check player permission", &permissionapi.CheckRequest{}, &permissionapi.CheckResponse{}, http.StatusOK),
 	}
+}
+
+// adminMessenger creates a protected messenger administration operation.
+func adminMessenger(method string, path string, summary string, request any, body any, status int) operation {
+	return operation{method: method, path: path, tag: "Admin Messenger", summary: summary,
+		description: summary + ".", request: request,
+		responses: append([]response{jsonResponse(status, body, summary+".")},
+			errorResponses(http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound, http.StatusInternalServerError)...), secured: true}
 }
 
 // adminChat creates a protected chat administration operation.

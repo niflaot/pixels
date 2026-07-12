@@ -32,6 +32,12 @@ type Player struct {
 	// currencies stores the player's currency capability.
 	currencies *currencyholder.Holder
 
+	// ignored stores player ids hidden by this player.
+	ignored map[int64]struct{}
+
+	// profileViewer stores the currently opened public profile.
+	profileViewer ProfileViewer
+
 	// room stores the player's current room presence.
 	room RoomPresence
 }
@@ -49,6 +55,7 @@ func NewPlayer(snapshot Snapshot, peer SessionPeer) (*Player, error) {
 		snapshot:   snapshot,
 		peer:       peer,
 		currencies: currencyholder.New(snapshot.ID),
+		ignored:    make(map[int64]struct{}),
 	}, nil
 }
 

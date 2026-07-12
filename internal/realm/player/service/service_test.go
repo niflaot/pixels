@@ -233,6 +233,15 @@ func (store *fakeStore) UpdateBubbleStyle(_ context.Context, _ int64, bubbleStyl
 	return store.profile, store.profileErr
 }
 
+// UpdatePrivacy persists messenger privacy for tests.
+func (store *fakeStore) UpdatePrivacy(_ context.Context, _ int64, params repository.PrivacyParams) (playermodel.Profile, error) {
+	store.profile.BlockFriendRequests = params.BlockFriendRequests
+	store.profile.BlockRoomInvites = params.BlockRoomInvites
+	store.profile.BlockFollowing = params.BlockFollowing
+
+	return store.profile, store.profileErr
+}
+
 // FindProfileByPlayerID finds a profile by player id for tests.
 func (store *fakeStore) FindProfileByPlayerID(context.Context, int64) (playermodel.Profile, bool, error) {
 	return store.profile, store.profileFound, store.profileErr

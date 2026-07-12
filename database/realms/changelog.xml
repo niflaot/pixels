@@ -13,4 +13,5 @@
     <include file="../../internal/realm/inventory/currency/database/changelog.xml" relativeToChangelogFile="true"/>
     <include file="../../internal/realm/catalog/database/changelog.xml" relativeToChangelogFile="true"/>
     <include file="../../internal/realm/chat/database/changelog.xml" relativeToChangelogFile="true"/>
+    <include file="../../internal/realm/messenger/database/changelog.xml" relativeToChangelogFile="true"/>
 </databaseChangeLog>

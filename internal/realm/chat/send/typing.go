@@ -28,7 +28,7 @@ func (service *Service) Typing(ctx context.Context, connection netconn.Context, 
 		return err
 	}
 	for _, occupant := range active.Occupants() {
-		if occupant.PlayerID != player.ID() {
+		if occupant.PlayerID != player.ID() && service.canReceive(occupant.PlayerID, player.ID()) {
 			service.sendPresence(ctx, occupant, packet)
 		}
 	}

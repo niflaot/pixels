@@ -40,7 +40,8 @@ func (handler Handler) Handle(ctx context.Context, envelope command.Envelope[Com
 	if err != nil {
 		return err
 	}
-	packet, err := outsettings.Encode(player.Snapshot().BubbleStyle)
+	snapshot := player.Snapshot()
+	packet, err := outsettings.Encode(snapshot.BubbleStyle, outsettings.WithRoomInvitesBlocked(snapshot.BlockRoomInvites))
 	if err != nil {
 		return err
 	}

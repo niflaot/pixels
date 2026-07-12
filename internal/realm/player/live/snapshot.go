@@ -33,6 +33,15 @@ type Snapshot struct {
 	// BubbleStyle stores the validated Nitro chat bubble style.
 	BubbleStyle int32
 
+	// BlockFriendRequests reports whether incoming friend requests are disabled.
+	BlockFriendRequests bool
+
+	// BlockRoomInvites reports whether incoming room invitations are disabled.
+	BlockRoomInvites bool
+
+	// BlockFollowing reports whether friends may follow the player to a room.
+	BlockFollowing bool
+
 	// Club contains the player's subscription entitlement.
 	Club playermodel.Club
 }
@@ -40,15 +49,18 @@ type Snapshot struct {
 // SnapshotFromRecord maps a persistent player record to a runtime snapshot.
 func SnapshotFromRecord(record playerservice.Record) Snapshot {
 	return Snapshot{
-		ID:              record.Player.ID,
-		Username:        record.Player.Username,
-		Look:            record.Profile.Look,
-		Gender:          record.Profile.Gender,
-		Motto:           record.Profile.Motto,
-		HomeRoomID:      record.Profile.HomeRoomID,
-		AllowNameChange: record.Profile.AllowNameChange,
-		BubbleStyle:     record.Profile.BubbleStyle,
-		Club:            record.Player.Club,
+		ID:                  record.Player.ID,
+		Username:            record.Player.Username,
+		Look:                record.Profile.Look,
+		Gender:              record.Profile.Gender,
+		Motto:               record.Profile.Motto,
+		HomeRoomID:          record.Profile.HomeRoomID,
+		AllowNameChange:     record.Profile.AllowNameChange,
+		BubbleStyle:         record.Profile.BubbleStyle,
+		BlockFriendRequests: record.Profile.BlockFriendRequests,
+		BlockRoomInvites:    record.Profile.BlockRoomInvites,
+		BlockFollowing:      record.Profile.BlockFollowing,
+		Club:                record.Player.Club,
 	}
 }
 

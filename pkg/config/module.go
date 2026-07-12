@@ -4,6 +4,7 @@ import (
 	"github.com/niflaot/pixels/internal/auth/sso"
 	chatconfig "github.com/niflaot/pixels/internal/realm/chat/config"
 	currencyconfig "github.com/niflaot/pixels/internal/realm/inventory/currency"
+	realmmessenger "github.com/niflaot/pixels/internal/realm/messenger"
 	roomentry "github.com/niflaot/pixels/internal/realm/room/access/entry"
 	roommoderation "github.com/niflaot/pixels/internal/realm/room/control/moderation"
 	appconfig "github.com/niflaot/pixels/pkg/config/app"
@@ -24,6 +25,7 @@ var Module = fx.Module(
 		I18N,
 		Currency,
 		Chat,
+		Messenger,
 		RoomEntry,
 		RoomModeration,
 		Postgres,
@@ -59,6 +61,9 @@ func Currency(config AppConfig) currencyconfig.Config {
 
 // Chat extracts protocol chat settings from composed configuration.
 func Chat(config AppConfig) chatconfig.Config { return config.Chat }
+
+// Messenger extracts social communication configuration.
+func Messenger(config AppConfig) realmmessenger.Config { return config.Messenger }
 
 // RoomEntry extracts closed-room entry settings from composed configuration.
 func RoomEntry(config AppConfig) roomentry.Config {

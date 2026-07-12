@@ -19,7 +19,7 @@ func (service *Service) sendTalk(ctx context.Context, active *roomlive.Room, spe
 	distance := chatconfig.AudienceDistance(active.Snapshot().ChatDistance)
 	maximum := distance * distance
 	for _, presence := range active.Presences() {
-		if withinDistance(speaker, presence.Unit, maximum) {
+		if withinDistance(speaker, presence.Unit, maximum) && service.canReceive(presence.Occupant.PlayerID, speaker.PlayerID) {
 			service.sendPresence(ctx, presence.Occupant, packet)
 		}
 	}
@@ -34,9 +34,11 @@ func withinDistance(source roomlive.UnitSnapshot, target roomlive.UnitSnapshot, 
 }
 
 // sendAll routes one packet to every current room occupant.
-func (service *Service) sendAll(ctx context.Context, active *roomlive.Room, packet codec.Packet) {
+func (service *Service) sendAll(ctx context.Context, active *roomlive.Room, senderID int64, packet codec.Packet) {
 	for _, occupant := range active.Occupants() {
-		service.sendPresence(ctx, occupant, packet)
+		if service.canReceive(occupant.PlayerID, senderID) {
+			service.sendPresence(ctx, occupant, packet)
+		}
 	}
 }
 
@@ -66,14 +68,16 @@ func (service *Service) sendWhisper(ctx context.Context, active *roomlive.Room, 
 	observerReady := false
 	for _, presence := range presences {
 		if presence.Occupant.PlayerID == senderID || presence.Occupant.PlayerID == targetID {
-			service.sendPresence(ctx, presence.Occupant, packet)
+			if service.canReceive(presence.Occupant.PlayerID, senderID) {
+				service.sendPresence(ctx, presence.Occupant, packet)
+			}
 			continue
 		}
 		allowed, permissionErr := service.permissions.HasPermission(ctx, presence.Occupant.PlayerID, service.nodes.WhisperObserveAny)
 		if permissionErr != nil {
 			return permissionErr
 		}
-		if allowed {
+		if allowed && service.canReceive(presence.Occupant.PlayerID, senderID) {
 			if !observerReady {
 				encoded, encodeErr := service.observerWhisper(unitID, recipient, message, styleID)
 				if encodeErr != nil {
@@ -88,6 +92,15 @@ func (service *Service) sendWhisper(ctx context.Context, active *roomlive.Room, 
 	service.publish(ctx, whisperedevent.Name, whisperedevent.Payload{RoomID: active.ID(), PlayerID: senderID, TargetPlayerID: targetID, Message: message, Censored: censored, CreatedAt: createdAt})
 
 	return nil
+}
+
+// canReceive reports whether one live recipient accepts communication from a sender.
+func (service *Service) canReceive(recipientID int64, senderID int64) bool {
+	if recipientID == senderID {
+		return true
+	}
+	recipient, found := service.players.Find(recipientID)
+	return !found || !recipient.IsIgnoring(senderID)
 }
 
 // observerWhisper creates the recipient-aware packet shown to authorized observers.

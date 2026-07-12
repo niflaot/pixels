@@ -34,6 +34,9 @@ type ProfileWriter interface {
 
 	// UpdateBubbleStyle persists one validated chat bubble selection.
 	UpdateBubbleStyle(ctx context.Context, playerID int64, bubbleStyle int32) (playermodel.Profile, error)
+
+	// UpdatePrivacy persists messenger privacy fields.
+	UpdatePrivacy(ctx context.Context, playerID int64, params PrivacyParams) (playermodel.Profile, error)
 }
 
 // Store reads and writes player persistence records.

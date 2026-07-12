@@ -9,6 +9,7 @@ import (
 	realmconn "github.com/niflaot/pixels/internal/realm/connection"
 	realmfurniture "github.com/niflaot/pixels/internal/realm/furniture"
 	realminventory "github.com/niflaot/pixels/internal/realm/inventory"
+	realmmessenger "github.com/niflaot/pixels/internal/realm/messenger"
 	realmnavigator "github.com/niflaot/pixels/internal/realm/navigator"
 	realmplayer "github.com/niflaot/pixels/internal/realm/player"
 	realmroom "github.com/niflaot/pixels/internal/realm/room"
@@ -51,6 +52,7 @@ func options() []fx.Option {
 	options = append(options, realmchat.Module)
 	options = append(options, realmfurniture.Module)
 	options = append(options, realminventory.Module)
+	options = append(options, realmmessenger.Module)
 	options = append(options, realmnavigator.Module)
 	options = append(options, realmplayer.Module)
 	options = append(options, realmroom.Module)

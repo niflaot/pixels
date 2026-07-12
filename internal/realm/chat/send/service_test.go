@@ -88,6 +88,22 @@ func TestTalkPipelineFiltersAndBroadcasts(t *testing.T) {
 	}
 }
 
+// TestTalkSkipsRecipientsIgnoringSpeaker verifies directional ignore filtering.
+func TestTalkSkipsRecipientsIgnoringSpeaker(t *testing.T) {
+	fixture := newFixture(t)
+	target, found := fixture.players.Find(2)
+	if !found {
+		t.Fatal("missing target player")
+	}
+	target.Ignore(1)
+	if err := fixture.source.Receive(context.Background(), codec.Packet{Header: 1}); err != nil {
+		t.Fatalf("receive talk: %v", err)
+	}
+	if len(*fixture.sourcePackets) != 1 || len(*fixture.targetPackets) != 0 {
+		t.Fatalf("source=%d target=%d", len(*fixture.sourcePackets), len(*fixture.targetPackets))
+	}
+}
+
 // fixture contains one active two-player room chat setup.
 type fixture struct {
 	// players stores live players for extending the fixture.

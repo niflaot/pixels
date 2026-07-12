@@ -25,6 +25,18 @@ type Finder interface {
 type Manager interface {
 	Creator
 	Finder
+	// UpdatePrivacy persists messenger privacy fields.
+	UpdatePrivacy(ctx context.Context, playerID int64, params PrivacyParams) (Record, error)
+}
+
+// PrivacyParams stores a complete messenger privacy replacement.
+type PrivacyParams struct {
+	// BlockFriendRequests reports whether incoming friend requests are disabled.
+	BlockFriendRequests bool
+	// BlockRoomInvites reports whether incoming room invitations are disabled.
+	BlockRoomInvites bool
+	// BlockFollowing reports whether friends may follow the player.
+	BlockFollowing bool
 }
 
 // Record contains a player identity and profile pair.

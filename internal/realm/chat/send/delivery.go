@@ -34,7 +34,7 @@ func (service *Service) deliver(ctx context.Context, active *roomlive.Room, play
 		service.sendTalk(ctx, active, unit, packet)
 		service.publish(ctx, talkedevent.Name, talkedevent.Payload{RoomID: active.ID(), PlayerID: player.ID(), Message: message, Censored: censored, CreatedAt: createdAt})
 	case KindShout:
-		service.sendAll(ctx, active, packet)
+		service.sendAll(ctx, active, player.ID(), packet)
 		service.publish(ctx, shoutedevent.Name, shoutedevent.Payload{RoomID: active.ID(), PlayerID: player.ID(), Message: message, Censored: censored, CreatedAt: createdAt})
 	case KindWhisper:
 		return service.sendWhisper(ctx, active, player.ID(), int32(unit.UnitID), request.Recipient, packet, message, styleID, censored, createdAt)

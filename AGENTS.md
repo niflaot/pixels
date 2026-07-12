@@ -292,6 +292,45 @@ minimum manual checks expected when touching it.
     response instead of creating another room.
   - Request room info and verify missing rooms return `navigator.nosuchflat`.
 
+### FEATURE: Messenger Realm
+
+- Owns `internal/realm/messenger`, messenger packets under `networking`, and
+  `pkg/http/messenger/routes`.
+- Provides directional friendships, unilateral relationship markers, pending
+  requests, Nitro-native friend-list bootstrap and deltas, Redis-cached prefix
+  search, room invitations, follow and populated-room discovery, private chat,
+  live online/room presence projection, messenger privacy, persistent ignored
+  users, and public relationship summaries.
+- Messenger delivery reuses authenticated session bindings and connections; do
+  not add a separate viewer, audience, or presence registry.
+- Nitro's `MESSENGER_REQUESTS` packet owns the pending request count. Do not add
+  minimail packets or invent a separate pending-count packet. Send this packet
+  only for Nitro's explicit request and mutation refreshes, not during messenger
+  init, because Nitro requests it immediately after init.
+- Ignored users remain friends unless friendship is explicitly removed. Room
+  talk, shout, whisper, typing, and private messenger delivery must honor the
+  recipient's directional live ignore projection without database hot-path reads.
+- Public-profile observation is embedded in each live player. Relationship
+  changes refresh only players currently observing that profile through
+  `messenger.relation.changed`; do not add a profile-viewer registry.
+- Test after changes:
+  - `go test -race ./internal/realm/messenger/... ./networking/inbound/messenger/... ./networking/outbound/messenger/...`
+  - `go test ./internal/realm/messenger/service -run '^$' -bench . -benchmem`
+  - Open Nitro with two seeded friends and verify online/offline and room
+    presence change without refreshing the friend list.
+  - Send, accept, decline, and remove friend requests; verify both online and
+    offline targets, no duplicate initial request, and normal/HC list limits.
+  - Ignore and unignore both friends and non-friends; verify ignored talk,
+    shout, whisper, typing, and private messages are hidden only from the player
+    who ignored the sender.
+  - Assign heart, smile, bobba, and none relationships from the friend list and
+    avatar menu; keep that player's profile open in a second client and verify
+    its relationship summary updates without reopening the profile.
+  - Search the same prefix from two players and verify the shared Redis cache;
+    invite, follow, find a populated room, and exchange private messages.
+  - Change room-invite privacy in Nitro and all privacy flags through the
+    protected `Admin Messenger` routes in `/docs`.
+
 ### FEATURE: Room Realm
 
 - Owns `internal/realm/room`.

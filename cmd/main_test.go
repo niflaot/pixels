@@ -35,8 +35,8 @@ func setCurrencyPathForTest(t *testing.T) {
 func TestOptionsBuilds(t *testing.T) {
 	options := options()
 
-	if len(options) != 22 {
-		t.Fatalf("expected twenty-two options, got %d", len(options))
+	if len(options) != 23 {
+		t.Fatalf("expected twenty-three options, got %d", len(options))
 	}
 }
 

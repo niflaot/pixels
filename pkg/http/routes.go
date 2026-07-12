@@ -19,6 +19,7 @@ import (
 	chatroutes "github.com/niflaot/pixels/pkg/http/chat/routes"
 	"github.com/niflaot/pixels/pkg/http/clientconfig"
 	currencyroutes "github.com/niflaot/pixels/pkg/http/currency/routes"
+	messengerroutes "github.com/niflaot/pixels/pkg/http/messenger/routes"
 	notificationroutes "github.com/niflaot/pixels/pkg/http/notification/routes"
 	"github.com/niflaot/pixels/pkg/http/openapi"
 	permissionroutes "github.com/niflaot/pixels/pkg/http/permission/routes"
@@ -39,7 +40,7 @@ func registerPublic(app *fiber.App, config config.AppConfig, info build.Info, we
 }
 
 // registerPrivate registers private authenticated fallback routes.
-func registerPrivate(app *fiber.App, sso *sso.Service, rooms roomservice.Manager, runtime *roomlive.Registry, roomEntry *roomentry.Service, navigator navservice.Manager, currencyAdmin currencyroutes.Dependencies, catalogAdmin catalogroutes.Dependencies, permissionAdmin permissionroutes.Dependencies, roomAdmin roomroutes.Dependencies, chatAdmin chatroutes.Dependencies) {
+func registerPrivate(app *fiber.App, sso *sso.Service, rooms roomservice.Manager, runtime *roomlive.Registry, roomEntry *roomentry.Service, navigator navservice.Manager, currencyAdmin currencyroutes.Dependencies, catalogAdmin catalogroutes.Dependencies, permissionAdmin permissionroutes.Dependencies, roomAdmin roomroutes.Dependencies, chatAdmin chatroutes.Dependencies, messengerAdmin messengerroutes.Dependencies) {
 	app.Post("/api/sso/tickets", createSSOTicketHandler(sso))
 	wsroutes.Register(app, currencyAdmin.Connections)
 	roomroutes.Register(app, rooms, runtime, currencyAdmin.Connections, navigator, currencyAdmin.Players, roomEntry, roomAdmin)
@@ -48,6 +49,7 @@ func registerPrivate(app *fiber.App, sso *sso.Service, rooms roomservice.Manager
 	catalogroutes.Register(app, catalogAdmin)
 	permissionroutes.Register(app, permissionAdmin)
 	chatroutes.Register(app, chatAdmin)
+	messengerroutes.Register(app, messengerAdmin)
 	app.Use(notFoundHandler)
 }
 
