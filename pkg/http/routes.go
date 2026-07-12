@@ -8,7 +8,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/niflaot/pixels/internal/auth/sso"
 	currencyservice "github.com/niflaot/pixels/internal/realm/inventory/currency/service"
-	navservice "github.com/niflaot/pixels/internal/realm/navigator/service"
+	navservice "github.com/niflaot/pixels/internal/realm/navigator/core"
 	roomentry "github.com/niflaot/pixels/internal/realm/room/access/entry"
 	roomservice "github.com/niflaot/pixels/internal/realm/room/record/service"
 	roomlive "github.com/niflaot/pixels/internal/realm/room/runtime/live"

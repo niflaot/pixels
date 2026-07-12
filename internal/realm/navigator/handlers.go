@@ -2,25 +2,17 @@ package navigator
 
 import (
 	realmconn "github.com/niflaot/pixels/internal/realm/connection"
-	cancreatecmd "github.com/niflaot/pixels/internal/realm/navigator/commands/cancreate"
-	countscmd "github.com/niflaot/pixels/internal/realm/navigator/commands/categorycounts"
-	createcmd "github.com/niflaot/pixels/internal/realm/navigator/commands/create"
-	eventcatscmd "github.com/niflaot/pixels/internal/realm/navigator/commands/eventcats"
-	flatcatscmd "github.com/niflaot/pixels/internal/realm/navigator/commands/flatcats"
-	forwardcmd "github.com/niflaot/pixels/internal/realm/navigator/commands/forward"
-	infocmd "github.com/niflaot/pixels/internal/realm/navigator/commands/info"
-	initcmd "github.com/niflaot/pixels/internal/realm/navigator/commands/init"
-	searchcmd "github.com/niflaot/pixels/internal/realm/navigator/commands/search"
-	cancreatehandler "github.com/niflaot/pixels/internal/realm/navigator/handlers/cancreate"
-	countshandler "github.com/niflaot/pixels/internal/realm/navigator/handlers/categorycounts"
-	createhandler "github.com/niflaot/pixels/internal/realm/navigator/handlers/create"
-	eventcatshandler "github.com/niflaot/pixels/internal/realm/navigator/handlers/eventcats"
-	flatcatshandler "github.com/niflaot/pixels/internal/realm/navigator/handlers/flatcats"
-	forwardhandler "github.com/niflaot/pixels/internal/realm/navigator/handlers/forward"
-	infohandler "github.com/niflaot/pixels/internal/realm/navigator/handlers/info"
-	inithandler "github.com/niflaot/pixels/internal/realm/navigator/handlers/init"
-	searchhandler "github.com/niflaot/pixels/internal/realm/navigator/handlers/search"
-	navservice "github.com/niflaot/pixels/internal/realm/navigator/service"
+	countscmd "github.com/niflaot/pixels/internal/realm/navigator/browse/category/counts"
+	eventcatscmd "github.com/niflaot/pixels/internal/realm/navigator/browse/category/events"
+	flatcatscmd "github.com/niflaot/pixels/internal/realm/navigator/browse/category/list"
+	forwardcmd "github.com/niflaot/pixels/internal/realm/navigator/browse/room/forward"
+	infocmd "github.com/niflaot/pixels/internal/realm/navigator/browse/room/info"
+	navruntime "github.com/niflaot/pixels/internal/realm/navigator/browse/runtime"
+	searchcmd "github.com/niflaot/pixels/internal/realm/navigator/browse/search"
+	navservice "github.com/niflaot/pixels/internal/realm/navigator/core"
+	cancreatecmd "github.com/niflaot/pixels/internal/realm/navigator/create/check"
+	createcmd "github.com/niflaot/pixels/internal/realm/navigator/create/room"
+	initcmd "github.com/niflaot/pixels/internal/realm/navigator/session/init"
 	playerlive "github.com/niflaot/pixels/internal/realm/player/live"
 	roommoderation "github.com/niflaot/pixels/internal/realm/room/control/moderation"
 	roomrights "github.com/niflaot/pixels/internal/realm/room/control/rights"
@@ -39,14 +31,14 @@ func RegisterConnectionHandlers(handlers *realmconn.Handlers, deps HandlerDeps) 
 		return
 	}
 
-	inithandler.Register(handlers.Inbound, inithandler.New(initcmd.Handler{
+	initcmd.RegisterPacketHandler(handlers.Inbound, initcmd.NewPacketHandler(initcmd.Handler{
 		Players:   deps.Players,
 		Bindings:  deps.Bindings,
 		Navigator: deps.Navigator,
 		Rooms:     deps.Rooms,
 		Events:    deps.Events,
 	}, deps.Log))
-	searchhandler.Register(handlers.Inbound, searchhandler.New(searchcmd.Handler{
+	searchcmd.RegisterPacketHandler(handlers.Inbound, searchcmd.NewPacketHandler(searchcmd.Handler{
 		Players:   deps.Players,
 		Bindings:  deps.Bindings,
 		Navigator: deps.Navigator,
@@ -55,12 +47,12 @@ func RegisterConnectionHandlers(handlers *realmconn.Handlers, deps HandlerDeps) 
 		Rights:    deps.Rights,
 		Events:    deps.Events,
 	}, deps.Log))
-	cancreatehandler.Register(handlers.Inbound, cancreatehandler.New(cancreatecmd.Handler{
+	cancreatecmd.RegisterPacketHandler(handlers.Inbound, cancreatecmd.NewPacketHandler(cancreatecmd.Handler{
 		Players:  deps.Players,
 		Bindings: deps.Bindings,
 		Rooms:    deps.Rooms,
 	}, deps.Log))
-	createhandler.Register(handlers.Inbound, createhandler.New(createcmd.Handler{
+	createcmd.RegisterPacketHandler(handlers.Inbound, createcmd.NewPacketHandler(createcmd.Handler{
 		Players:      deps.Players,
 		Bindings:     deps.Bindings,
 		Rooms:        deps.Rooms,
@@ -68,28 +60,28 @@ func RegisterConnectionHandlers(handlers *realmconn.Handlers, deps HandlerDeps) 
 		Translations: deps.Translations,
 		Log:          deps.Log,
 	}, deps.Log))
-	infohandler.Register(handlers.Inbound, infohandler.New(infocmd.Handler{
+	infocmd.RegisterPacketHandler(handlers.Inbound, infocmd.NewPacketHandler(infocmd.Handler{
 		Players:    deps.Players,
 		Bindings:   deps.Bindings,
 		Rooms:      deps.Rooms,
 		Runtime:    deps.Runtime,
 		Moderation: deps.Moderation,
 	}, deps.Log))
-	forwardhandler.Register(handlers.Inbound, forwardhandler.New(forwardcmd.Handler{
+	forwardcmd.RegisterPacketHandler(handlers.Inbound, forwardcmd.NewPacketHandler(forwardcmd.Handler{
 		Players:  deps.Players,
 		Bindings: deps.Bindings,
 		Rooms:    deps.Rooms,
 	}, deps.Log))
-	flatcatshandler.Register(handlers.Inbound, flatcatshandler.New(flatcatscmd.Handler{
+	flatcatscmd.RegisterPacketHandler(handlers.Inbound, flatcatscmd.NewPacketHandler(flatcatscmd.Handler{
 		Players:    deps.Players,
 		Bindings:   deps.Bindings,
 		Categories: deps.Rooms,
 	}, deps.Log))
-	eventcatshandler.Register(handlers.Inbound, eventcatshandler.New(eventcatscmd.Handler{
+	eventcatscmd.RegisterPacketHandler(handlers.Inbound, eventcatscmd.NewPacketHandler(eventcatscmd.Handler{
 		Players:  deps.Players,
 		Bindings: deps.Bindings,
 	}, deps.Log))
-	countshandler.Register(handlers.Inbound, countshandler.New(countscmd.Handler{
+	countscmd.RegisterPacketHandler(handlers.Inbound, countscmd.NewPacketHandler(countscmd.Handler{
 		Players:  deps.Players,
 		Bindings: deps.Bindings,
 		Counts:   deps.Counts,
@@ -115,7 +107,7 @@ type HandlerDeps struct {
 	// Moderation resolves viewer room moderation capability.
 	Moderation roommoderation.Manager
 	// Counts stores current navigator category counts.
-	Counts *CategoryCountBroadcaster
+	Counts *navruntime.CategoryCountBroadcaster
 	// Events publishes realm events.
 	Events *bus.Bus
 	// Log records command dispatch.

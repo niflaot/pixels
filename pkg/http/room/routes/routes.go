@@ -2,7 +2,7 @@ package routes
 
 import (
 	"github.com/gofiber/fiber/v2"
-	navservice "github.com/niflaot/pixels/internal/realm/navigator/service"
+	navservice "github.com/niflaot/pixels/internal/realm/navigator/core"
 	playerlive "github.com/niflaot/pixels/internal/realm/player/live"
 	roomentry "github.com/niflaot/pixels/internal/realm/room/access/entry"
 	roomaudit "github.com/niflaot/pixels/internal/realm/room/control/audit"

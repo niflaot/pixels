@@ -5,8 +5,8 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
-	navmodel "github.com/niflaot/pixels/internal/realm/navigator/model"
-	navservice "github.com/niflaot/pixels/internal/realm/navigator/service"
+	navservice "github.com/niflaot/pixels/internal/realm/navigator/core"
+	navmodel "github.com/niflaot/pixels/internal/realm/navigator/record"
 	roommodel "github.com/niflaot/pixels/internal/realm/room/record/model"
 	roomservice "github.com/niflaot/pixels/internal/realm/room/record/service"
 	roomlive "github.com/niflaot/pixels/internal/realm/room/runtime/live"

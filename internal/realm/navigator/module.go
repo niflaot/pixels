@@ -2,8 +2,10 @@
 package navigator
 
 import (
-	"github.com/niflaot/pixels/internal/realm/navigator/repository"
-	"github.com/niflaot/pixels/internal/realm/navigator/service"
+	navruntime "github.com/niflaot/pixels/internal/realm/navigator/browse/runtime"
+	"github.com/niflaot/pixels/internal/realm/navigator/core"
+	"github.com/niflaot/pixels/internal/realm/navigator/database"
+	"github.com/niflaot/pixels/internal/realm/navigator/record"
 	"github.com/niflaot/pixels/pkg/postgres"
 	"go.uber.org/fx"
 )
@@ -13,22 +15,22 @@ var Module = fx.Module(
 	"realm-navigator",
 	fx.Provide(
 		NewStore,
-		NewCategoryCountBroadcaster,
-		NewRoomCountBroadcaster,
-		service.New,
+		navruntime.NewCategoryCountBroadcaster,
+		navruntime.NewRoomCountBroadcaster,
+		core.New,
 		NewManager,
 	),
 	fx.Invoke(RegisterConnectionHandlers),
-	fx.Invoke(RegisterCategoryCounts),
-	fx.Invoke(RegisterRoomCounts),
+	fx.Invoke(navruntime.RegisterCategoryCounts),
+	fx.Invoke(navruntime.RegisterRoomCounts),
 )
 
 // NewStore creates the navigator persistence store.
-func NewStore(pool *postgres.Pool) repository.Store {
-	return repository.New(pool)
+func NewStore(pool *postgres.Pool) record.Store {
+	return database.New(pool)
 }
 
 // NewManager exposes the navigator management contract.
-func NewManager(service *service.Service) service.Manager {
+func NewManager(service *core.Service) core.Manager {
 	return service
 }

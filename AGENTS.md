@@ -31,6 +31,8 @@ This repository contains Pixels, a fast and idiomatic Go emulator for the pixel 
 - When packets share a functional concept, classify them by inbound or outbound and use a concise package name.
 - Classify Messenger packets below `messenger/friend`, `messenger/session`, or
   `messenger/social`; do not restore a flat package for every Messenger action.
+- Classify Navigator packets below `navigator/browse`, `navigator/create`,
+  `navigator/favorite`, or `navigator/session`; keep one packet per leaf package.
 
 ## Package Rules
 
@@ -271,6 +273,13 @@ minimum manual checks expected when touching it.
 ### FEATURE: Navigator Realm
 
 - Owns `internal/realm/navigator`.
+- Uses capability-first packages: `browse` owns categories, room cards, searches,
+  room information, and live counters; `create` owns room creation checks and
+  execution; `favorite` owns favorite lifecycle events; `session` owns viewer
+  bootstrap and session events; `record` defines persistence data and contracts;
+  `database` implements PostgreSQL; and `core` coordinates shared persistence
+  behavior. Packet adapters live with their commands. Do not restore realm-wide
+  `commands`, `handlers`, `events`, `model`, `repository`, or `service` trees.
 - Provides navigator persistence, embedded viewer state, init/search/create/info
   handlers, room forwarding, favorites data, saved searches, preferences, lifted
   rooms, category preferences, and debounced live category counts. Room creation

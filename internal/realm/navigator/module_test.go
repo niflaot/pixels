@@ -3,11 +3,11 @@ package navigator
 import (
 	"testing"
 
-	navclosed "github.com/niflaot/pixels/internal/realm/navigator/events/closed"
-	navfavorite "github.com/niflaot/pixels/internal/realm/navigator/events/favoritechanged"
-	navinitialized "github.com/niflaot/pixels/internal/realm/navigator/events/initialized"
-	navsearch "github.com/niflaot/pixels/internal/realm/navigator/events/searchexecuted"
-	"github.com/niflaot/pixels/internal/realm/navigator/service"
+	navsearch "github.com/niflaot/pixels/internal/realm/navigator/browse/search/events/executed"
+	"github.com/niflaot/pixels/internal/realm/navigator/core"
+	navfavorite "github.com/niflaot/pixels/internal/realm/navigator/favorite/events/changed"
+	navclosed "github.com/niflaot/pixels/internal/realm/navigator/session/events/closed"
+	navinitialized "github.com/niflaot/pixels/internal/realm/navigator/session/events/initialized"
 )
 
 // TestEventNames verifies navigator event names are stable.
@@ -28,7 +28,7 @@ func TestEventNames(t *testing.T) {
 
 // TestProvidersExposeContracts verifies module helper providers return contracts.
 func TestProvidersExposeContracts(t *testing.T) {
-	navigatorService := service.New(nil)
+	navigatorService := core.New(nil)
 
 	if NewStore(nil) == nil {
 		t.Fatal("expected store")
