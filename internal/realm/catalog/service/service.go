@@ -25,6 +25,9 @@ type Service struct {
 	// furniture grants purchased inventory instances.
 	furniture furnitureservice.DefinitionGranter
 
+	// teleportPairs pairs teleport instances granted by one purchase.
+	teleportPairs furnitureservice.TeleportPairer
+
 	// cache stores one immutable catalog generation.
 	cache *catalogCache
 
@@ -47,6 +50,13 @@ func New(store catalogrepo.Store, currencies currencyservice.Granter, furniture 
 	if len(checkers) > 0 {
 		service.permissions = checkers[0]
 	}
+
+	return service
+}
+
+// WithTeleportPairer configures transactional pairing for teleport offers.
+func (service *Service) WithTeleportPairer(pairer furnitureservice.TeleportPairer) *Service {
+	service.teleportPairs = pairer
 
 	return service
 }

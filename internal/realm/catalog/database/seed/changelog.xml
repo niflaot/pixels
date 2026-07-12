@@ -7,4 +7,5 @@
 
     <include file="development/0001_default_catalog.sql" relativeToChangelogFile="true" contextFilter="development"/>
     <include file="development/0002_interaction_catalog.sql" relativeToChangelogFile="true" contextFilter="development"/>
+    <include file="development/0003_teleport_pair_amount.sql" relativeToChangelogFile="true" contextFilter="development"/>
 </databaseChangeLog>

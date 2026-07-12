@@ -31,8 +31,8 @@ var Module = fx.Module(
 )
 
 // NewService creates permission-aware catalog behavior.
-func NewService(store catalogrepo.Store, currencies currencyservice.Granter, furniture furnitureservice.DefinitionGranter, events bus.Publisher, log *zap.Logger, permissions permissionservice.Checker) *catalogservice.Service {
-	return catalogservice.New(store, currencies, furniture, events, log, permissions)
+func NewService(store catalogrepo.Store, currencies currencyservice.Granter, furniture furnitureservice.DefinitionGranter, teleportPairs furnitureservice.TeleportPairer, events bus.Publisher, log *zap.Logger, permissions permissionservice.Checker) *catalogservice.Service {
+	return catalogservice.New(store, currencies, furniture, events, log, permissions).WithTeleportPairer(teleportPairs)
 }
 
 // NewStore creates catalog persistence behavior.

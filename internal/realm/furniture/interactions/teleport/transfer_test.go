@@ -8,20 +8,15 @@ import (
 
 	teleportfailed "github.com/niflaot/pixels/internal/realm/furniture/events/teleportfailed"
 	furniturewalkedon "github.com/niflaot/pixels/internal/realm/furniture/events/walkedon"
-	teleportpair "github.com/niflaot/pixels/internal/realm/furniture/interactions/teleport/pair"
-	furnituremodel "github.com/niflaot/pixels/internal/realm/furniture/model"
 	playerdisconnected "github.com/niflaot/pixels/internal/realm/player/events/disconnected"
 	roomentered "github.com/niflaot/pixels/internal/realm/room/access/events/entered"
-	roomlive "github.com/niflaot/pixels/internal/realm/room/runtime/live"
 	worldfurniture "github.com/niflaot/pixels/internal/realm/room/world/furniture"
 	"github.com/niflaot/pixels/internal/realm/room/world/grid"
-	worldpath "github.com/niflaot/pixels/internal/realm/room/world/path"
 	worldunit "github.com/niflaot/pixels/internal/realm/room/world/unit"
-	"github.com/niflaot/pixels/networking/codec"
-	netconn "github.com/niflaot/pixels/networking/connection"
+	outstatus "github.com/niflaot/pixels/networking/outbound/room/entities/status"
 	outforward "github.com/niflaot/pixels/networking/outbound/room/forward"
+	outupdate "github.com/niflaot/pixels/networking/outbound/room/furniture/update"
 	"github.com/niflaot/pixels/pkg/bus"
-	sharedmodel "github.com/niflaot/pixels/pkg/model"
 	"go.uber.org/fx/fxtest"
 )
 
@@ -34,14 +29,28 @@ func TestCrossRoomTransitionForwardsAndConsumesSpawn(t *testing.T) {
 	if err := service.Cycle(context.Background(), source, now); err != nil {
 		t.Fatalf("open source: %v", err)
 	}
+	source.Tick()
+	if err := service.Cycle(context.Background(), source, now); err != nil {
+		t.Fatalf("animate source entry: %v", err)
+	}
+	source.Tick()
 	if err := service.Cycle(context.Background(), source, now.Add(phaseDelay)); err != nil {
+		t.Fatalf("settle source entry: %v", err)
+	}
+	if err := service.Cycle(context.Background(), source, now.Add(2*phaseDelay)); err != nil {
+		t.Fatalf("show source departure: %v", err)
+	}
+	if item, _ := source.FurnitureItem(1); item.ExtraData != "2" {
+		t.Fatalf("expected visible source departure, got %q", item.ExtraData)
+	}
+	if err := service.Cycle(context.Background(), source, now.Add(3*phaseDelay)); err != nil {
 		t.Fatalf("forward target: %v", err)
 	}
-	if len(*sent) != 1 || (*sent)[0].Header != outforward.Header {
+	if len(*sent) != 4 || (*sent)[3].Header != outforward.Header {
 		t.Fatalf("expected room forward packet, got %#v", *sent)
 	}
 	_, _, _ = service.runtime.Leave(context.Background(), 7)
-	if _, err := service.runtime.Join(context.Background(), 10, occupantForTeleportTest()); err != nil {
+	if _, err := service.runtime.Join(context.Background(), 10, occupantForTeleportTest(7, "one")); err != nil {
 		t.Fatalf("join target room: %v", err)
 	}
 	if err := service.entered(context.Background(), roomentered.Payload{PlayerID: 7, RoomID: 10}); err != nil {
@@ -50,6 +59,41 @@ func TestCrossRoomTransitionForwardsAndConsumesSpawn(t *testing.T) {
 	unit, found := target.Unit(7)
 	if !found || unit.Position.Point != grid.MustPoint(3, 1) {
 		t.Fatalf("unexpected destination unit %#v found=%v", unit, found)
+	}
+	if len(*sent) != 4 {
+		t.Fatalf("expected destination visuals to wait for bootstrap, got %#v", *sent)
+	}
+	if err := service.Cycle(context.Background(), target, now.Add(phaseDelay)); err != nil {
+		t.Fatalf("show destination arrival: %v", err)
+	}
+	if item, _ := target.FurnitureItem(2); item.ExtraData != "2" {
+		t.Fatalf("expected opened destination, got %q", item.ExtraData)
+	}
+	if len(*sent) != 6 || (*sent)[4].Header != outupdate.Header || (*sent)[5].Header != outstatus.Header {
+		t.Fatalf("expected delayed destination visuals, got %#v", *sent)
+	}
+	if err := service.Cycle(context.Background(), target, now.Add(2*phaseDelay)); err != nil {
+		t.Fatalf("begin destination exit: %v", err)
+	}
+	unit, _ = target.Unit(7)
+	if item, _ := target.FurnitureItem(2); item.ExtraData != "1" || !unit.Moving {
+		t.Fatalf("expected open walking exit, item=%q unit=%#v", item.ExtraData, unit)
+	}
+	target.Tick()
+	if err := service.Cycle(context.Background(), target, now.Add(3*phaseDelay)); err != nil {
+		t.Fatalf("animate destination exit: %v", err)
+	}
+	unit, _ = target.Unit(7)
+	if unit.Position.Point != grid.MustPoint(3, 2) || !unitHasStatus(unit, worldunit.StatusMove) {
+		t.Fatalf("expected visible destination movement, got %#v", unit)
+	}
+	target.Tick()
+	if err := service.Cycle(context.Background(), target, now.Add(4*phaseDelay)); err != nil {
+		t.Fatalf("settle destination exit: %v", err)
+	}
+	unit, _ = target.Unit(7)
+	if item, _ := target.FurnitureItem(2); item.ExtraData != "0" || unit.Position.Point != grid.MustPoint(3, 2) || unit.Moving {
+		t.Fatalf("expected closed settled exit, item=%q unit=%#v", item.ExtraData, unit)
 	}
 	if _, found := service.consumePending(7, 10); found {
 		t.Fatal("expected one-time destination consumption")
@@ -152,90 +196,4 @@ func TestTransferNoOpAndMissingConnectionBranches(t *testing.T) {
 	if firstError(expected, errors.New("second")) != expected || firstError(nil, expected) != expected {
 		t.Fatal("unexpected first-error selection")
 	}
-}
-
-// crossRoomServiceForTest creates two loaded rooms and a connected session.
-func crossRoomServiceForTest(t *testing.T) (*Service, *roomlive.Room, *roomlive.Room, *[]codec.Packet, time.Time) {
-	t.Helper()
-	now := time.Date(2026, 7, 11, 13, 0, 0, 0, time.UTC)
-	runtime := roomlive.NewRegistry(nil)
-	definition := worldfurniture.Definition{SpriteID: 202, InteractionType: "teleport", Width: 1, Length: 1}
-	source := loadedTeleportRoomForTest(t, runtime, 9, worldfurniture.Item{
-		ID: 1, OwnerPlayerID: 7, Definition: definition, Point: grid.MustPoint(1, 1), Rotation: worldunit.RotationSouth,
-	})
-	target := loadedTeleportRoomForTest(t, runtime, 10, worldfurniture.Item{
-		ID: 2, OwnerPlayerID: 7, Definition: definition, Point: grid.MustPoint(3, 1), Rotation: worldunit.RotationSouth,
-	})
-	connections := netconn.NewRegistry()
-	sent := make([]codec.Packet, 0, 1)
-	session := connectedSessionForTeleportTest(t, &sent)
-	if err := connections.Register(session); err != nil {
-		t.Fatalf("register connection: %v", err)
-	}
-	if _, err := runtime.Join(context.Background(), 9, occupantForTeleportTest()); err != nil {
-		t.Fatalf("join source room: %v", err)
-	}
-	sourceRoomID, targetRoomID, sourceX, targetX, y, z := int64(9), int64(10), 1, 3, 1, 0.0
-	furniture := &teleportFurnitureForTest{
-		items: map[int64]furnituremodel.Item{
-			1: {Base: sharedmodel.Base{Identity: sharedmodel.Identity{ID: 1}}, DefinitionID: 8, OwnerPlayerID: 7, RoomID: &sourceRoomID, X: &sourceX, Y: &y, Z: &z},
-			2: {Base: sharedmodel.Base{Identity: sharedmodel.Identity{ID: 2}}, DefinitionID: 8, OwnerPlayerID: 7, RoomID: &targetRoomID, X: &targetX, Y: &y, Z: &z},
-		},
-		definition: furnituremodel.Definition{SpriteID: 202, Width: 1, Length: 1, InteractionType: "teleport"},
-	}
-	pairs := teleportpair.NewService(teleportPairStoreForTest{}, furniture)
-	service := NewService(Config{}, pairs, runtime, connections, nil, bus.New())
-	service.now = func() time.Time { return now }
-
-	return service, source, target, &sent, now
-}
-
-// loadedTeleportRoomForTest activates one room with one teleport item.
-func loadedTeleportRoomForTest(t *testing.T, runtime *roomlive.Registry, roomID int64, item worldfurniture.Item) *roomlive.Room {
-	t.Helper()
-	roomGrid, err := grid.Parse("00000\r00000\r00000", grid.WithDoor(1, 2))
-	if err != nil {
-		t.Fatalf("parse room grid: %v", err)
-	}
-	active, err := runtime.Activate(roomlive.Snapshot{ID: roomID, OwnerPlayerID: 7, MaxUsers: 25})
-	if err != nil {
-		t.Fatalf("activate room: %v", err)
-	}
-	if err := active.LoadWorld(roomlive.WorldConfig{
-		Grid: roomGrid, Furniture: []worldfurniture.Item{item}, Door: worldpath.Position{Point: grid.MustPoint(1, 2)},
-		Body: worldunit.RotationNorth, Head: worldunit.RotationNorth,
-	}); err != nil {
-		t.Fatalf("load room world: %v", err)
-	}
-
-	return active
-}
-
-// connectedSessionForTeleportTest creates a connected outbound-capable session.
-func connectedSessionForTeleportTest(t *testing.T, sent *[]codec.Packet) *netconn.Session {
-	t.Helper()
-	outbound := netconn.NewHandlerRegistry()
-	if err := outbound.Register(outforward.Header, func(netconn.Context, codec.Packet) error { return nil }, netconn.AllowAnyActiveState(), netconn.AllowUnauthenticated()); err != nil {
-		t.Fatalf("register outbound handler: %v", err)
-	}
-	session, err := netconn.NewSession(netconn.SessionConfig{
-		ID: "one", Kind: "websocket", Outbound: outbound,
-		Sender:   func(_ context.Context, packet codec.Packet) error { *sent = append(*sent, packet); return nil },
-		Disposer: func(context.Context, netconn.Reason) error { return nil },
-	})
-	if err != nil {
-		t.Fatalf("create session: %v", err)
-	}
-	for _, event := range []netconn.Event{netconn.EventPacketReceived, netconn.EventAuthenticationStarted, netconn.EventAuthenticationAccepted, netconn.EventSessionReady} {
-		if err := session.Transition(event); err != nil {
-			t.Fatalf("transition session: %v", err)
-		}
-	}
-
-	return session
-}
-
-// occupantForTeleportTest creates a stable room occupant.
-func occupantForTeleportTest() roomlive.Occupant {
-	return roomlive.Occupant{PlayerID: 7, Username: "demo", ConnectionID: "one", ConnectionKind: "websocket"}
 }

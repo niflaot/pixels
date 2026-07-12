@@ -59,6 +59,12 @@ type PickupParams struct {
 
 	// ActorPlayerID identifies the player requesting the pickup.
 	ActorPlayerID int64
+
+	// RoomID identifies the room authorizing the pickup.
+	RoomID int64
+
+	// AllowForeign permits an authorized room manager to pick up another player's item.
+	AllowForeign bool
 }
 
 // Grant creates inventory items for a player from one definition.
@@ -190,18 +196,26 @@ func (service *Service) Pickup(ctx context.Context, params PickupParams) (furnit
 	if err := validateActor(params.ItemID, params.ActorPlayerID); err != nil {
 		return furnituremodel.Item{}, err
 	}
-
-	item, err := service.ownedItem(ctx, params.ItemID, params.ActorPlayerID)
+	if params.RoomID <= 0 {
+		return furnituremodel.Item{}, ErrInvalidRoomID
+	}
+	item, found, err := service.store.FindItemByID(ctx, params.ItemID)
 	if err != nil {
 		return furnituremodel.Item{}, err
 	}
-	if item.InInventory() {
+	if !found {
+		return furnituremodel.Item{}, ErrItemNotFound
+	}
+	if item.OwnerPlayerID != params.ActorPlayerID && !params.AllowForeign {
+		return furnituremodel.Item{}, ErrNotItemOwner
+	}
+	if item.RoomID == nil || *item.RoomID != params.RoomID {
 		return furnituremodel.Item{}, ErrItemNotPlaced
 	}
 
 	picked, updated, err := service.store.PickupItem(ctx, repository.PickupItemParams{
 		ID:            params.ItemID,
-		OwnerPlayerID: params.ActorPlayerID,
+		OwnerPlayerID: item.OwnerPlayerID,
 	})
 	if err != nil {
 		return furnituremodel.Item{}, err

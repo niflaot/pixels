@@ -16,8 +16,14 @@ const (
 	PhaseResolving Phase = iota + 1
 	// PhaseApproach waits for the unit to reach the source front tile.
 	PhaseApproach
+	// PhaseEnter waits for the controlled step into the source teleport.
+	PhaseEnter
 	// PhaseCross waits for the source opening animation.
 	PhaseCross
+	// PhaseForward keeps the source departure visible before cross-room navigation.
+	PhaseForward
+	// PhaseArrival waits until a cross-room renderer can receive destination visuals.
+	PhaseArrival
 	// PhaseExit waits for destination opening before walking out.
 	PhaseExit
 	// PhaseSettle waits for the controlled exit path to finish.
@@ -42,6 +48,8 @@ type Transit struct {
 	Deadline time.Time
 	// NextItemID stores an automatically chained walk-on teleport.
 	NextItemID int64
+	// Handoff reports that destination state owns the pair reservation.
+	Handoff bool
 }
 
 // roomState stores active transitions for one room.

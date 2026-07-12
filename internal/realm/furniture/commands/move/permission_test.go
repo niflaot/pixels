@@ -6,12 +6,21 @@ import (
 	"time"
 
 	"github.com/niflaot/pixels/internal/command"
+	"github.com/niflaot/pixels/internal/permission"
 	playerlive "github.com/niflaot/pixels/internal/realm/player/live"
 	"github.com/niflaot/pixels/internal/realm/session/binding"
 	netconn "github.com/niflaot/pixels/networking/connection"
 	outupdate "github.com/niflaot/pixels/networking/outbound/room/furniture/update"
 	outbubble "github.com/niflaot/pixels/networking/outbound/session/bubblealert"
 )
+
+// globalPermissionForTest grants one global furniture permission.
+type globalPermissionForTest bool
+
+// HasPermission returns the configured global permission result.
+func (allowed globalPermissionForTest) HasPermission(context.Context, int64, permission.Node) (bool, error) {
+	return bool(allowed), nil
+}
 
 // TestHandleRejectsGuestWithoutFurnitureRights verifies visitors cannot move furniture.
 func TestHandleRejectsGuestWithoutFurnitureRights(t *testing.T) {
@@ -51,6 +60,28 @@ func TestHandleAllowsRightsHolderToMoveForeignFurniture(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("move foreign furniture with rights: %v", err)
+	}
+	if len(*sent) == 0 || (*sent)[0].Header != outupdate.Header {
+		t.Fatalf("expected authoritative move update, got %#v", *sent)
+	}
+}
+
+// TestHandleAllowsGlobalFurnitureManager verifies staff authority does not require persisted room rights.
+func TestHandleAllowsGlobalFurnitureManager(t *testing.T) {
+	handler, connections := handlerForTest(t)
+	handler.Players, handler.Bindings = guestPresenceForTest(t)
+	handler.Permissions = globalPermissionForTest(true)
+	connection, sent := registeredConnectionForTest(t, connections, "conn")
+	handler.Furniture = &fakeManager{
+		definition: chairDefinitionForTest(), definitionFound: true,
+		item: placedItemForTest(), itemFound: true,
+	}
+
+	err := handler.Handle(context.Background(), command.Envelope[Command]{
+		Command: Command{Handler: connection, ItemID: 1, X: 3, Y: 0, Rotation: 2},
+	})
+	if err != nil {
+		t.Fatalf("move furniture with global authority: %v", err)
 	}
 	if len(*sent) == 0 || (*sent)[0].Header != outupdate.Header {
 		t.Fatalf("expected authoritative move update, got %#v", *sent)

@@ -29,6 +29,39 @@ func TestPurchaseCreditsChargesAndGrants(t *testing.T) {
 	}
 }
 
+// TestPurchasePairsGrantedTeleports verifies teleport offers create one durable pair.
+func TestPurchasePairsGrantedTeleports(t *testing.T) {
+	item := itemForTest()
+	item.Amount = 2
+	fixture := newServiceFixture(t, item)
+	fixture.furniture.definitions[0].InteractionType = "teleport"
+	if err := fixture.service.Refresh(context.Background()); err != nil {
+		t.Fatalf("refresh teleport definition: %v", err)
+	}
+
+	result, err := fixture.service.Purchase(context.Background(), PurchaseParams{PlayerID: 7, CatalogItemID: 10})
+	if err != nil {
+		t.Fatalf("purchase teleport pair: %v", err)
+	}
+	if len(result.GrantedItems) != 2 || len(fixture.teleportPairs.pairs) != 1 || fixture.teleportPairs.pairs[0] != [2]int64{20, 21} {
+		t.Fatalf("items=%#v pairs=%#v", result.GrantedItems, fixture.teleportPairs.pairs)
+	}
+}
+
+// TestPurchaseRejectsUnpairedTeleportQuantity verifies malformed teleport offers fail atomically.
+func TestPurchaseRejectsUnpairedTeleportQuantity(t *testing.T) {
+	fixture := newServiceFixture(t, itemForTest())
+	fixture.furniture.definitions[0].InteractionType = "teleport"
+	if err := fixture.service.Refresh(context.Background()); err != nil {
+		t.Fatalf("refresh teleport definition: %v", err)
+	}
+
+	_, err := fixture.service.Purchase(context.Background(), PurchaseParams{PlayerID: 7, CatalogItemID: 10})
+	if !errors.Is(err, ErrTeleportPairing) || len(fixture.teleportPairs.pairs) != 0 {
+		t.Fatalf("expected pairing rejection, pairs=%#v err=%v", fixture.teleportPairs.pairs, err)
+	}
+}
+
 // TestPurchasePointsChargesConfiguredCurrency verifies an activity-points purchase.
 func TestPurchasePointsChargesConfiguredCurrency(t *testing.T) {
 	item := itemForTest()

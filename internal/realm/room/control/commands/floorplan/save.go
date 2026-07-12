@@ -207,7 +207,7 @@ func (handler SaveHandler) pickupBlocked(ctx context.Context, roomID int64, bloc
 		if _, found := blockedIDs[item.ID]; !found {
 			continue
 		}
-		value, err := handler.Furniture.Pickup(ctx, furnitureservice.PickupParams{ItemID: item.ID, ActorPlayerID: item.OwnerPlayerID})
+		value, err := handler.Furniture.Pickup(ctx, furnitureservice.PickupParams{ItemID: item.ID, ActorPlayerID: item.OwnerPlayerID, RoomID: roomID})
 		if err != nil {
 			return nil, err
 		}

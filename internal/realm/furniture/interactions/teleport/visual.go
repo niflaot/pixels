@@ -16,10 +16,6 @@ import (
 
 // openSource projects the source opening and controlled unit placement.
 func (service *Service) openSource(ctx context.Context, active *roomlive.Room, transit Transit) error {
-	unit, err := active.TeleportUnit(transit.PlayerID, transit.Source.Point, opposite(transit.Source.Rotation), true)
-	if err != nil {
-		return service.fail(ctx, active.ID(), transit, "source_unavailable")
-	}
 	item, found := active.SetFurnitureExtraData(transit.Source.ID, "1")
 	if !found {
 		return service.fail(ctx, active.ID(), transit, "source_removed")
@@ -27,17 +23,54 @@ func (service *Service) openSource(ctx context.Context, active *roomlive.Room, t
 	if err := service.broadcastItem(ctx, active, item); err != nil {
 		return err
 	}
+	if err := active.StepControlledOntoInteraction(transit.PlayerID, transit.Source.Point, worldunit.ControlTeleporting); err != nil {
+		return service.fail(ctx, active.ID(), transit, "source_unavailable")
+	}
+
+	return nil
+}
+
+// showArrival projects the destination opening after the destination renderer bootstrap.
+func (service *Service) showArrival(ctx context.Context, active *roomlive.Room, transit Transit) error {
+	target, found := active.SetFurnitureExtraData(transit.Target.ID, "2")
+	if !found {
+		return service.fail(ctx, active.ID(), transit, "target_removed")
+	}
+	if err := service.broadcastItem(ctx, active, target); err != nil {
+		return err
+	}
+	unit, found := active.Unit(transit.PlayerID)
+	if !found {
+		return service.fail(ctx, active.ID(), transit, "unit_left")
+	}
 
 	return broadcast.RoomUnitStatus(ctx, service.connections, active, unit, 0)
 }
 
+// beginExit keeps the destination open while starting the controlled walk-out step.
+func (service *Service) beginExit(ctx context.Context, active *roomlive.Room, transit Transit) error {
+	target, found := active.SetFurnitureExtraData(transit.Target.ID, "1")
+	if !found {
+		return service.fail(ctx, active.ID(), transit, "target_removed")
+	}
+	if err := service.broadcastItem(ctx, active, target); err != nil {
+		return err
+	}
+	front, valid := frontPoint(transit.Target)
+	if !valid {
+		return nil
+	}
+
+	return active.StepControlledFromInteraction(transit.PlayerID, front, worldunit.ControlTeleporting)
+}
+
 // cross transfers the unit to the paired item or forwards the client cross-room.
 func (service *Service) cross(ctx context.Context, active *roomlive.Room, transit Transit) (bool, error) {
-	if source, found := active.SetFurnitureExtraData(transit.Source.ID, "0"); found {
+	if source, found := active.SetFurnitureExtraData(transit.Source.ID, "2"); found {
 		_ = service.broadcastItem(ctx, active, source)
 	}
 	if transit.TargetRoomID != active.ID() {
-		return true, service.forward(ctx, active, transit)
+		return true, nil
 	}
 	target, found := active.FurnitureItem(transit.Target.ID)
 	if !found {
@@ -55,6 +88,15 @@ func (service *Service) cross(ctx context.Context, active *roomlive.Room, transi
 	return false, broadcast.RoomUnitStatus(ctx, service.connections, active, unit, 0)
 }
 
+// closeSource restores one source after a completed cross-room handoff.
+func (service *Service) closeSource(ctx context.Context, active *roomlive.Room, transit Transit) error {
+	if source, found := active.SetFurnitureExtraData(transit.Source.ID, "0"); found {
+		return service.broadcastItem(ctx, active, source)
+	}
+
+	return nil
+}
+
 // finish releases unit control and closes the destination teleport.
 func (service *Service) finish(ctx context.Context, active *roomlive.Room, transit Transit) error {
 	unit, found := active.Unit(transit.PlayerID)
@@ -64,6 +106,9 @@ func (service *Service) finish(ctx context.Context, active *roomlive.Room, trans
 	}
 	if target, found := active.SetFurnitureExtraData(transit.Target.ID, "0"); found {
 		_ = service.broadcastItem(ctx, active, target)
+	}
+	if transit.Source.ID != transit.Target.ID {
+		_ = service.closeSource(ctx, active, transit)
 	}
 	if service.events == nil {
 		return nil

@@ -26,4 +26,7 @@ var (
 
 	// ErrLimitedCompletion reports an inconsistent LTD completion.
 	ErrLimitedCompletion = errors.New("catalog limited purchase could not complete")
+
+	// ErrTeleportPairing reports an invalid or unavailable teleport pair grant.
+	ErrTeleportPairing = errors.New("catalog teleport offer could not create a pair")
 )

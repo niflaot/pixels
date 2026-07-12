@@ -2,7 +2,7 @@
 
 Este plan profundiza completamente el **Milestone I6** que `plan/INTERACTIONS.md` Parte 8 dejó a nivel de boceto — cruzando ese diseño contra la máquina de estados real de un fork activo (**Polaris-Emulator**, `github.com/duckietm/Polaris-Emulator`, Java), leyendo directamente `InteractionTeleport.java` y las 5 clases `TeleportAction{One,Two,Three,Four,Five}.java` que implementan cada paso con sus delays exactos. El resultado es mucho más detallado que el boceto original: expone exactamente cómo se ve la animación de entrada y de salida, dos variantes reales (pad clickeable vs. tile caminable encadenable), y varios casos límite que `INTERACTIONS.md` no había capturado.
 
-Es un plan solamente — no se escribió código Go todavía.
+El plan está implementado. La compra de teleports clásicos sigue el comportamiento confirmado en Arcturus: cada producto entrega dos instancias y crea su relación dentro de la misma transacción.
 
 ---
 
@@ -279,7 +279,8 @@ Resolución **perezosa** (no cacheada en la fila del item, mismo criterio que la
 
 `INTERACTIONS.md` dejaba esto "a decidir en implementación". Este plan lo resuelve:
 
-- **No** se ata al flujo de catálogo (`CATALOG.md` no necesita ninguna noción de "oferta que crea 2 instancias emparejadas") — evita acoplar el sistema de compras a un caso especial de furniture.
+- **Compra normal**: los teleports se venden en pares, como confirma Arcturus. El catálogo entrega una cantidad par y persiste cada relación dentro de la misma transacción que cobra y crea los items; cualquier fallo revierte toda la compra.
+- **Reparación de datos anteriores**: el seed de desarrollo empareja determinísticamente teleporters huérfanos por owner y definición. No se resuelven parejas por proximidad ni durante el uso.
 - Comando dedicado, dueño-del-room-only (o rights-holder, mismo criterio que el resto de acciones de gestión de furniture en la sala): `internal/realm/furniture/interactions/teleport/commands/pair` — recibe dos `ItemID` ya colocados en (potencialmente distintas) salas propias del mismo jugador, valida que ambos sean definiciones `interaction_type = "teleport"`, que ninguno ya esté emparejado (un teleportador solo puede tener un par activo a la vez — emparejar de nuevo reemplaza el par anterior, dejando al viejo compañero sin destino, mismo criterio que la limpieza de la Parte 1.3), y crea la fila.
 - **Cross-room desde el diseño**: los dos items de un par no necesitan estar en la misma sala — de hecho ese es el caso de uso real (viajar de una sala a otra del mismo jugador, o eventualmente entre salas de distintos jugadores si el dueño de ambas lo permite — fuera de alcance inicial, ver "Milestones futuros").
 

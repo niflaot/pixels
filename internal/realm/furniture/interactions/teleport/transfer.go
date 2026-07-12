@@ -9,7 +9,6 @@ import (
 	furniturewalkedon "github.com/niflaot/pixels/internal/realm/furniture/events/walkedon"
 	playerdisconnected "github.com/niflaot/pixels/internal/realm/player/events/disconnected"
 	roomentered "github.com/niflaot/pixels/internal/realm/room/access/events/entered"
-	"github.com/niflaot/pixels/internal/realm/room/runtime/broadcast"
 	roomlive "github.com/niflaot/pixels/internal/realm/room/runtime/live"
 	netconn "github.com/niflaot/pixels/networking/connection"
 	outforward "github.com/niflaot/pixels/networking/outbound/room/forward"
@@ -62,19 +61,27 @@ func (service *Service) playerConnection(active *roomlive.Room, playerID int64) 
 // consumePending consumes a valid destination for one room entry.
 func (service *Service) consumePending(playerID int64, roomID int64) (pendingDestination, bool) {
 	service.pendingMutex.Lock()
-	defer service.pendingMutex.Unlock()
 	pending, found := service.pending[playerID]
 	if !found {
+		service.pendingMutex.Unlock()
 		return pendingDestination{}, false
 	}
 	if pending.roomID != roomID {
+		delete(service.pending, playerID)
+		if len(service.pending) == 0 {
+			service.pending = nil
+		}
+		service.pendingMutex.Unlock()
+		service.releasePair(pending.transit)
 		return pendingDestination{}, false
 	}
 	delete(service.pending, playerID)
 	if len(service.pending) == 0 {
 		service.pending = nil
 	}
+	service.pendingMutex.Unlock()
 	if !pending.expiresAt.After(service.now()) {
+		service.releasePair(pending.transit)
 		return pendingDestination{}, false
 	}
 
@@ -84,11 +91,24 @@ func (service *Service) consumePending(playerID int64, roomID int64) (pendingDes
 // clearPending removes a player's pending destination.
 func (service *Service) clearPending(playerID int64) {
 	service.pendingMutex.Lock()
+	pending, found := service.pending[playerID]
 	delete(service.pending, playerID)
 	if len(service.pending) == 0 {
 		service.pending = nil
 	}
 	service.pendingMutex.Unlock()
+	if found {
+		service.releasePair(pending.transit)
+	}
+}
+
+// pendingFor reports whether a player owns an active destination handoff.
+func (service *Service) pendingFor(playerID int64, roomID int64) bool {
+	service.pendingMutex.Lock()
+	pending, found := service.pending[playerID]
+	service.pendingMutex.Unlock()
+
+	return found && pending.roomID == roomID
 }
 
 // entered applies the paired destination before room entity bootstrap.
@@ -99,30 +119,28 @@ func (service *Service) entered(ctx context.Context, payload roomentered.Payload
 	}
 	active, found := service.runtime.Find(payload.RoomID)
 	if !found {
+		service.releasePair(pending.transit)
 		return nil
 	}
 	target, found := active.FurnitureItem(pending.transit.Target.ID)
 	if !found {
+		service.releasePair(pending.transit)
 		return service.fail(ctx, payload.RoomID, pending.transit, "target_removed")
 	}
-	unit, err := active.TeleportUnit(payload.PlayerID, target.Point, target.Rotation, true)
+	_, err := active.TeleportUnit(payload.PlayerID, target.Point, target.Rotation, true)
 	if err != nil {
+		service.releasePair(pending.transit)
 		return service.fail(ctx, payload.RoomID, pending.transit, "target_unavailable")
 	}
-	target, _ = active.SetFurnitureExtraData(target.ID, "2")
 	state := service.roomState(payload.RoomID)
 	state.mutex.Lock()
 	transit := pending.transit
 	transit.Target = target
-	transit.Phase = PhaseExit
+	transit.Phase = PhaseArrival
 	transit.Deadline = service.now().Add(delayFor(transit))
 	state.transits[payload.PlayerID] = transit
 	state.mutex.Unlock()
-	if err := service.broadcastItem(ctx, active, target); err != nil {
-		return err
-	}
-
-	return broadcast.RoomUnitStatus(ctx, service.connections, active, unit, 0)
+	return nil
 }
 
 // publishStarted emits one accepted transition event.
@@ -167,10 +185,11 @@ func Register(lifecycle fx.Lifecycle, subscriber bus.Subscriber, runtime *roomli
 	if err != nil {
 		return err
 	}
-	disconnectedSubscription, err := subscriber.Subscribe(playerdisconnected.Name, bus.PriorityNormal, func(_ context.Context, event bus.Event) error {
+	disconnectedSubscription, err := subscriber.Subscribe(playerdisconnected.Name, bus.PriorityNormal, func(ctx context.Context, event bus.Event) error {
 		payload, ok := event.Payload.(playerdisconnected.Payload)
 		if ok {
 			service.clearPending(payload.PlayerID)
+			service.cancelPlayer(ctx, payload.PlayerID)
 		}
 
 		return nil

@@ -7,6 +7,7 @@ import (
 
 	catalogpurchased "github.com/niflaot/pixels/internal/realm/catalog/events/purchased"
 	catalogmodel "github.com/niflaot/pixels/internal/realm/catalog/model"
+	furnituremodel "github.com/niflaot/pixels/internal/realm/furniture/model"
 	furnitureservice "github.com/niflaot/pixels/internal/realm/furniture/service"
 	currencyservice "github.com/niflaot/pixels/internal/realm/inventory/currency/service"
 	"github.com/niflaot/pixels/pkg/bus"
@@ -94,6 +95,9 @@ func (service *Service) commitPurchase(ctx context.Context, params PurchaseParam
 	if err != nil {
 		return fmt.Errorf("grant catalog item %d furniture: %w", item.ID, err)
 	}
+	if err := service.pairGrantedTeleports(ctx, params.PlayerID, item, result.GrantedItems); err != nil {
+		return err
+	}
 	if result.LimitedUnitNumber != nil {
 		if len(result.GrantedItems) == 0 {
 			return ErrLimitedCompletion
@@ -104,6 +108,24 @@ func (service *Service) commitPurchase(ctx context.Context, params PurchaseParam
 		}
 		if !completed {
 			return ErrLimitedCompletion
+		}
+	}
+
+	return nil
+}
+
+// pairGrantedTeleports pairs every adjacent teleport instance from one offer.
+func (service *Service) pairGrantedTeleports(ctx context.Context, playerID int64, item catalogmodel.Item, granted []furnituremodel.Item) error {
+	definition, found := service.cache.definition(item.DefinitionID)
+	if !found || (definition.InteractionType != "teleport" && definition.InteractionType != "teleport_tile") {
+		return nil
+	}
+	if service.teleportPairs == nil || len(granted) == 0 || len(granted)%2 != 0 {
+		return ErrTeleportPairing
+	}
+	for index := 0; index < len(granted); index += 2 {
+		if err := service.teleportPairs.PairTeleports(ctx, playerID, granted[index].ID, granted[index+1].ID); err != nil {
+			return fmt.Errorf("%w: %v", ErrTeleportPairing, err)
 		}
 	}
 

@@ -135,3 +135,43 @@ func TestGrantCreatesInventoryItems(t *testing.T) {
 		}
 	}
 }
+
+// TestPickupAllowsAuthorizedForeignItemAndPreservesOwner verifies room managers return items to their real owner.
+func TestPickupAllowsAuthorizedForeignItemAndPreservesOwner(t *testing.T) {
+	store := newFakeStore()
+	store.item = placedItemForTest()
+	store.pickupResult = inventoryItemForTest()
+
+	_, err := New(store).Pickup(context.Background(), PickupParams{
+		ItemID: 1, ActorPlayerID: 8, RoomID: 1, AllowForeign: true,
+	})
+	if err != nil {
+		t.Fatalf("pickup authorized foreign item: %v", err)
+	}
+	if store.pickupParams.OwnerPlayerID != 7 {
+		t.Fatalf("expected item to return to owner 7, got %#v", store.pickupParams)
+	}
+}
+
+// TestPickupValidatesRoomAndForeignAuthority verifies pickup cannot cross room or ownership boundaries.
+func TestPickupValidatesRoomAndForeignAuthority(t *testing.T) {
+	store := newFakeStore()
+	store.item = placedItemForTest()
+	service := New(store)
+	for _, test := range []struct {
+		name   string
+		params PickupParams
+		want   error
+	}{
+		{name: "missing room", params: PickupParams{ItemID: 1, ActorPlayerID: 7}, want: ErrInvalidRoomID},
+		{name: "wrong room", params: PickupParams{ItemID: 1, ActorPlayerID: 7, RoomID: 2}, want: ErrItemNotPlaced},
+		{name: "foreign denied", params: PickupParams{ItemID: 1, ActorPlayerID: 8, RoomID: 1}, want: ErrNotItemOwner},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := service.Pickup(context.Background(), test.params)
+			if !errors.Is(err, test.want) {
+				t.Fatalf("expected %v, got %v", test.want, err)
+			}
+		})
+	}
+}

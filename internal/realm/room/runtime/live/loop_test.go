@@ -10,6 +10,41 @@ import (
 	worldunit "github.com/niflaot/pixels/internal/realm/room/world/unit"
 )
 
+// TestRoomControlledInteractionStepEntersBlockedFurniture verifies owner-controlled interaction movement.
+func TestRoomControlledInteractionStepEntersBlockedFurniture(t *testing.T) {
+	room := worldRoomForTest(t, "00", 0, 0)
+	if _, err := room.Join(occupantForTest(7)); err != nil {
+		t.Fatalf("join room: %v", err)
+	}
+	item := worldfurniture.Item{ID: 5, Point: pointForTest(t, 1, 0), Definition: worldfurniture.Definition{Width: 1, Length: 1}}
+	if _, err := room.ReloadFurniture(5, &item); err != nil {
+		t.Fatalf("place blocking interaction: %v", err)
+	}
+	if err := room.StepControlledOntoInteraction(7, item.Point, worldunit.ControlTeleporting); err != nil {
+		t.Fatalf("step onto interaction: %v", err)
+	}
+	before, _ := room.Unit(7)
+	if before.Position.Point != pointForTest(t, 0, 0) || !before.Moving {
+		t.Fatalf("expected pending visible step, got %#v", before)
+	}
+	movements := room.Tick()
+	if len(movements) != 1 || movements[0].Unit.Position.Point != item.Point || !movements[0].Moved {
+		t.Fatalf("expected completed interaction step, got %#v", movements)
+	}
+	room.Tick()
+	blocker := worldfurniture.Item{ID: 6, Point: pointForTest(t, 0, 0), Definition: worldfurniture.Definition{Width: 1, Length: 1}}
+	if _, err := room.ReloadFurniture(6, &blocker); err != nil {
+		t.Fatalf("place blocked exit: %v", err)
+	}
+	if err := room.StepControlledFromInteraction(7, blocker.Point, worldunit.ControlTeleporting); err != nil {
+		t.Fatalf("step out through blocked interaction edge: %v", err)
+	}
+	movements = room.Tick()
+	if len(movements) != 1 || movements[0].Unit.Position.Point != blocker.Point || !movements[0].Moved {
+		t.Fatalf("expected forced interaction exit, got %#v", movements)
+	}
+}
+
 // TestRoomLoopPublishesMovements verifies owner loop movement publishing.
 func TestRoomLoopPublishesMovements(t *testing.T) {
 	room := worldRoomForTest(t, "00", 0, 0)

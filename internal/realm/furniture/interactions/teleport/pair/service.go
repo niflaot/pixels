@@ -64,15 +64,25 @@ func (service *Service) FindTarget(ctx context.Context, itemID int64) (furniture
 
 // Pair validates ownership and creates a symmetric relationship.
 func (service *Service) Pair(ctx context.Context, actorPlayerID int64, firstID int64, secondID int64) (Pair, error) {
+	return service.pair(ctx, actorPlayerID, firstID, secondID, true)
+}
+
+// PairGranted pairs two newly granted teleport items before room placement.
+func (service *Service) PairGranted(ctx context.Context, actorPlayerID int64, firstID int64, secondID int64) (Pair, error) {
+	return service.pair(ctx, actorPlayerID, firstID, secondID, false)
+}
+
+// pair validates ownership and creates one relationship with optional placement requirements.
+func (service *Service) pair(ctx context.Context, actorPlayerID int64, firstID int64, secondID int64, requirePlaced bool) (Pair, error) {
 	paired, err := New(firstID, secondID)
 	if err != nil {
 		return Pair{}, err
 	}
-	first, err := service.teleportItem(ctx, paired.ItemOneID)
+	first, err := service.teleportItem(ctx, paired.ItemOneID, requirePlaced)
 	if err != nil {
 		return Pair{}, err
 	}
-	second, err := service.teleportItem(ctx, paired.ItemTwoID)
+	second, err := service.teleportItem(ctx, paired.ItemTwoID, requirePlaced)
 	if err != nil {
 		return Pair{}, err
 	}
@@ -96,12 +106,12 @@ func (service *Service) Unpair(ctx context.Context, itemID int64) (bool, error) 
 }
 
 // teleportItem validates one placed teleport furniture item.
-func (service *Service) teleportItem(ctx context.Context, itemID int64) (furnituremodel.Item, error) {
+func (service *Service) teleportItem(ctx context.Context, itemID int64, requirePlaced bool) (furnituremodel.Item, error) {
 	item, found, err := service.furniture.FindItemByID(ctx, itemID)
 	if err != nil {
 		return furnituremodel.Item{}, err
 	}
-	if !found || !item.InRoom() {
+	if !found || (requirePlaced && !item.InRoom()) {
 		return furnituremodel.Item{}, ErrItemNotFound
 	}
 	definition, found, err := service.furniture.FindDefinitionByID(ctx, item.DefinitionID)

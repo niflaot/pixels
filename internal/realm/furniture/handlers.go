@@ -1,6 +1,7 @@
 package furniture
 
 import (
+	permissionservice "github.com/niflaot/pixels/internal/permission/service"
 	realmconn "github.com/niflaot/pixels/internal/realm/connection"
 	inventorycmd "github.com/niflaot/pixels/internal/realm/furniture/commands/inventory"
 	movecmd "github.com/niflaot/pixels/internal/realm/furniture/commands/move"
@@ -35,6 +36,8 @@ type HandlerDeps struct {
 	Furniture service.Manager
 	// Runtime stores active rooms.
 	Runtime *roomlive.Registry
+	// Permissions resolves global furniture management authority.
+	Permissions permissionservice.Checker
 	// Connections stores active network connections.
 	Connections *netconn.Registry
 	// Events publishes furniture lifecycle events.
@@ -58,15 +61,15 @@ func RegisterConnectionHandlers(handlers *realmconn.Handlers, deps HandlerDeps) 
 	}, deps.Log))
 	placehandler.Register(handlers.Inbound, placehandler.New(placecmd.Handler{
 		Players: deps.Players, Bindings: deps.Bindings, Furniture: deps.Furniture,
-		Runtime: deps.Runtime, Connections: deps.Connections, Events: deps.Events, Translations: deps.Translations, Log: deps.Log,
+		Runtime: deps.Runtime, Permissions: deps.Permissions, Connections: deps.Connections, Events: deps.Events, Translations: deps.Translations, Log: deps.Log,
 	}, deps.Log))
 	movehandler.Register(handlers.Inbound, movehandler.New(movecmd.Handler{
 		Players: deps.Players, Bindings: deps.Bindings, Furniture: deps.Furniture,
-		Runtime: deps.Runtime, Connections: deps.Connections, Events: deps.Events, Translations: deps.Translations, Log: deps.Log,
+		Runtime: deps.Runtime, Permissions: deps.Permissions, Connections: deps.Connections, Events: deps.Events, Translations: deps.Translations, Log: deps.Log,
 	}, deps.Log))
 	pickuphandler.Register(handlers.Inbound, pickuphandler.New(pickupcmd.Handler{
 		Players: deps.Players, Bindings: deps.Bindings, Furniture: deps.Furniture,
-		Runtime: deps.Runtime, Connections: deps.Connections, Events: deps.Events, Translations: deps.Translations, Log: deps.Log,
+		Runtime: deps.Runtime, Permissions: deps.Permissions, Connections: deps.Connections, Events: deps.Events, Translations: deps.Translations, Log: deps.Log,
 	}, deps.Log))
 	teleportuse.Register(handlers.Inbound, teleportuse.New(teleportuse.Handler{
 		Players: deps.Players, Bindings: deps.Bindings, Runtime: deps.Runtime, Teleports: deps.Teleports,

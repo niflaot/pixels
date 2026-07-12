@@ -27,6 +27,28 @@ func (room *Room) StepControlled(playerID int64, goal grid.Point, control worldu
 	return room.world.ApplyControlledStep(playerID, goal, control)
 }
 
+// StepControlledOntoInteraction assigns one authoritative step onto an adjacent interaction tile.
+func (room *Room) StepControlledOntoInteraction(playerID int64, goal grid.Point, control worldunit.ControlKind) error {
+	room.mutex.Lock()
+	defer room.mutex.Unlock()
+	if room.world == nil {
+		return ErrWorldNotLoaded
+	}
+
+	return room.world.ApplyControlledInteractionStep(playerID, goal, control)
+}
+
+// StepControlledFromInteraction assigns one authoritative step away from an adjacent interaction.
+func (room *Room) StepControlledFromInteraction(playerID int64, goal grid.Point, control worldunit.ControlKind) error {
+	room.mutex.Lock()
+	defer room.mutex.Unlock()
+	if room.world == nil {
+		return ErrWorldNotLoaded
+	}
+
+	return room.world.ApplyControlledInteractionStep(playerID, goal, control)
+}
+
 // ExitToDoor starts a server-controlled path to the room door.
 func (room *Room) ExitToDoor(playerID int64) (bool, error) {
 	room.mutex.RLock()

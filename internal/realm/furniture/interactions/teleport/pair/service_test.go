@@ -28,6 +28,24 @@ func TestPairCanonicalizesAndReplaces(t *testing.T) {
 	}
 }
 
+// TestPairGrantedAllowsOwnedInventoryItems verifies catalog pairing before placement.
+func TestPairGrantedAllowsOwnedInventoryItems(t *testing.T) {
+	store := &storeForTest{}
+	furniture := furnitureForTest()
+	for id, item := range furniture.items {
+		item.RoomID, item.X, item.Y, item.Z = nil, nil, nil, nil
+		furniture.items[id] = item
+	}
+	service := NewService(store, furniture)
+	if _, err := service.Pair(context.Background(), 7, 1, 2); !errors.Is(err, ErrItemNotFound) {
+		t.Fatalf("expected manual pairing to require placement, got %v", err)
+	}
+	paired, err := service.PairGranted(context.Background(), 7, 1, 2)
+	if err != nil || paired != (Pair{ItemOneID: 1, ItemTwoID: 2}) {
+		t.Fatalf("pair granted inventory items=%#v err=%v", paired, err)
+	}
+}
+
 // TestCommandAndUnpair verify command dispatch and removal behavior.
 func TestCommandAndUnpair(t *testing.T) {
 	store := &storeForTest{}

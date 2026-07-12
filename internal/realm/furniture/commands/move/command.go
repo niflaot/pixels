@@ -6,6 +6,8 @@ import (
 	"errors"
 
 	"github.com/niflaot/pixels/internal/command"
+	permissionservice "github.com/niflaot/pixels/internal/permission/service"
+	furnitureaccess "github.com/niflaot/pixels/internal/realm/furniture/access"
 	furnituresession "github.com/niflaot/pixels/internal/realm/furniture/commands/session"
 	movedevent "github.com/niflaot/pixels/internal/realm/furniture/events/moved"
 	furnituremodel "github.com/niflaot/pixels/internal/realm/furniture/model"
@@ -66,6 +68,9 @@ type Handler struct {
 	// Runtime stores active rooms.
 	Runtime *roomlive.Registry
 
+	// Permissions resolves global furniture management authority.
+	Permissions permissionservice.Checker
+
 	// Connections stores active network connections.
 	Connections *netconn.Registry
 
@@ -98,7 +103,11 @@ func (handler Handler) Handle(ctx context.Context, envelope command.Envelope[Com
 	if !found {
 		return nil
 	}
-	if !active.CanManageFurniture(player.ID()) {
+	allowed, err := furnitureaccess.CanManage(ctx, handler.Permissions, active, player.ID())
+	if err != nil {
+		return err
+	}
+	if !allowed {
 		return handler.handleSoftError(ctx, envelope.Command, roomID, roomlive.ErrNoFurnitureRights)
 	}
 

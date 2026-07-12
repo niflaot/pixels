@@ -143,6 +143,24 @@ type fakeFurniture struct {
 	definitions []furnituremodel.Definition
 }
 
+// fakeTeleportPairer records teleport relationships created by purchases.
+type fakeTeleportPairer struct {
+	// pairs stores paired item ids in call order.
+	pairs [][2]int64
+	// err stores an optional pairing failure.
+	err error
+}
+
+// PairTeleports records one requested teleport relationship.
+func (pairer *fakeTeleportPairer) PairTeleports(_ context.Context, _ int64, firstItemID int64, secondItemID int64) error {
+	if pairer.err != nil {
+		return pairer.err
+	}
+	pairer.pairs = append(pairer.pairs, [2]int64{firstItemID, secondItemID})
+
+	return nil
+}
+
 // FindDefinitionByID finds one furniture metadata fixture.
 func (furniture *fakeFurniture) FindDefinitionByID(_ context.Context, id int64) (furnituremodel.Definition, bool, error) {
 	for _, definition := range furniture.definitions {
@@ -191,6 +209,9 @@ type serviceFixture struct {
 
 	// furniture stores fake grant behavior.
 	furniture *fakeFurniture
+
+	// teleportPairs stores fake teleport pairing behavior.
+	teleportPairs *fakeTeleportPairer
 }
 
 // newServiceFixture creates and refreshes catalog test behavior.
@@ -201,12 +222,13 @@ func newServiceFixture(t *testing.T, item model.Item) serviceFixture {
 	furniture := &fakeFurniture{definitions: []furnituremodel.Definition{{
 		Base: sharedmodel.Base{Identity: sharedmodel.Identity{ID: item.DefinitionID}}, SpriteID: 1, Name: item.Name,
 	}}}
-	service := New(store, currency, furniture, nil, zap.NewNop())
+	teleportPairs := &fakeTeleportPairer{}
+	service := New(store, currency, furniture, nil, zap.NewNop()).WithTeleportPairer(teleportPairs)
 	if err := service.Refresh(context.Background()); err != nil {
 		t.Fatalf("refresh fixture: %v", err)
 	}
 
-	return serviceFixture{service: service, store: store, currency: currency, furniture: furniture}
+	return serviceFixture{service: service, store: store, currency: currency, furniture: furniture, teleportPairs: teleportPairs}
 }
 
 // pageForTest returns one accessible catalog page.

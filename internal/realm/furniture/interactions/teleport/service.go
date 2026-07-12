@@ -40,6 +40,10 @@ type Service struct {
 	events bus.Publisher
 	// rooms stores lazily allocated active transition shards.
 	rooms sync.Map
+	// reservationMutex protects active item-pair ownership.
+	reservationMutex sync.Mutex
+	// reservations maps each busy teleport item to its player.
+	reservations map[int64]int64
 	// pendingMutex protects cross-room destination handoff.
 	pendingMutex sync.Mutex
 	// pending stores cross-room destinations by player id.
@@ -104,16 +108,26 @@ func (service *Service) Start(ctx context.Context, request StartRequest) error {
 			target = item
 		}
 	}
+	if !service.reservePair(request.PlayerID, source.ID, target.ID) {
+		service.removeTransit(request.Room.ID(), request.PlayerID)
+		return nil
+	}
 	state.mutex.Lock()
 	transit := Transit{PlayerID: request.PlayerID, Source: source, Target: target, SourceRoomID: request.Room.ID(), TargetRoomID: targetRoomID, Phase: PhaseApproach}
 	state.transits[request.PlayerID] = transit
 	state.mutex.Unlock()
-	if err := service.startApproach(ctx, request.Room, transit); err != nil {
+	started, err := service.startApproach(ctx, request.Room, transit)
+	if err != nil || !started {
 		service.removeTransit(request.Room.ID(), request.PlayerID)
 		return err
 	}
 
-	return service.publishStarted(ctx, request.Room.ID(), transit)
+	if err := service.publishStarted(ctx, request.Room.ID(), transit); err != nil {
+		service.removeTransit(request.Room.ID(), request.PlayerID)
+		return err
+	}
+
+	return nil
 }
 
 // removeTransit removes one reserved or active transition.
@@ -124,12 +138,74 @@ func (service *Service) removeTransit(roomID int64, playerID int64) {
 	}
 	state := loaded.(*roomState)
 	state.mutex.Lock()
+	transit := state.transits[playerID]
 	delete(state.transits, playerID)
 	empty := len(state.transits) == 0
 	state.mutex.Unlock()
 	if empty {
 		service.rooms.Delete(roomID)
 	}
+	service.releasePair(transit)
+}
+
+// reservePair atomically reserves both endpoints for one player.
+func (service *Service) reservePair(playerID int64, sourceID int64, targetID int64) bool {
+	service.reservationMutex.Lock()
+	defer service.reservationMutex.Unlock()
+	if service.reservations == nil {
+		service.reservations = make(map[int64]int64)
+	}
+	if owner := service.reservations[sourceID]; owner != 0 && owner != playerID {
+		return false
+	}
+	if owner := service.reservations[targetID]; owner != 0 && owner != playerID {
+		return false
+	}
+	service.reservations[sourceID] = playerID
+	service.reservations[targetID] = playerID
+
+	return true
+}
+
+// releasePair releases endpoints still owned by one transition player.
+func (service *Service) releasePair(transit Transit) {
+	if transit.PlayerID <= 0 {
+		return
+	}
+	service.reservationMutex.Lock()
+	for _, itemID := range [...]int64{transit.Source.ID, transit.Target.ID} {
+		if service.reservations[itemID] == transit.PlayerID {
+			delete(service.reservations, itemID)
+		}
+	}
+	if len(service.reservations) == 0 {
+		service.reservations = nil
+	}
+	service.reservationMutex.Unlock()
+}
+
+// cancelPlayer removes every active transition owned by a disconnected player.
+func (service *Service) cancelPlayer(ctx context.Context, playerID int64) {
+	service.rooms.Range(func(key any, value any) bool {
+		roomID := key.(int64)
+		state := value.(*roomState)
+		state.mutex.Lock()
+		transit, found := state.transits[playerID]
+		state.mutex.Unlock()
+		if !found {
+			return true
+		}
+		if active, activeFound := service.runtime.Find(roomID); activeFound {
+			for _, itemID := range [...]int64{transit.Source.ID, transit.Target.ID} {
+				if item, itemFound := active.SetFurnitureExtraData(itemID, "0"); itemFound {
+					_ = service.broadcastItem(ctx, active, item)
+				}
+			}
+		}
+		service.removeTransit(roomID, playerID)
+
+		return true
+	})
 }
 
 // roomState returns a lazily allocated transition shard.

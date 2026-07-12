@@ -29,18 +29,34 @@ func TestSameRoomTransitionOpensCrossesAndSettles(t *testing.T) {
 	if item, _ := active.FurnitureItem(1); item.ExtraData != "1" {
 		t.Fatalf("expected open source, got %q", item.ExtraData)
 	}
+	unit, _ := active.Unit(7)
+	if unit.Position.Point != grid.MustPoint(1, 2) || !unit.Moving {
+		t.Fatalf("expected animated source entry, got %#v", unit)
+	}
+	active.Tick()
+	if err := service.Cycle(context.Background(), active, now); err != nil {
+		t.Fatalf("wait for visible source entry: %v", err)
+	}
+	active.Tick()
 	if err := service.Cycle(context.Background(), active, now.Add(phaseDelay)); err != nil {
+		t.Fatalf("settle source entry: %v", err)
+	}
+	if err := service.Cycle(context.Background(), active, now.Add(2*phaseDelay)); err != nil {
 		t.Fatalf("cross teleport: %v", err)
 	}
-	unit, _ := active.Unit(7)
+	unit, _ = active.Unit(7)
 	if unit.Position.Point != grid.MustPoint(3, 1) {
 		t.Fatalf("expected target position, got %#v", unit.Position)
 	}
-	if err := service.Cycle(context.Background(), active, now.Add(2*phaseDelay)); err != nil {
+	if err := service.Cycle(context.Background(), active, now.Add(3*phaseDelay)); err != nil {
 		t.Fatalf("start exit: %v", err)
 	}
 	active.Tick()
-	if err := service.Cycle(context.Background(), active, now.Add(3*phaseDelay)); err != nil {
+	if err := service.Cycle(context.Background(), active, now.Add(4*phaseDelay)); err != nil {
+		t.Fatalf("animate exit: %v", err)
+	}
+	active.Tick()
+	if err := service.Cycle(context.Background(), active, now.Add(5*phaseDelay)); err != nil {
 		t.Fatalf("settle exit: %v", err)
 	}
 	unit, _ = active.Unit(7)
@@ -60,6 +76,14 @@ func TestTileTransitionAdvancesWithoutPhaseDelay(t *testing.T) {
 	}
 	if err := service.Cycle(context.Background(), active, now); err != nil {
 		t.Fatalf("cycle tile teleport: %v", err)
+	}
+	active.Tick()
+	if err := service.Cycle(context.Background(), active, now); err != nil {
+		t.Fatalf("animate tile teleport entry: %v", err)
+	}
+	active.Tick()
+	if err := service.Cycle(context.Background(), active, now); err != nil {
+		t.Fatalf("complete tile teleport entry: %v", err)
 	}
 	unit, _ := active.Unit(7)
 	if unit.Position.Point != grid.MustPoint(3, 1) && unit.Position.Point != grid.MustPoint(3, 2) {

@@ -39,6 +39,12 @@ type DefinitionGranter interface {
 	Granter
 }
 
+// TeleportPairer stores durable relationships between granted teleport items.
+type TeleportPairer interface {
+	// PairTeleports validates and pairs two teleport items owned by one player.
+	PairTeleports(ctx context.Context, ownerPlayerID int64, firstItemID int64, secondItemID int64) error
+}
+
 // Manager reads and mutates furniture persistence state.
 type Manager interface {
 	DefinitionFinder

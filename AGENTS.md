@@ -458,6 +458,9 @@ minimum manual checks expected when touching it.
 - Active room furniture management is resolved through
   `room.CanManageFurniture`; owners and the room's embedded rights projection may
   place, move, and pick up furniture without handler-local permission policies.
+- Global staff furniture management uses the explicit
+  `room.furniture.any.manage` node. It must not create persistent room-right rows;
+  picked-up furniture always returns to its actual owner's inventory.
 - Test after changes:
   - `go test ./networking/outbound/inventory/... ./internal/realm/furniture/...`
   - Buy an item and verify Nitro shows the inventory novelty count.
@@ -465,6 +468,8 @@ minimum manual checks expected when touching it.
     client reload.
   - Enter another player's room and verify place, move, and pickup return a
     localized no-rights bubble without changing inventory or room state.
+  - Login as seeded `demo` and verify global furniture management works in a
+    room owned by another player without adding `demo` to that room's rights.
 
 ### FEATURE: Paired Furniture Teleports
 
@@ -474,8 +479,24 @@ minimum manual checks expected when touching it.
   room-owner-cycle animation phases, authoritative controlled movement, and
   same-room or cross-room travel. Cross-room travel uses Nitro `ROOM_FORWARD`
   plus a one-time destination consumed before destination entity bootstrap.
+  Destination furniture updates wait until after bootstrap so Nitro can render
+  the open-door state before the controlled walk-out step.
+- Catalog teleport offers grant an even number of instances and persist their
+  pairs in the same transaction as charging and item creation. Pairing failure
+  rolls back the purchase; runtime use never guesses a partner by proximity.
 - Active transition lookup and interaction-tile detection stay in memory;
   animation ticks never query PostgreSQL and never create timers or goroutines.
+- A normal teleport waits for the source and destination `mv` statuses to settle
+  before forwarding or closing; do not send a neutral final status in the same
+  owner tick as the visible movement packet.
+- Cross-room teleports project source state `2` for one visual phase before
+  closing and forwarding. Destination exits use interaction-controlled movement
+  so normal furniture walkability cannot silently cancel the exit step.
+- Both endpoints are reserved atomically for the duration of a transition, so
+  simultaneous users cannot race shared furniture states or overlap transfers.
+- An unreachable approach is a soft rejection: release the room transit and
+  both endpoint reservations before returning, and never publish a started
+  event for that rejected attempt.
 - `PIXELS_FURNITURE_TELEPORT_BYPASS_LOCKED` may bypass password, doorbell, and
   invisible destination gates. Room bans always remain authoritative.
 - Test after changes:
@@ -484,10 +505,17 @@ minimum manual checks expected when touching it.
   - Click seeded items `1001`/`1002` in room `1` and verify opening, transfer,
     controlled walk-out, and synchronized close state for every occupant.
   - Use seeded item `1003` to reach item `1004` in room `2`; verify Nitro loads
-    the destination room and spawns the player on the paired item.
+    the destination room, opens the paired item, and visibly walks the player
+    out before closing it.
   - Walk over seeded items `1005`/`1006` and verify use without clicking.
+  - Buy a Telephone Box offer, place both granted items, and verify either side
+    activates the other without manual database pairing.
   - Repeat a click during an active transition, remove a target, disconnect in
     transit, and test locked plus banned destination rooms.
+  - Block the source approach tile with another player, verify the attempt is
+    rejected, clear the tile, and verify the same player can retry immediately.
+  - Activate both endpoints concurrently with different users and verify one
+    transition completes before the pair accepts the next user.
 
 ### FEATURE: Room Rights, Moderation, and Audit
 

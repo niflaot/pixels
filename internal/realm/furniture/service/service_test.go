@@ -100,7 +100,7 @@ func TestPickupReturnsPlacedItemToInventory(t *testing.T) {
 	store.item = placedItemForTest()
 	store.pickupResult = inventoryItemForTest()
 
-	item, err := New(store).Pickup(context.Background(), PickupParams{ItemID: 1, ActorPlayerID: 7})
+	item, err := New(store).Pickup(context.Background(), PickupParams{ItemID: 1, ActorPlayerID: 7, RoomID: 1})
 	if err != nil {
 		t.Fatalf("pickup item: %v", err)
 	}
@@ -114,7 +114,7 @@ func TestPickupRejectsInventoryItem(t *testing.T) {
 	store := newFakeStore()
 	store.item = inventoryItemForTest()
 
-	_, err := New(store).Pickup(context.Background(), PickupParams{ItemID: 1, ActorPlayerID: 7})
+	_, err := New(store).Pickup(context.Background(), PickupParams{ItemID: 1, ActorPlayerID: 7, RoomID: 9})
 	if !errors.Is(err, ErrItemNotPlaced) {
 		t.Fatalf("expected item not placed, got %v", err)
 	}
@@ -164,6 +164,8 @@ type fakeStore struct {
 	pickupUpdated bool
 	// pickupResult is the returned item for a successful pickup.
 	pickupResult furnituremodel.Item
+	// pickupParams stores the latest pickup mutation input.
+	pickupParams repository.PickupItemParams
 	// created stores items returned by CreateItems.
 	created []furnituremodel.Item
 }
@@ -221,6 +223,8 @@ func (store *fakeStore) MoveItem(_ context.Context, params repository.MoveItemPa
 }
 
 // PickupItem picks up an item for tests.
-func (store *fakeStore) PickupItem(context.Context, repository.PickupItemParams) (furnituremodel.Item, bool, error) {
+func (store *fakeStore) PickupItem(_ context.Context, params repository.PickupItemParams) (furnituremodel.Item, bool, error) {
+	store.pickupParams = params
+
 	return store.pickupResult, store.pickupUpdated, nil
 }

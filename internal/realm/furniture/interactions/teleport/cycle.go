@@ -10,21 +10,21 @@ import (
 
 const phaseDelay = 500 * time.Millisecond
 
-// startApproach walks toward the source or opens it immediately when adjacent.
-func (service *Service) startApproach(ctx context.Context, active *roomlive.Room, transit Transit) error {
+// startApproach walks toward the source or reports a soft rejected approach.
+func (service *Service) startApproach(ctx context.Context, active *roomlive.Room, transit Transit) (bool, error) {
 	unit, found := active.Unit(transit.PlayerID)
 	if !found {
-		return service.fail(ctx, active.ID(), transit, "unit_not_found")
+		return false, service.fail(ctx, active.ID(), transit, "unit_not_found")
 	}
 	front, valid := frontPoint(transit.Source)
 	if !valid || unit.Position.Point == front || unit.Position.Point == transit.Source.Point {
-		return nil
+		return true, nil
 	}
 	if _, err := active.MoveTo(transit.PlayerID, front); err != nil {
-		return service.fail(ctx, active.ID(), transit, "approach_unreachable")
+		return false, service.fail(ctx, active.ID(), transit, "approach_unreachable")
 	}
 
-	return nil
+	return true, nil
 }
 
 // Cycle advances due transitions for one room owner tick.
@@ -68,6 +68,9 @@ func (service *Service) Cycle(ctx context.Context, active *roomlive.Room, now ti
 			state.mutex.Lock()
 			delete(state.transits, playerID)
 			state.mutex.Unlock()
+			if !transit.Handoff {
+				service.releasePair(transit)
+			}
 			if transit.NextItemID > 0 {
 				result = firstError(result, service.Start(ctx, StartRequest{
 					PlayerID: transit.PlayerID, Room: active, ItemID: transit.NextItemID,
@@ -104,15 +107,41 @@ func (service *Service) advance(ctx context.Context, active *roomlive.Room, tran
 		if err := service.openSource(ctx, active, transit); err != nil {
 			return transit, true, err
 		}
+		transit.Phase = PhaseEnter
+		return transit, false, nil
+	case PhaseEnter:
+		unit, found := active.Unit(transit.PlayerID)
+		if !found {
+			return transit, true, service.fail(ctx, active.ID(), transit, "unit_left")
+		}
+		if unit.Moving || unitHasStatus(unit, worldunit.StatusMove) {
+			return transit, false, nil
+		}
 		transit.Phase, transit.Deadline = PhaseCross, now.Add(delayFor(transit))
 		return transit, false, nil
 	case PhaseCross:
-		complete, err := service.cross(ctx, active, transit)
+		crossRoom, err := service.cross(ctx, active, transit)
 		if err != nil {
 			return transit, true, err
 		}
-		if complete {
-			return transit, true, nil
+		if crossRoom {
+			transit.Phase, transit.Deadline = PhaseForward, now.Add(delayFor(transit))
+			return transit, false, nil
+		}
+		transit.Phase, transit.Deadline = PhaseExit, now.Add(delayFor(transit))
+		return transit, false, nil
+	case PhaseForward:
+		if err := service.closeSource(ctx, active, transit); err != nil {
+			return transit, true, err
+		}
+		if err := service.forward(ctx, active, transit); err != nil {
+			return transit, true, err
+		}
+		transit.Handoff = service.pendingFor(transit.PlayerID, transit.TargetRoomID)
+		return transit, true, nil
+	case PhaseArrival:
+		if err := service.showArrival(ctx, active, transit); err != nil {
+			return transit, true, err
 		}
 		transit.Phase, transit.Deadline = PhaseExit, now.Add(delayFor(transit))
 		return transit, false, nil
@@ -123,11 +152,7 @@ func (service *Service) advance(ctx context.Context, active *roomlive.Room, tran
 				return transit, true, service.finish(ctx, active, transit)
 			}
 		}
-		front, valid := frontPoint(transit.Target)
-		if !valid {
-			return transit, true, service.finish(ctx, active, transit)
-		}
-		if err := active.StepControlled(transit.PlayerID, front, worldunit.ControlTeleporting); err != nil {
+		if err := service.beginExit(ctx, active, transit); err != nil {
 			return transit, true, service.finish(ctx, active, transit)
 		}
 		transit.Phase = PhaseSettle
@@ -137,13 +162,24 @@ func (service *Service) advance(ctx context.Context, active *roomlive.Room, tran
 		if !found {
 			return transit, true, service.fail(ctx, active.ID(), transit, "unit_left")
 		}
-		if unit.Moving {
+		if unit.Moving || unitHasStatus(unit, worldunit.StatusMove) {
 			return transit, false, nil
 		}
 		return transit, true, service.finish(ctx, active, transit)
 	default:
 		return transit, true, service.fail(ctx, active.ID(), transit, "invalid_phase")
 	}
+}
+
+// unitHasStatus reports whether a room unit snapshot contains one status key.
+func unitHasStatus(unit roomlive.UnitSnapshot, key string) bool {
+	for _, status := range unit.Statuses {
+		if status.Key == key {
+			return true
+		}
+	}
+
+	return false
 }
 
 // firstError preserves the first cycle failure without allocating an error aggregate.
