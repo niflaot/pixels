@@ -95,6 +95,10 @@ func (handler Handler) handleMoveError(ctx context.Context, active *roomlive.Roo
 	if !isSoftMoveError(err) {
 		return err
 	}
+	stopped, stopErr := active.StopMovement(playerID)
+	if stopErr == nil && stopped {
+		return nil
+	}
 	unit, faceErr := active.FaceTo(playerID, point)
 	if faceErr != nil {
 		return nil

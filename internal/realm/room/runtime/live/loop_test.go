@@ -73,6 +73,31 @@ func TestRoomLoopPublishesMovements(t *testing.T) {
 	}
 }
 
+// TestRoomStopMovementSettlesProjectedStep verifies cancellation does not snap a moving unit.
+func TestRoomStopMovementSettlesProjectedStep(t *testing.T) {
+	room := worldRoomForTest(t, "000", 0, 0)
+	if _, err := room.Join(occupantForTest(7)); err != nil {
+		t.Fatalf("join room: %v", err)
+	}
+	if _, err := room.MoveTo(7, pointForTest(t, 2, 0)); err != nil {
+		t.Fatalf("move unit: %v", err)
+	}
+	first := room.Tick()
+	if len(first) != 1 || !first[0].Moved {
+		t.Fatalf("expected projected first step, got %#v", first)
+	}
+	if stopped, err := room.StopMovement(7); err != nil || !stopped {
+		t.Fatalf("stop movement: stopped=%v err=%v", stopped, err)
+	}
+	settled := room.Tick()
+	if len(settled) != 1 || !settled[0].Settled || settled[0].Moved || settled[0].Unit.Moving {
+		t.Fatalf("expected neutral settlement, got %#v", settled)
+	}
+	if settled[0].Unit.Position.Point != pointForTest(t, 1, 0) {
+		t.Fatalf("expected projected tile preserved, got %#v", settled[0].Unit.Position)
+	}
+}
+
 // TestTickBroadcastsStopAfterFurnitureInvalidatesPath verifies clients receive a neutral status.
 func TestTickBroadcastsStopAfterFurnitureInvalidatesPath(t *testing.T) {
 	room := worldRoomForTest(t, "000", 0, 0)

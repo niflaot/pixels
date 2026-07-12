@@ -101,6 +101,17 @@ func (room *Room) moveTo(playerID int64, goal grid.Point, control worldunit.Cont
 	return roomPath, nil
 }
 
+// StopMovement discards future steps while allowing Nitro's current step to settle.
+func (room *Room) StopMovement(playerID int64) (bool, error) {
+	room.mutex.Lock()
+	defer room.mutex.Unlock()
+	if room.world == nil {
+		return false, ErrWorldNotLoaded
+	}
+
+	return room.world.StopMovement(playerID)
+}
+
 // FaceTo rotates a unit toward a target point and clears pending movement.
 func (room *Room) FaceTo(playerID int64, target grid.Point) (UnitSnapshot, error) {
 	room.mutex.Lock()

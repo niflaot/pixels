@@ -30,6 +30,19 @@ func (unit *Unit) ClearPath() {
 	unit.statuses.clear(StatusMove)
 }
 
+// StopMovement discards future steps while preserving the currently projected client step.
+func (unit *Unit) StopMovement() bool {
+	if !unit.InMotion() {
+		return false
+	}
+	unit.activePath = path.Path{}
+	unit.steps = nil
+	unit.hasGoal = false
+	unit.settling = true
+
+	return true
+}
+
 // ValidatePath reports whether the unit's active path still matches the current world state.
 func (unit *Unit) ValidatePath(world path.World) error {
 	if len(unit.steps) == 0 && !unit.settling {

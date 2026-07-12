@@ -51,6 +51,16 @@ func (world *World) SetHandItem(playerID int64, itemID int32) (UnitSnapshot, err
 	return unitSnapshot(playerID, roomUnit), nil
 }
 
+// StopMovement discards future steps and lets the current client projection settle.
+func (world *World) StopMovement(playerID int64) (bool, error) {
+	roomUnit, found := world.units[playerID]
+	if !found {
+		return false, ErrUnitNotFound
+	}
+
+	return roomUnit.StopMovement(), nil
+}
+
 // ReleaseControl clears server control and pending movement for one unit.
 func (world *World) ReleaseControl(playerID int64) (UnitSnapshot, error) {
 	roomUnit, found := world.units[playerID]
