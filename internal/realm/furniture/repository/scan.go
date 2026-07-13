@@ -73,6 +73,11 @@ func scanItem(row pgx.Row) (furnituremodel.Item, error) {
 	var z pgtype.Float8
 	var rotation int16
 	var wallPosition pgtype.Text
+	var giftSprite pgtype.Int4
+	var giftBox pgtype.Int4
+	var giftRibbon pgtype.Int4
+	var giftSender pgtype.Int8
+	var giftMessage pgtype.Text
 	var metadata []byte
 	var deletedAt pgtype.Timestamptz
 	err := row.Scan(
@@ -86,6 +91,12 @@ func scanItem(row pgx.Row) (furnituremodel.Item, error) {
 		&rotation,
 		&wallPosition,
 		&item.ExtraData,
+		&item.GiftWrapped,
+		&giftSprite,
+		&giftBox,
+		&giftRibbon,
+		&giftSender,
+		&giftMessage,
 		&metadata,
 		&item.CreatedAt,
 		&item.UpdatedAt,
@@ -96,6 +107,19 @@ func scanItem(row pgx.Row) (furnituremodel.Item, error) {
 		return furnituremodel.Item{}, err
 	}
 	item.RoomID = int64Pointer(roomID)
+	if giftSprite.Valid {
+		item.GiftWrapSpriteID = &giftSprite.Int32
+	}
+	if giftBox.Valid {
+		item.GiftWrapBoxID = &giftBox.Int32
+	}
+	if giftRibbon.Valid {
+		item.GiftWrapRibbonID = &giftRibbon.Int32
+	}
+	item.GiftSenderPlayerID = int64Pointer(giftSender)
+	if giftMessage.Valid {
+		item.GiftMessage = &giftMessage.String
+	}
 	item.X = int2Pointer(x)
 	item.Y = int2Pointer(y)
 	item.Z = float64Pointer(z)

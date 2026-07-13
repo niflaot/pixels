@@ -32,8 +32,8 @@ func TestRegisterConnectionHandlersAddsCatalogPackets(t *testing.T) {
 	handlers := &realmconn.Handlers{Inbound: netconn.NewHandlerRegistry()}
 	RegisterConnectionHandlers(handlers, HandlerDeps{Players: playerlive.NewRegistry(), Bindings: binding.NewRegistry(),
 		Catalog: &catalogservice.Service{}, Log: zap.NewNop()})
-	if handlers.Inbound.Len() != 3 {
-		t.Fatalf("expected three catalog handlers, got %d", handlers.Inbound.Len())
+	if handlers.Inbound.Len() != 13 {
+		t.Fatalf("expected thirteen catalog handlers, got %d", handlers.Inbound.Len())
 	}
 	RegisterConnectionHandlers(nil, HandlerDeps{})
 }

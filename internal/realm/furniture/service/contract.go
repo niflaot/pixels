@@ -33,6 +33,18 @@ type Granter interface {
 	Grant(ctx context.Context, params GrantParams) ([]furnituremodel.Item, error)
 }
 
+// GiftGranter creates wrapped furniture inventory instances.
+type GiftGranter interface {
+	// GrantGift creates wrapped inventory items for one recipient.
+	GrantGift(ctx context.Context, params GiftGrantParams) ([]furnituremodel.Item, error)
+}
+
+// GiftOpener opens wrapped furniture instances.
+type GiftOpener interface {
+	// OpenGift marks one placed gift as opened.
+	OpenGift(ctx context.Context, params OpenGiftParams) (furnituremodel.Item, error)
+}
+
 // DefinitionGranter reads definitions and creates furniture inventory instances.
 type DefinitionGranter interface {
 	DefinitionFinder
@@ -58,6 +70,7 @@ type Manager interface {
 
 	// Pickup returns a placed item to inventory.
 	Pickup(ctx context.Context, params PickupParams) (furnituremodel.Item, error)
+
 }
 
 // StateUpdater changes durable furniture interaction state.

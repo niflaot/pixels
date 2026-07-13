@@ -79,6 +79,26 @@ func TestEncodeWallItemOmitsFloorTrailer(t *testing.T) {
 	}
 }
 
+// TestEncodeGiftUsesPositiveIDAndPackedVariant verifies unopened present inventory semantics.
+func TestEncodeGiftUsesPositiveIDAndPackedVariant(t *testing.T) {
+	packet, err := Encode(1, 1, []Item{{ID: 40, SpriteID: 3379, GiftWrapped: true, GiftBoxID: 2, GiftRibbonID: 7}})
+	if err != nil {
+		t.Fatalf("encode gift: %v", err)
+	}
+	_, rest, err := codec.DecodePayload(nil, headerDefinition(), packet.Payload)
+	if err != nil {
+		t.Fatalf("decode gift header: %v", err)
+	}
+	values, rest, err := codec.DecodePayload(nil, itemDefinition(), rest)
+	if err != nil || values[0].Int32 != 40 || values[3].Int32 != 3379 || values[4].Int32 != 2007 {
+		t.Fatalf("unexpected gift values %#v error=%v", values, err)
+	}
+	floor, rest, err := codec.DecodePayload(nil, floorDefinition(), rest)
+	if err != nil || floor[1].Int32 != 2007 || len(rest) != 0 {
+		t.Fatalf("unexpected gift trailer %#v rest=%d error=%v", floor, len(rest), err)
+	}
+}
+
 // TestEncodeRejectsUnsupportedKind verifies invalid discriminators fail explicitly.
 func TestEncodeRejectsUnsupportedKind(t *testing.T) {
 	_, err := Encode(1, 1, []Item{{ID: 1, Kind: Kind("ceiling")}})

@@ -12,6 +12,7 @@ import (
 	realmmessenger "github.com/niflaot/pixels/internal/realm/messenger"
 	roomentry "github.com/niflaot/pixels/internal/realm/room/access/entry"
 	roommoderation "github.com/niflaot/pixels/internal/realm/room/control/moderation"
+	realmsubscription "github.com/niflaot/pixels/internal/realm/subscription"
 	appconfig "github.com/niflaot/pixels/pkg/config/app"
 	"github.com/niflaot/pixels/pkg/i18n"
 	"github.com/niflaot/pixels/pkg/logger"
@@ -38,6 +39,9 @@ type AppConfig struct {
 
 	// Messenger contains social communication limits and cache settings.
 	Messenger realmmessenger.Config
+
+	// Subscription contains club scheduler and reward settings.
+	Subscription realmsubscription.Config
 
 	// RoomEntry contains closed-room entry settings.
 	RoomEntry roomentry.Config
@@ -91,6 +95,11 @@ func Load(paths ...string) (AppConfig, error) {
 		return AppConfig{}, err
 	}
 
+	subscription, err := realmsubscription.LoadConfig()
+	if err != nil {
+		return AppConfig{}, err
+	}
+
 	roomEntry, err := roomentry.LoadConfig()
 	if err != nil {
 		return AppConfig{}, err
@@ -123,6 +132,7 @@ func Load(paths ...string) (AppConfig, error) {
 		Currency:       currency,
 		Chat:           chat,
 		Messenger:      messenger,
+		Subscription:   subscription,
 		RoomEntry:      roomEntry,
 		RoomModeration: roomModeration,
 		Postgres:       postgres,

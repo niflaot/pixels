@@ -27,12 +27,13 @@ type Node struct {
 }
 
 // Encode creates a CATALOG_INDEX packet with Nitro's synthetic root node.
-func Encode(nodes []Node, mode string) (codec.Packet, error) {
+func Encode(nodes []Node, mode string, additions ...bool) (codec.Packet, error) {
 	payload, err := appendNode(nil, Node{Visible: true, PageID: -1, Name: "root", Children: nodes})
 	if err != nil {
 		return codec.Packet{}, err
 	}
-	payload, err = codec.AppendPayload(payload, codec.Definition{codec.BooleanField, codec.StringField}, codec.Bool(false), codec.String(mode))
+	newAdditions := len(additions) > 0 && additions[0]
+	payload, err = codec.AppendPayload(payload, codec.Definition{codec.BooleanField, codec.StringField}, codec.Bool(newAdditions), codec.String(mode))
 	if err != nil {
 		return codec.Packet{}, err
 	}

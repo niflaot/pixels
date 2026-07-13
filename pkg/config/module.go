@@ -7,6 +7,7 @@ import (
 	realmmessenger "github.com/niflaot/pixels/internal/realm/messenger"
 	roomentry "github.com/niflaot/pixels/internal/realm/room/access/entry"
 	roommoderation "github.com/niflaot/pixels/internal/realm/room/control/moderation"
+	realmsubscription "github.com/niflaot/pixels/internal/realm/subscription"
 	appconfig "github.com/niflaot/pixels/pkg/config/app"
 	"github.com/niflaot/pixels/pkg/i18n"
 	"github.com/niflaot/pixels/pkg/logger"
@@ -26,6 +27,7 @@ var Module = fx.Module(
 		Currency,
 		Chat,
 		Messenger,
+		Subscription,
 		RoomEntry,
 		RoomModeration,
 		Postgres,
@@ -64,6 +66,9 @@ func Chat(config AppConfig) chatconfig.Config { return config.Chat }
 
 // Messenger extracts social communication configuration.
 func Messenger(config AppConfig) realmmessenger.Config { return config.Messenger }
+
+// Subscription extracts club scheduler and reward configuration.
+func Subscription(config AppConfig) realmsubscription.Config { return config.Subscription }
 
 // RoomEntry extracts closed-room entry settings from composed configuration.
 func RoomEntry(config AppConfig) roomentry.Config {

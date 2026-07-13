@@ -221,15 +221,23 @@ minimum manual checks expected when touching it.
 ### FEATURE: Club Entitlements
 
 - Owns player club fields, runtime entitlement projection, and HC gates.
+- Provides a top-level `HC` catalog category with Nitro-native `vip_buy` and
+  `club_gifts` pages, duration offers, and monthly gift metadata.
 - Club level and expiration are loaded once with the player, projected through
   Nitro permissions, and reused by catalog and room settings without hot-path
   database reads.
+- First membership, uninterrupted streak, durable accrual boundary, total club
+  time, and total VIP time are separate fields. Never reconstruct active time
+  from scheduler ticks or use first membership as the current streak.
 - HC controls only wall visibility and wall/floor thickness; chat remains a
   normal room setting. Global settings managers may perform administrative
   overrides.
 - Test after changes:
   - `go test ./internal/realm/player/... ./internal/permission/broadcast/...`
-  - Login as seeded `demo` and verify Nitro receives club level `2`.
+  - Login as seeded `demo` and verify Nitro receives HC level `1`; login as
+    `alice` and verify VIP level `2` plus historical VIP days.
+  - Open the `HC` catalog category, purchase a duration, and verify the wallet,
+    expiration, club status, and available monthly gifts refresh correctly.
   - Login as `bob` or `carol` and verify changing HC room fields is rejected.
   - Verify club-only catalog pages and offers follow active expiration.
 
@@ -493,6 +501,12 @@ minimum manual checks expected when touching it.
   packet handlers.
 - Successful furniture purchases send Nitro's unseen-item marker before the
   purchase confirmation and then invalidate the inventory list.
+- Gift purchases use Nitro's four-list wrapping configuration, validate client
+  wrapping indexes, confirm the buyer purchase, and refresh an online recipient's
+  unseen inventory without making offline delivery fail.
+- Unopened gifts retain the contained furniture definition but project the
+  selected positive wrapper sprite and packed box/ribbon variant in inventory
+  and rooms; negative furniture ids are reserved for contents revealed later.
 - Provides protected catalog page/offer CRUD, cache publication, sanitize-list,
   OpenAPI documentation, localized Nitro external texts, and development seed
   data.
@@ -502,7 +516,60 @@ minimum manual checks expected when touching it.
   - Buy a regular offer and verify wallet deduction, the inventory novelty
     count, and immediate inventory refresh.
   - Buy the LTD sofa and verify remaining stock and sold-out behavior.
+  - Gift a seeded furniture offer to an online and offline player; verify the
+    buyer dialog closes and the online recipient receives an inventory novelty.
   - Call `/api/admin/catalog/refresh` and verify connected clients re-fetch.
+
+### FEATURE: Store Final and Subscriptions
+
+- Owns catalog bundle, gift, voucher, and freshness behavior plus
+  `internal/realm/subscription`, its packets, scheduler, seeds, and protected
+  administration routes.
+- Supports server-authoritative bulk discounts, multi-product bundles, wrapped
+  furniture gifts, one-time vouchers, catalog novelty and expiration, HC/VIP
+  purchase and extension, kickback paydays, monthly club gifts, targeted offers,
+  and seasonal calendar rewards.
+- Subscription membership is durable state. Player club fields and the embedded
+  live player entitlement are derived projections updated only after successful
+  membership persistence.
+- The subscription scheduler reconciles timestamp-based active time, expires
+  memberships, materializes every missed payday period, pays newly due rewards
+  immediately to online players, and pays offline rewards on the next login.
+  Player connection bootstrap sends active calendar state, available monthly
+  gifts, and neutral Builders Club compatibility state.
+- Catalog purchase history links every purchase row to the concrete furniture
+  instances it granted. Payday period queries use committed purchase timestamps
+  and exclude pages explicitly marked outside kickback accounting.
+- Targeted offers must have future expiration, banner, icon, localized copy,
+  enabled state, and remaining per-player capacity before projection. Real
+  audience eligibility remains a documented TODO and must not be invented ad hoc.
+- Builders Club is a compatibility stub only and must remain explicitly marked
+  `UNIMPLEMENTED:`. Direct SMS billing remains `DEFERRED:` until a carrier
+  provider exists. Neither path may grant limits, membership, furniture, or
+  currency through its compatibility response.
+- Test after changes:
+  - `go test -race ./internal/realm/catalog/... ./internal/realm/subscription/...`
+  - `go test ./networking/inbound/catalog/... ./networking/outbound/catalog/...`
+  - `go test ./networking/inbound/subscription/... ./networking/outbound/subscription/...`
+  - `go test -run '^$' -bench . -benchmem ./internal/realm/catalog/service ./internal/realm/subscription/core ./networking/codec`
+  - Run Liquibase `validate` and apply both schema and development seed
+    changelogs after changing store persistence.
+  - Buy six or more units and verify the authoritative discount, then buy the
+    seeded multi-product bundle and verify every product appears in inventory.
+  - Send and open a wrapped gift, redeem `WELCOME2026` twice, and verify the
+    second redemption cannot duplicate its reward.
+  - Purchase and extend HC/VIP, inspect kickback, claim one monthly gift, and
+    reconnect to verify membership and pending payday state survive.
+  - Verify `demo` receives one due payday, `alice` projects VIP history, `bob`
+    catches up two independent periods, and expired `carol` starts a fresh
+    streak without retaining VIP.
+  - Stop the process between lifecycle passes, restart it, and verify elapsed
+    club time is reconciled once without duplicate payday rows.
+  - Purchase or dismiss a targeted offer and open normal, future, duplicate,
+    and staff calendar doors.
+  - Create, patch, and disable store records through `/api/admin/catalog` and
+    `/api/admin/subscriptions`; verify catalog mutations publish exactly one
+    catalog refresh packet per connected client.
 
 ### FEATURE: Furniture Inventory Synchronization
 

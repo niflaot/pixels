@@ -8,16 +8,19 @@ import (
 	movecmd "github.com/niflaot/pixels/internal/realm/furniture/commands/move"
 	pickupcmd "github.com/niflaot/pixels/internal/realm/furniture/commands/pickup"
 	placecmd "github.com/niflaot/pixels/internal/realm/furniture/commands/place"
+	presentcmd "github.com/niflaot/pixels/internal/realm/furniture/commands/present"
 	inventoryhandler "github.com/niflaot/pixels/internal/realm/furniture/handlers/inventory"
 	movehandler "github.com/niflaot/pixels/internal/realm/furniture/handlers/move"
 	pickuphandler "github.com/niflaot/pixels/internal/realm/furniture/handlers/pickup"
 	placehandler "github.com/niflaot/pixels/internal/realm/furniture/handlers/place"
+	presenthandler "github.com/niflaot/pixels/internal/realm/furniture/handlers/present"
 	usehandler "github.com/niflaot/pixels/internal/realm/furniture/handlers/use"
 	"github.com/niflaot/pixels/internal/realm/furniture/interactions"
 	essential "github.com/niflaot/pixels/internal/realm/furniture/interactions/essential"
 	teleport "github.com/niflaot/pixels/internal/realm/furniture/interactions/teleport"
 	"github.com/niflaot/pixels/internal/realm/furniture/service"
 	playerlive "github.com/niflaot/pixels/internal/realm/player/live"
+	playerservice "github.com/niflaot/pixels/internal/realm/player/service"
 	roomlive "github.com/niflaot/pixels/internal/realm/room/runtime/live"
 	"github.com/niflaot/pixels/internal/realm/session/binding"
 	netconn "github.com/niflaot/pixels/networking/connection"
@@ -37,6 +40,8 @@ type HandlerDeps struct {
 	Bindings *binding.Registry
 	// Furniture manages placed and inventory furniture records.
 	Furniture service.Manager
+	// PlayerDirectory resolves player records for gift tags.
+	PlayerDirectory playerservice.Finder
 	// FurnitureStates changes durable furniture interaction state.
 	FurnitureStates service.StateUpdater
 	// Runtime stores active rooms.
@@ -69,7 +74,7 @@ func RegisterConnectionHandlers(handlers *realmconn.Handlers, deps HandlerDeps) 
 		Players: deps.Players, Bindings: deps.Bindings, Furniture: deps.Furniture,
 	}, deps.Log))
 	placehandler.Register(handlers.Inbound, placehandler.New(placecmd.Handler{
-		Players: deps.Players, Bindings: deps.Bindings, Furniture: deps.Furniture,
+		Players: deps.Players, Bindings: deps.Bindings, Furniture: deps.Furniture, PlayerDirectory: deps.PlayerDirectory,
 		Runtime: deps.Runtime, Permissions: deps.Permissions, Connections: deps.Connections, Events: deps.Events, Translations: deps.Translations, Log: deps.Log,
 	}, deps.Log))
 	movehandler.Register(handlers.Inbound, movehandler.New(movecmd.Handler{
@@ -79,6 +84,10 @@ func RegisterConnectionHandlers(handlers *realmconn.Handlers, deps HandlerDeps) 
 	pickuphandler.Register(handlers.Inbound, pickuphandler.New(pickupcmd.Handler{
 		Players: deps.Players, Bindings: deps.Bindings, Furniture: deps.Furniture,
 		Runtime: deps.Runtime, Permissions: deps.Permissions, Connections: deps.Connections, Events: deps.Events, Translations: deps.Translations, Log: deps.Log,
+	}, deps.Log))
+	presenthandler.Register(handlers.Inbound, presenthandler.New(presentcmd.Handler{
+		Players: deps.Players, Bindings: deps.Bindings, Furniture: deps.Furniture,
+		Runtime: deps.Runtime, Connections: deps.Connections, Log: deps.Log,
 	}, deps.Log))
 	interactionHandler := interactcmd.Handler{
 		Players: deps.Players, Bindings: deps.Bindings, Furniture: deps.Furniture, States: deps.FurnitureStates,

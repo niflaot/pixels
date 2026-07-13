@@ -36,30 +36,42 @@ func PageTree(pages []catalogmodel.Page, translations i18n.Translator) ([]outpag
 
 // Offer maps one catalog item and furniture definition to Nitro offer data.
 func Offer(item catalogmodel.Item, definition furnituremodel.Definition) (offer.Offer, error) {
-	if !fitsInt32(item.ID) || !fitsInt32(item.CostCredits) || !fitsInt32(item.CostPoints) || definition.SpriteID < 0 || definition.SpriteID > math.MaxInt32 {
+	return OfferProducts(item, []catalogmodel.Product{{DefinitionID: item.DefinitionID, Quantity: item.Amount}}, map[int64]furnituremodel.Definition{item.DefinitionID: definition})
+}
+
+// OfferProducts maps one catalog item and its products to Nitro offer data.
+func OfferProducts(item catalogmodel.Item, products []catalogmodel.Product, definitions map[int64]furnituremodel.Definition) (offer.Offer, error) {
+	if !fitsInt32(item.ID) || !fitsInt32(item.CostCredits) || !fitsInt32(item.CostPoints) {
 		return offer.Offer{}, ErrProtocolRange
-	}
-	productType := ""
-	if definition.Kind == furnituremodel.KindFloor {
-		productType = "s"
-	}
-	if definition.Kind == furnituremodel.KindWall {
-		productType = "i"
-	}
-	if productType == "" {
-		return offer.Offer{}, ErrUnsupportedFurniture
 	}
 	remaining := item.LimitedStack - item.LimitedSells
 	if remaining < 0 {
 		remaining = 0
 	}
 
+	mapped := make([]offer.Product, 0, len(products))
+	for _, product := range products {
+		definition, found := definitions[product.DefinitionID]
+		if !found || definition.SpriteID < 0 || definition.SpriteID > math.MaxInt32 {
+			return offer.Offer{}, ErrUnsupportedFurniture
+		}
+		productType := ""
+		if definition.Kind == furnituremodel.KindFloor {
+			productType = "s"
+		}
+		if definition.Kind == furnituremodel.KindWall {
+			productType = "i"
+		}
+		if productType == "" {
+			return offer.Offer{}, ErrUnsupportedFurniture
+		}
+		mapped = append(mapped, offer.Product{Type: productType, ClassID: int32(definition.SpriteID), ExtraData: item.ExtraData, Amount: product.Quantity, Limited: item.IsLimited(), LimitedStack: item.LimitedStack, LimitedRemaining: remaining})
+	}
 	return offer.Offer{
 		ID: int32(item.ID), LocalizationID: "catalog.item." + item.Name,
 		CostCredits: int32(item.CostCredits), CostPoints: int32(item.CostPoints), PointsType: item.PointsType,
-		Giftable: false, ClubLevel: clubLevel(item.ClubOnly), BundlePurchaseAllowed: false,
-		Products: []offer.Product{{Type: productType, ClassID: int32(definition.SpriteID), ExtraData: item.ExtraData,
-			Amount: item.Amount, Limited: item.IsLimited(), LimitedStack: item.LimitedStack, LimitedRemaining: remaining}},
+		Giftable: item.Giftable, ClubLevel: clubLevel(item.ClubOnly), BundlePurchaseAllowed: item.BundleDiscountEnabled,
+		Products: mapped,
 	}, nil
 }
 

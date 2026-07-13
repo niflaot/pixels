@@ -1,6 +1,9 @@
 package codec
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+	"math"
+)
 
 // AppendPayload appends encoded payload values to dst using definition order.
 func AppendPayload(dst []byte, definition Definition, values ...Value) ([]byte, error) {
@@ -65,6 +68,8 @@ func appendValue(dst []byte, field Field, value Value) ([]byte, error) {
 		return appendString(dst, value.String)
 	case ByteKind:
 		return append(dst, value.Byte), nil
+	case DoubleKind:
+		return binary.BigEndian.AppendUint64(dst, math.Float64bits(value.Double)), nil
 	default:
 		return dst, ErrInvalidField
 	}
@@ -100,6 +105,11 @@ func decodeValue(field Field, src []byte) (Value, []byte, error) {
 			return Value{}, src, ErrTruncatedPayload
 		}
 		return Byte(src[0]), src[1:], nil
+	case DoubleKind:
+		if len(src) < 8 {
+			return Value{}, src, ErrTruncatedPayload
+		}
+		return Float64(math.Float64frombits(binary.BigEndian.Uint64(src[:8]))), src[8:], nil
 	default:
 		return Value{}, src, ErrInvalidField
 	}

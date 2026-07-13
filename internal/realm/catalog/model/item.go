@@ -43,8 +43,11 @@ type Item struct {
 	// LimitedSells stores the committed LTD sale count.
 	LimitedSells int32
 
-	// OfferID optionally groups catalog rows under one client offer.
-	OfferID *int64
+	// BundleDiscountEnabled reports whether bulk discount purchases are allowed.
+	BundleDiscountEnabled bool
+
+	// Giftable reports whether another player may receive this offer as a gift.
+	Giftable bool
 
 	// ClubOnly reports whether the offer requires club membership.
 	ClubOnly bool
@@ -57,6 +60,9 @@ type Item struct {
 
 	// ExtraData stores the initial furniture protocol state.
 	ExtraData string
+
+	// ScheduledAt stores the optional future LTD publication time.
+	ScheduledAt *time.Time
 }
 
 // IsLimited reports whether the offer belongs to an LTD series.
@@ -64,6 +70,25 @@ func (item Item) IsLimited() bool { return item.LimitedStack > 0 }
 
 // IsCredits reports whether the offer uses credits.
 func (item Item) IsCredits() bool { return item.PointsType == CreditsType }
+
+// BulkDiscountEligible reports whether amount greater than one is allowed.
+func (item Item) BulkDiscountEligible(hasProducts bool) bool {
+	return item.BundleDiscountEnabled && !item.IsLimited() && item.Amount == 1 && !hasProducts
+}
+
+// Product contains one furniture definition granted by a multi-product offer.
+type Product struct {
+	// ID identifies the durable product row.
+	ID int64
+	// CatalogItemID identifies the owning offer.
+	CatalogItemID int64
+	// DefinitionID identifies the granted furniture definition.
+	DefinitionID int64
+	// Quantity stores the number of granted instances.
+	Quantity int32
+	// OrderNum stores stable wire order.
+	OrderNum int32
+}
 
 // LimitedUnit contains one numbered LTD allocation.
 type LimitedUnit struct {

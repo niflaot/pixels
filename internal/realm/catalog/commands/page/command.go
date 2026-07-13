@@ -7,8 +7,10 @@ import (
 
 	"github.com/niflaot/pixels/internal/command"
 	catalogsession "github.com/niflaot/pixels/internal/realm/catalog/commands/session"
+	catalogmodel "github.com/niflaot/pixels/internal/realm/catalog/model"
 	catalogprojection "github.com/niflaot/pixels/internal/realm/catalog/projection"
 	catalogservice "github.com/niflaot/pixels/internal/realm/catalog/service"
+	furnituremodel "github.com/niflaot/pixels/internal/realm/furniture/model"
 	playerlive "github.com/niflaot/pixels/internal/realm/player/live"
 	"github.com/niflaot/pixels/internal/realm/session/binding"
 	netconn "github.com/niflaot/pixels/networking/connection"
@@ -73,14 +75,22 @@ func (handler Handler) Handle(ctx context.Context, envelope command.Envelope[Com
 	}
 	offers := make([]offer.Offer, 0, len(items))
 	for _, item := range items {
-		definition, found, err := handler.Catalog.Definition(ctx, item.DefinitionID)
-		if err != nil {
-			return err
+		products := products(handler.Catalog, ctx, item)
+		if len(products) == 0 {
+			products = []catalogmodel.Product{{DefinitionID: item.DefinitionID, Quantity: item.Amount}}
 		}
-		if !found {
-			return fmt.Errorf("catalog item %d furniture definition %d not found", item.ID, item.DefinitionID)
+		definitions := make(map[int64]furnituremodel.Definition, len(products))
+		for _, product := range products {
+			definition, found, findErr := handler.Catalog.Definition(ctx, product.DefinitionID)
+			if findErr != nil {
+				return findErr
+			}
+			if !found {
+				return fmt.Errorf("catalog item %d furniture definition %d not found", item.ID, product.DefinitionID)
+			}
+			definitions[product.DefinitionID] = definition
 		}
-		mapped, err := catalogprojection.Offer(item, definition)
+		mapped, err := catalogprojection.OfferProducts(item, products, definitions)
 		if err != nil {
 			return fmt.Errorf("map catalog item %d: %w", item.ID, err)
 		}
@@ -98,4 +108,17 @@ func (handler Handler) Handle(ctx context.Context, envelope command.Envelope[Com
 	}
 
 	return envelope.Command.Connection.Send(ctx, packet)
+}
+
+// products resolves optional bundle products with a legacy single-product fallback.
+func products(reader catalogservice.Reader, ctx context.Context, item catalogmodel.Item) []catalogmodel.Product {
+	bundles, ok := reader.(catalogservice.BundleReader)
+	if ok {
+		products := bundles.Products(ctx, item.ID)
+		if len(products) != 0 {
+			return products
+		}
+	}
+
+	return []catalogmodel.Product{{DefinitionID: item.DefinitionID, Quantity: item.Amount}}
 }

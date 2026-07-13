@@ -24,6 +24,7 @@ import (
 	"github.com/niflaot/pixels/pkg/http/openapi"
 	permissionroutes "github.com/niflaot/pixels/pkg/http/permission/routes"
 	roomroutes "github.com/niflaot/pixels/pkg/http/room/routes"
+	subscriptionroutes "github.com/niflaot/pixels/pkg/http/subscription/routes"
 	ws "github.com/niflaot/pixels/pkg/http/websocket"
 	wsroutes "github.com/niflaot/pixels/pkg/http/websocket/routes"
 	"github.com/niflaot/pixels/pkg/i18n"
@@ -40,7 +41,7 @@ func registerPublic(app *fiber.App, config config.AppConfig, info build.Info, we
 }
 
 // registerPrivate registers private authenticated fallback routes.
-func registerPrivate(app *fiber.App, sso *sso.Service, rooms roomservice.Manager, runtime *roomlive.Registry, roomEntry *roomentry.Service, navigator navservice.Manager, currencyAdmin currencyroutes.Dependencies, catalogAdmin catalogroutes.Dependencies, permissionAdmin permissionroutes.Dependencies, roomAdmin roomroutes.Dependencies, chatAdmin chatroutes.Dependencies, messengerAdmin messengerroutes.Dependencies) {
+func registerPrivate(app *fiber.App, sso *sso.Service, rooms roomservice.Manager, runtime *roomlive.Registry, roomEntry *roomentry.Service, navigator navservice.Manager, currencyAdmin currencyroutes.Dependencies, catalogAdmin catalogroutes.Dependencies, permissionAdmin permissionroutes.Dependencies, roomAdmin roomroutes.Dependencies, chatAdmin chatroutes.Dependencies, messengerAdmin messengerroutes.Dependencies, subscriptionAdmin subscriptionroutes.Dependencies) {
 	app.Post("/api/sso/tickets", createSSOTicketHandler(sso))
 	wsroutes.Register(app, currencyAdmin.Connections)
 	roomroutes.Register(app, rooms, runtime, currencyAdmin.Connections, navigator, currencyAdmin.Players, roomEntry, roomAdmin)
@@ -50,6 +51,7 @@ func registerPrivate(app *fiber.App, sso *sso.Service, rooms roomservice.Manager
 	permissionroutes.Register(app, permissionAdmin)
 	chatroutes.Register(app, chatAdmin)
 	messengerroutes.Register(app, messengerAdmin)
+	subscriptionroutes.Register(app, subscriptionAdmin)
 	app.Use(notFoundHandler)
 }
 

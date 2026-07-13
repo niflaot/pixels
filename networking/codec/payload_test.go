@@ -7,8 +7,8 @@ import (
 
 // TestAppendPayloadAndDecodePayload verifies schema-ordered payload round trips.
 func TestAppendPayloadAndDecodePayload(t *testing.T) {
-	definition := Definition{Named("ok", BooleanField), Int32Field, Uint16Field, Uint32Field, StringField, ByteField}
-	payload, err := AppendPayload(nil, definition, Bool(true), Int32(-7), Uint16(9), Uint32(11), String("nitro"), Byte(200))
+	definition := Definition{Named("ok", BooleanField), Int32Field, Uint16Field, Uint32Field, StringField, ByteField, DoubleField}
+	payload, err := AppendPayload(nil, definition, Bool(true), Int32(-7), Uint16(9), Uint32(11), String("nitro"), Byte(200), Float64(0.125))
 	if err != nil {
 		t.Fatalf("append payload: %v", err)
 	}
@@ -22,7 +22,7 @@ func TestAppendPayloadAndDecodePayload(t *testing.T) {
 		t.Fatalf("expected no remaining payload, got %d", len(rest))
 	}
 
-	if !values[0].Boolean || values[1].Int32 != -7 || values[4].String != "nitro" || values[5].Byte != 200 {
+	if !values[0].Boolean || values[1].Int32 != -7 || values[4].String != "nitro" || values[5].Byte != 200 || values[6].Double != 0.125 {
 		t.Fatalf("unexpected values: %#v", values)
 	}
 

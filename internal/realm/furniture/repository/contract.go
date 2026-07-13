@@ -45,6 +45,18 @@ type ItemWriter interface {
 	UpdateItemState(ctx context.Context, params UpdateItemStateParams) (furnituremodel.Item, bool, error)
 }
 
+// GiftItemWriter writes wrapped furniture inventory items.
+type GiftItemWriter interface {
+	// CreateGiftItems creates wrapped inventory items for one recipient.
+	CreateGiftItems(ctx context.Context, params GiftItemParams) ([]furnituremodel.Item, error)
+}
+
+// GiftItemOpener writes placed gift open state.
+type GiftItemOpener interface {
+	// OpenGiftItem marks one placed gift as opened by its owner.
+	OpenGiftItem(ctx context.Context, params OpenGiftItemParams) (furnituremodel.Item, bool, error)
+}
+
 // Store reads and writes furniture persistence records.
 type Store interface {
 	DefinitionReader

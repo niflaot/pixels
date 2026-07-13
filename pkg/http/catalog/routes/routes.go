@@ -22,6 +22,8 @@ type Dependencies struct {
 
 	// Catalog manages persistent catalog administration.
 	Catalog catalogadmin.Manager
+	// Vouchers manages catalog vouchers when the store supports them.
+	Vouchers catalogadmin.VoucherManager `optional:"true"`
 	// Connections stores active protocol connections.
 	Connections *netconn.Registry
 	// Log records catalog publication delivery failures.
@@ -42,6 +44,12 @@ func Register(app *fiber.App, dependencies Dependencies) {
 	app.Delete(basePath+"/items/:id", deleteItemHandler(dependencies))
 	app.Post(basePath+"/refresh", refreshHandler(dependencies))
 	app.Get(basePath+"/sanitize-list", sanitizeListHandler(dependencies))
+	if dependencies.Vouchers != nil {
+		app.Get(basePath+"/vouchers", vouchersHandler(dependencies))
+		app.Post(basePath+"/vouchers", saveVoucherHandler(dependencies, false))
+		app.Patch(basePath+"/vouchers/:id", saveVoucherHandler(dependencies, true))
+		app.Get(basePath+"/vouchers/:id/redemptions", voucherRedemptionsHandler(dependencies))
+	}
 }
 
 // catalogError maps administration errors to stable HTTP failures.

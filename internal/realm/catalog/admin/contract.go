@@ -31,6 +31,16 @@ type Manager interface {
 	Refresh(ctx context.Context) error
 }
 
+// VoucherManager manages catalog vouchers.
+type VoucherManager interface {
+	// Vouchers lists every voucher.
+	Vouchers(ctx context.Context) ([]catalogmodel.Voucher, error)
+	// SaveVoucher creates or updates one voucher.
+	SaveVoucher(ctx context.Context, voucher catalogmodel.Voucher) (catalogmodel.Voucher, error)
+	// VoucherRedemptions lists voucher redemption history.
+	VoucherRedemptions(ctx context.Context, voucherID int64) ([]catalogmodel.VoucherRedemption, error)
+}
+
 // PageInput contains writable catalog page fields.
 type PageInput struct {
 	// ParentID identifies the optional parent page.
@@ -97,8 +107,10 @@ type ItemInput struct {
 	Amount int32
 	// LimitedStack stores numbered stock.
 	LimitedStack int32
-	// OfferID stores an optional future grouping id.
-	OfferID *int64
+	// BundleDiscountEnabled reports whether bulk discounts are enabled.
+	BundleDiscountEnabled bool
+	// Giftable reports whether this offer can be gifted.
+	Giftable bool
 	// ClubOnly reports whether club membership is required.
 	ClubOnly bool
 	// OrderNum stores page display order.
@@ -127,8 +139,10 @@ type ItemPatch struct {
 	Amount *int32
 	// LimitedStack replaces numbered stock when present.
 	LimitedStack *int32
-	// OfferID replaces the optional grouping id when present.
-	OfferID **int64
+	// BundleDiscountEnabled replaces bulk discount eligibility.
+	BundleDiscountEnabled *bool
+	// Giftable replaces gift eligibility.
+	Giftable *bool
 	// ClubOnly replaces club access policy when present.
 	ClubOnly *bool
 	// OrderNum replaces page display order when present.

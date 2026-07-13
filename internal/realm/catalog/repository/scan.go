@@ -22,10 +22,12 @@ func scanPage(row pgx.Row) (catalogmodel.Page, error) {
 	var page catalogmodel.Page
 	var parentID pgtype.Int8
 	var requiredNode pgtype.Text
+	var expiresAt pgtype.Timestamptz
 	var deletedAt pgtype.Timestamptz
 	err := row.Scan(
 		&page.ID, &parentID, &page.Name, &page.Layout, &page.IconColor, &page.IconImage,
-		&requiredNode, &page.OrderNum, &page.Visible, &page.Enabled, &page.ClubOnly,
+		&requiredNode, &page.OrderNum, &page.Visible, &page.Enabled, &page.ClubOnly, &page.NewAdditions,
+		&expiresAt, &page.ExcludedFromKickback,
 		&page.CreatedAt, &page.UpdatedAt, &deletedAt, &page.Version.Version,
 	)
 	if err != nil {
@@ -37,6 +39,7 @@ func scanPage(row pgx.Row) (catalogmodel.Page, error) {
 		page.RequiredNode = &node
 	}
 	page.DeletedAt = timePointer(deletedAt)
+	page.ExpiresAt = timePointer(expiresAt)
 
 	return page, nil
 }
@@ -58,18 +61,18 @@ func scanPages(rows pgx.Rows) ([]catalogmodel.Page, error) {
 // scanItem scans one catalog offer.
 func scanItem(row pgx.Row) (catalogmodel.Item, error) {
 	var item catalogmodel.Item
-	var offerID pgtype.Int8
+	var scheduledAt pgtype.Timestamptz
 	var deletedAt pgtype.Timestamptz
 	err := row.Scan(
 		&item.ID, &item.PageID, &item.DefinitionID, &item.Name, &item.CostCredits,
 		&item.CostPoints, &item.PointsType, &item.Amount, &item.LimitedStack,
-		&item.LimitedSells, &offerID, &item.ClubOnly, &item.OrderNum, &item.Enabled,
-		&item.ExtraData, &item.CreatedAt, &item.UpdatedAt, &deletedAt, &item.Version.Version,
+		&item.LimitedSells, &item.BundleDiscountEnabled, &item.Giftable, &item.ClubOnly, &item.OrderNum, &item.Enabled,
+		&item.ExtraData, &scheduledAt, &item.CreatedAt, &item.UpdatedAt, &deletedAt, &item.Version.Version,
 	)
 	if err != nil {
 		return catalogmodel.Item{}, err
 	}
-	item.OfferID = int64Pointer(offerID)
+	item.ScheduledAt = timePointer(scheduledAt)
 	item.DeletedAt = timePointer(deletedAt)
 
 	return item, nil

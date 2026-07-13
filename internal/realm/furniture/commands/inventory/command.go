@@ -120,14 +120,29 @@ func fragmentRecords(items []furnituremodel.Item, definitions map[int64]furnitur
 		if !ok {
 			continue
 		}
-		records = append(records, outlist.Item{
+		spriteID := definition.SpriteID
+		if item.GiftWrapped && item.GiftWrapSpriteID != nil {
+			spriteID = int(*item.GiftWrapSpriteID)
+		}
+		record := outlist.Item{
 			ID:                  item.ID,
-			SpriteID:            definition.SpriteID,
+			SpriteID:            spriteID,
 			Kind:                inventoryKind(definition.Kind),
 			Category:            inventoryCategory(definition.Name),
 			ExtraData:           item.ExtraData,
 			AllowInventoryStack: definition.AllowInventoryStack,
-		})
+			GiftWrapped:         item.GiftWrapped,
+		}
+		if item.GiftWrapped {
+			record.AllowInventoryStack = false
+		}
+		if item.GiftWrapBoxID != nil {
+			record.GiftBoxID = *item.GiftWrapBoxID
+		}
+		if item.GiftWrapRibbonID != nil {
+			record.GiftRibbonID = *item.GiftWrapRibbonID
+		}
+		records = append(records, record)
 	}
 
 	return records

@@ -86,6 +86,44 @@ go tool cover -func=coverage.out
 | `PIXELS_WS_PONG_TIMEOUT` | `60s` | Maximum duration without a client pong before disconnecting. |
 | `PIXELS_WS_CLOSE_GRACE` | `2s` | Maximum graceful close flushing duration. |
 | `PIXELS_FURNITURE_TELEPORT_BYPASS_LOCKED` | `false` | Allows paired furniture teleports through locked room modes; room bans still apply. |
+| `PIXELS_SUBSCRIPTION_TICK_INTERVAL` | `1m` | Frequency of due-boundary membership lifecycle reconciliation. |
+| `PIXELS_SUBSCRIPTION_PAYDAY_INTERVAL` | `744h` | HC payday accounting period; 744 hours equals 31 days. |
+| `PIXELS_SUBSCRIPTION_KICKBACK_PERCENTAGE` | `0.10` | Eligible catalog credits returned each payday. |
+| `PIXELS_SUBSCRIPTION_PAYDAY_CURRENCY_TYPE` | `-1` | Currency receiving payday rewards; `-1` is credits. |
+
+## HC And VIP
+
+Pixels stores three club levels: `0` for none, `1` for HC, and `2` for VIP.
+VIP is the higher tier and is purchased from the same `HC > Habbo Club`
+catalog page as HC. Nitro's `vip_buy` layout does not render the product code or
+the VIP flag in each row, so the development offers are distinguished by price:
+31 days of HC costs 25 credits and 31 days of VIP costs 39 credits. The 90-day
+offers are extension deals costing 65 and 99 credits respectively.
+
+An active VIP membership remains VIP when HC time is added; purchasing VIP while
+HC is active upgrades the current entitlement. Starting HC after an expired VIP
+membership creates a new HC streak and does not retain the expired VIP level.
+First membership date, current uninterrupted streak, total club time, and total
+VIP time are stored separately.
+
+Payday runs every 31 days by default. It grants the highest applicable streak
+bonus plus the configured percentage of eligible catalog credit spending for
+that exact period. Complete missed periods are reconstructed after downtime,
+and online players receive a newly due payday immediately. Offline rewards are
+claimed exactly once at the next authentication. Monthly gifts use complete
+31-day accumulated club periods and are independent from prepaid time remaining.
+
+Development seeds provide focused scenarios:
+
+| Player | Scenario |
+| --- | --- |
+| `demo` | Active HC, one due payday, one eligible linked purchase, and one gift. |
+| `alice` | Active VIP with accumulated VIP history and one gift. |
+| `bob` | Active HC with two missed paydays and purchases in separate periods. |
+| `carol` | Expired historical membership for reactivation testing. |
+
+Use `GET /api/admin/subscriptions/{playerId}` to inspect durable membership,
+current payday projection, available gifts, and payday history.
 
 ## Database
 

@@ -21,4 +21,7 @@ var (
 
 	// ErrInvalidGender reports an invalid profile gender.
 	ErrInvalidGender = errors.New("invalid player gender")
+
+	// ErrClubWriterUnavailable reports a player store without club persistence.
+	ErrClubWriterUnavailable = errors.New("player club writer unavailable")
 )

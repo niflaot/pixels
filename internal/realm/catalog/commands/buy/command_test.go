@@ -99,6 +99,8 @@ func TestHandleRejectsMismatchedPageAndMissingDefinition(t *testing.T) {
 
 // buyManager supplies catalog purchase fixtures.
 type buyManager struct {
+	// page stores the requested catalog page.
+	page catalogmodel.Page
 	// item stores the offered catalog item.
 	item catalogmodel.Item
 	// definition stores furniture metadata.
@@ -119,9 +121,9 @@ func (buyManager) Pages(context.Context, int64, bool) ([]catalogmodel.Page, erro
 // Page returns the offered item.
 func (manager *buyManager) Page(context.Context, int64, int64, bool) (catalogmodel.Page, []catalogmodel.Item, error) {
 	if manager.pageItems != nil {
-		return catalogmodel.Page{}, manager.pageItems, nil
+		return manager.page, manager.pageItems, nil
 	}
-	return catalogmodel.Page{}, []catalogmodel.Item{manager.item}, nil
+	return manager.page, []catalogmodel.Item{manager.item}, nil
 }
 
 // Definition returns furniture metadata.
@@ -133,8 +135,11 @@ func (manager *buyManager) Definition(context.Context, int64) (furnituremodel.De
 func (buyManager) SanitizeList(context.Context) ([]furnituremodel.Definition, error) { return nil, nil }
 
 // Purchase returns a configured purchase outcome.
-func (manager *buyManager) Purchase(context.Context, catalogservice.PurchaseParams) (catalogservice.PurchaseResult, error) {
+func (manager *buyManager) Purchase(_ context.Context, params catalogservice.PurchaseParams) (catalogservice.PurchaseResult, error) {
 	manager.purchases++
+	if params.Amount > 1 && !manager.item.BundleDiscountEnabled {
+		return catalogservice.PurchaseResult{}, catalogservice.ErrInvalidAmount
+	}
 	if manager.err != nil {
 		return catalogservice.PurchaseResult{}, manager.err
 	}

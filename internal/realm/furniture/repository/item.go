@@ -11,7 +11,7 @@ import (
 
 const (
 	// itemColumns contains the shared furniture item select list.
-	itemColumns = `id, definition_id, owner_player_id, room_id, x, y, z::float8, rotation, wall_position, extra_data, metadata, created_at, updated_at, deleted_at, version`
+	itemColumns = `id, definition_id, owner_player_id, room_id, x, y, z::float8, rotation, wall_position, extra_data, gift_wrapped, gift_wrap_sprite_id, gift_wrap_box_id, gift_wrap_ribbon_id, gift_sender_player_id, gift_message, metadata, created_at, updated_at, deleted_at, version`
 
 	// findItemByIDSQL reads one active furniture item by id.
 	findItemByIDSQL = `select ` + itemColumns + ` from furniture_items where id = $1 and deleted_at is null`
@@ -27,6 +27,9 @@ const (
 insert into furniture_items (definition_id, owner_player_id, extra_data)
 select $1, $2, $4 from generate_series(1, $3)
 returning ` + itemColumns
+
+	// createGiftItemsSQL creates wrapped inventory items in one statement.
+	createGiftItemsSQL = `insert into furniture_items (definition_id,owner_player_id,extra_data,gift_wrapped,gift_wrap_sprite_id,gift_wrap_box_id,gift_wrap_ribbon_id,gift_sender_player_id,gift_message) select $1,$2,$4,true,$5,$6,$7,$8,$9 from generate_series(1,$3) returning ` + itemColumns
 
 	// placeItemSQL moves an owned inventory item into a room.
 	placeItemSQL = `
@@ -55,7 +58,43 @@ update furniture_items
 set extra_data = $4, updated_at = now(), version = version + 1
 where id = $1 and room_id = $2 and extra_data = $3 and deleted_at is null
 returning ` + itemColumns
+
+	// openGiftItemSQL marks one placed gift as opened.
+	openGiftItemSQL = `
+update furniture_items
+set gift_wrapped = false,
+    gift_wrap_sprite_id = null,
+    gift_wrap_box_id = null,
+    gift_wrap_ribbon_id = null,
+    gift_sender_player_id = null,
+    gift_message = null,
+    updated_at = now(),
+    version = version + 1
+where id = $1 and owner_player_id = $2 and room_id = $3 and gift_wrapped = true and deleted_at is null
+returning ` + itemColumns
 )
+
+// GiftItemParams contains wrapped item persistence input.
+type GiftItemParams struct {
+	// DefinitionID identifies the furniture definition.
+	DefinitionID int64
+	// OwnerPlayerID identifies the recipient.
+	OwnerPlayerID int64
+	// Quantity stores the instance count.
+	Quantity int32
+	// ExtraData stores initial furniture state.
+	ExtraData string
+	// SpriteID stores the selected wrapping furniture sprite.
+	SpriteID int32
+	// BoxID stores the wrapping box.
+	BoxID int32
+	// RibbonID stores the wrapping ribbon.
+	RibbonID int32
+	// SenderPlayerID identifies the sender when visible.
+	SenderPlayerID *int64
+	// Message stores the gift message.
+	Message string
+}
 
 // PlaceItemParams contains input for placing an owned inventory item into a room.
 type PlaceItemParams struct {
@@ -108,6 +147,18 @@ type UpdateItemStateParams struct {
 	Next string
 }
 
+// OpenGiftItemParams contains input for opening one placed gift.
+type OpenGiftItemParams struct {
+	// ID identifies the furniture item.
+	ID int64
+
+	// OwnerPlayerID identifies the required current owner.
+	OwnerPlayerID int64
+
+	// RoomID identifies the required current room.
+	RoomID int64
+}
+
 // CreateItems creates inventory items for one owner and definition.
 func (repository *Repository) CreateItems(ctx context.Context, definitionID int64, ownerPlayerID int64, quantity int32, extraData string) ([]furnituremodel.Item, error) {
 	rows, err := repository.executorFor(ctx).Query(ctx, createItemsSQL, definitionID, ownerPlayerID, quantity, extraData)
@@ -116,6 +167,16 @@ func (repository *Repository) CreateItems(ctx context.Context, definitionID int6
 	}
 	defer rows.Close()
 
+	return scanItems(rows)
+}
+
+// CreateGiftItems creates wrapped inventory items for one recipient.
+func (repository *Repository) CreateGiftItems(ctx context.Context, params GiftItemParams) ([]furnituremodel.Item, error) {
+	rows, err := repository.executorFor(ctx).Query(ctx, createGiftItemsSQL, params.DefinitionID, params.OwnerPlayerID, params.Quantity, params.ExtraData, params.SpriteID, params.BoxID, params.RibbonID, params.SenderPlayerID, params.Message)
+	if err != nil {
+		return nil, fmt.Errorf("create wrapped furniture for player %d: %w", params.OwnerPlayerID, err)
+	}
+	defer rows.Close()
 	return scanItems(rows)
 }
 
@@ -152,6 +213,11 @@ func (repository *Repository) PickupItem(ctx context.Context, params PickupItemP
 // UpdateItemState changes one placed item's state with compare-and-swap semantics.
 func (repository *Repository) UpdateItemState(ctx context.Context, params UpdateItemStateParams) (furnituremodel.Item, bool, error) {
 	return repository.queryItem(ctx, updateItemStateSQL, params.ID, params.RoomID, params.Expected, params.Next)
+}
+
+// OpenGiftItem marks one placed gift as opened by its owner.
+func (repository *Repository) OpenGiftItem(ctx context.Context, params OpenGiftItemParams) (furnituremodel.Item, bool, error) {
+	return repository.queryItem(ctx, openGiftItemSQL, params.ID, params.OwnerPlayerID, params.RoomID)
 }
 
 // queryItem runs one row-returning query and reports whether a row was found.

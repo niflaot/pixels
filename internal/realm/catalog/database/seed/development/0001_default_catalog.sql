@@ -1,6 +1,7 @@
 --liquibase formatted sql
 
 --changeset pixels:pixels-catalog-seed-development-0001-default-catalog context:development
+--validCheckSum: 9:94ec78c411280e8b3ba709106899a37f
 insert into catalog_pages (id, parent_id, name, layout, icon_color, icon_image, min_rank, order_num, visible, enabled, club_only)
 overriding system value
 values
@@ -10,15 +11,15 @@ values
     (4, 1, 'sofas_beds', 'default_3x3', 1, 3, 1, 3, true, true, false)
 on conflict do nothing;
 
-insert into catalog_items (id, page_id, definition_id, name, cost_credits, cost_points, points_type, amount, limited_stack, limited_sells, offer_id, club_only, order_num, enabled, extra_data)
+insert into catalog_items (id, page_id, definition_id, name, cost_credits, cost_points, points_type, amount, limited_stack, limited_sells, club_only, order_num, enabled, extra_data)
 overriding system value
 values
-    (1, 2, 2, 'chair_plasto', 2, 0, -1, 1, 0, 0, null, false, 1, true, '0'),
-    (2, 3, 1, 'table_plasto_4leg', 15, 0, -1, 1, 0, 0, null, false, 1, true, '0'),
-    (3, 4, 3, 'sofa_silo', 12, 0, -1, 1, 0, 0, null, false, 1, true, '0'),
-    (4, 4, 3, 'sofa_silo_ltd', 0, 15, 5, 1, 10, 0, null, false, 2, true, '0'),
-    (5, 4, 4, 'bed_silo_one', 20, 0, -1, 1, 0, 0, null, false, 3, true, '0'),
-    (6, 4, 5, 'bed_silo_two', 35, 0, -1, 1, 0, 0, null, false, 4, true, '0')
+    (1, 2, 2, 'chair_plasto', 2, 0, -1, 1, 0, 0, false, 1, true, '0'),
+    (2, 3, 1, 'table_plasto_4leg', 15, 0, -1, 1, 0, 0, false, 1, true, '0'),
+    (3, 4, 3, 'sofa_silo', 12, 0, -1, 1, 0, 0, false, 1, true, '0'),
+    (4, 4, 3, 'sofa_silo_ltd', 0, 15, 5, 1, 10, 0, false, 2, true, '0'),
+    (5, 4, 4, 'bed_silo_one', 20, 0, -1, 1, 0, 0, false, 3, true, '0'),
+    (6, 4, 5, 'bed_silo_two', 35, 0, -1, 1, 0, 0, false, 4, true, '0')
 on conflict do nothing;
 
 insert into catalog_item_limited_units (catalog_item_id, unit_number)

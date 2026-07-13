@@ -12,7 +12,7 @@ import (
 func (service *Service) CreateItem(ctx context.Context, input ItemInput) (catalogmodel.Item, error) {
 	item := catalogmodel.Item{PageID: input.PageID, DefinitionID: input.DefinitionID, Name: strings.TrimSpace(input.Name),
 		CostCredits: input.CostCredits, CostPoints: input.CostPoints, PointsType: input.PointsType,
-		Amount: input.Amount, LimitedStack: input.LimitedStack, OfferID: input.OfferID, ClubOnly: input.ClubOnly,
+		Amount: input.Amount, LimitedStack: input.LimitedStack, BundleDiscountEnabled: input.BundleDiscountEnabled, Giftable: input.Giftable, ClubOnly: input.ClubOnly,
 		OrderNum: input.OrderNum, Enabled: input.Enabled, ExtraData: input.ExtraData}
 	if err := service.validateItem(ctx, item); err != nil {
 		return catalogmodel.Item{}, err
@@ -158,8 +158,11 @@ func applyItemPatch(item *catalogmodel.Item, patch ItemPatch) {
 	if patch.LimitedStack != nil {
 		item.LimitedStack = *patch.LimitedStack
 	}
-	if patch.OfferID != nil {
-		item.OfferID = *patch.OfferID
+	if patch.BundleDiscountEnabled != nil {
+		item.BundleDiscountEnabled = *patch.BundleDiscountEnabled
+	}
+	if patch.Giftable != nil {
+		item.Giftable = *patch.Giftable
 	}
 	if patch.ClubOnly != nil {
 		item.ClubOnly = *patch.ClubOnly

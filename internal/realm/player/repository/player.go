@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	playermodel "github.com/niflaot/pixels/internal/realm/player/model"
+	"github.com/niflaot/pixels/pkg/postgres"
 )
 
 const (
@@ -27,12 +28,21 @@ where id = $1 and deleted_at is null`
 select id, username, created_at, updated_at, deleted_at, version, last_login_at, last_logout_at, last_seen_at, club_level, club_expires_at
 from players
 where lower(username) = lower($1) and deleted_at is null`
+
+	// updateClubSQL updates the derived player club entitlement.
+	updateClubSQL = `update players set club_level=$2, club_expires_at=$3, updated_at=now(), version=version+1 where id=$1 and deleted_at is null`
 )
 
 // CreatePlayerParams contains player creation data.
 type CreatePlayerParams struct {
 	// Username is the unique visible player name.
 	Username string
+}
+
+// UpdateClub updates the derived player club entitlement.
+func (repository *Repository) UpdateClub(ctx context.Context, playerID int64, club playermodel.Club) error {
+	_, err := postgres.ExecutorFor(ctx, repository.executor).Exec(ctx, updateClubSQL, playerID, club.Level, club.ExpiresAt)
+	return err
 }
 
 // CreatePlayer creates a player identity record.

@@ -8,8 +8,16 @@ import (
 	outflooritems "github.com/niflaot/pixels/networking/outbound/room/furniture/flooritems"
 )
 
+// GiftSender stores visible gift sender identity for present tags.
+type GiftSender struct {
+	// Name stores the visible sender name.
+	Name string
+	// Figure stores the visible sender figure.
+	Figure string
+}
+
 // FloorItems maps placed furniture items into ROOM_FLOOR_ITEMS records.
-func FloorItems(items []furnituremodel.Item, definitions map[int64]furnituremodel.Definition, ownerNames map[int64]string) ([]outflooritems.Owner, []outflooritems.FloorItem) {
+func FloorItems(items []furnituremodel.Item, definitions map[int64]furnituremodel.Definition, ownerNames map[int64]string, giftSenders map[int64]GiftSender) ([]outflooritems.Owner, []outflooritems.FloorItem) {
 	owners := ownerRecords(items, ownerNames)
 	records := make([]outflooritems.FloorItem, 0, len(items))
 	for _, item := range items {
@@ -17,17 +25,18 @@ func FloorItems(items []furnituremodel.Item, definitions map[int64]furnituremode
 		if !ok || item.X == nil || item.Y == nil || item.Z == nil {
 			continue
 		}
-		records = append(records, floorItemRecord(item, definition))
+		records = append(records, floorItemRecord(item, definition, giftSenders))
 	}
 
 	return owners, records
 }
 
 // floorItemRecord maps one persisted item and its definition to a protocol floor item.
-func floorItemRecord(item furnituremodel.Item, definition furnituremodel.Definition) outflooritems.FloorItem {
+func floorItemRecord(item furnituremodel.Item, definition furnituremodel.Definition, giftSenders map[int64]GiftSender) outflooritems.FloorItem {
+	sender := giftSenderRecord(item, giftSenders)
 	return outflooritems.FloorItem{
 		ID:          item.ID,
-		SpriteID:    definition.SpriteID,
+		SpriteID:    FurnitureSpriteID(item, definition),
 		X:           *item.X,
 		Y:           *item.Y,
 		Rotation:    int(item.Rotation),
@@ -35,8 +44,50 @@ func floorItemRecord(item furnituremodel.Item, definition furnituremodel.Definit
 		ExtraHeight: ExtraHeightValue(definition),
 		ExtraData:   item.ExtraData,
 		UsagePolicy: UsagePolicyValue(definition),
+		Kind:        FurnitureKindValue(item),
+		GiftWrapped: item.GiftWrapped,
 		OwnerID:     item.OwnerPlayerID,
+		GiftMessage: giftMessage(item),
+		GiftProductCode: definition.Name,
+		GiftSenderName: sender.Name,
+		GiftSenderFigure: sender.Figure,
 	}
+}
+
+// giftMessage returns the optional persisted gift message.
+func giftMessage(item furnituremodel.Item) string {
+	if item.GiftMessage == nil {
+		return ""
+	}
+
+	return *item.GiftMessage
+}
+
+// giftSenderRecord resolves the optional persisted gift sender.
+func giftSenderRecord(item furnituremodel.Item, giftSenders map[int64]GiftSender) GiftSender {
+	if item.GiftSenderPlayerID == nil || giftSenders == nil {
+		return GiftSender{}
+	}
+
+	return giftSenders[*item.GiftSenderPlayerID]
+}
+
+// FurnitureSpriteID returns the wrapper sprite for unopened gifts.
+func FurnitureSpriteID(item furnituremodel.Item, definition furnituremodel.Definition) int {
+	if item.GiftWrapped && item.GiftWrapSpriteID != nil {
+		return int(*item.GiftWrapSpriteID)
+	}
+
+	return definition.SpriteID
+}
+
+// FurnitureKindValue returns the packed box and ribbon variant for unopened gifts.
+func FurnitureKindValue(item furnituremodel.Item) int32 {
+	if !item.GiftWrapped || item.GiftWrapBoxID == nil || item.GiftWrapRibbonID == nil {
+		return 1
+	}
+
+	return *item.GiftWrapBoxID*1000 + *item.GiftWrapRibbonID
 }
 
 // ownerRecords maps distinct item owners into protocol owner records.

@@ -14,6 +14,7 @@ import (
 	realmplayer "github.com/niflaot/pixels/internal/realm/player"
 	realmroom "github.com/niflaot/pixels/internal/realm/room"
 	realmsession "github.com/niflaot/pixels/internal/realm/session"
+	realmsubscription "github.com/niflaot/pixels/internal/realm/subscription"
 	netconn "github.com/niflaot/pixels/networking/connection"
 	"github.com/niflaot/pixels/pkg/build"
 	"github.com/niflaot/pixels/pkg/bus"
@@ -57,6 +58,7 @@ func options() []fx.Option {
 	options = append(options, realmplayer.Module)
 	options = append(options, realmroom.Module)
 	options = append(options, realmsession.Module)
+	options = append(options, realmsubscription.Module)
 	options = append(options, sso.Module)
 	options = append(options, ws.Module)
 	options = append(options, logger.Module)

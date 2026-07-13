@@ -21,6 +21,12 @@ type PlayerWriter interface {
 	CreatePlayer(ctx context.Context, params CreatePlayerParams) (playermodel.Player, error)
 }
 
+// ClubWriter writes derived player club entitlement state.
+type ClubWriter interface {
+	// UpdateClub updates the derived player club entitlement.
+	UpdateClub(ctx context.Context, playerID int64, club playermodel.Club) error
+}
+
 // ProfileReader reads player profile records.
 type ProfileReader interface {
 	// FindProfileByPlayerID finds a profile by player id.

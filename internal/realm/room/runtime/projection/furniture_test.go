@@ -25,7 +25,7 @@ func TestFloorItemsMapsOwnersAndRecords(t *testing.T) {
 	}
 	ownerNames := map[int64]string{1: "demo", 2: "alice"}
 
-	owners, records := FloorItems(items, definitions, ownerNames)
+	owners, records := FloorItems(items, definitions, ownerNames, nil)
 
 	if len(owners) != 2 || owners[0].ID != 1 || owners[0].Name != "demo" || owners[1].ID != 2 || owners[1].Name != "alice" {
 		t.Fatalf("unexpected owners %#v", owners)
@@ -60,11 +60,24 @@ func TestFloorItemsSkipsOrphanedAndUnplacedItems(t *testing.T) {
 	}
 	definitions := map[int64]furnituremodel.Definition{2: {SpriteID: 39}}
 
-	owners, records := FloorItems(items, definitions, nil)
+	owners, records := FloorItems(items, definitions, nil, nil)
 	if len(records) != 0 {
 		t.Fatalf("expected no records, got %#v", records)
 	}
 	if len(owners) != 1 || owners[0].Name != "" {
 		t.Fatalf("expected one owner with empty resolved name, got %#v", owners)
+	}
+}
+
+// TestFloorItemsProjectsGiftWrapper verifies unopened gifts render as presents.
+func TestFloorItemsProjectsGiftWrapper(t *testing.T) {
+	x, y, z := 1, 2, 0.0
+	sprite, box, ribbon := int32(3379), int32(2), int32(7)
+	item := furnituremodel.Item{DefinitionID: 2, OwnerPlayerID: 4, X: &x, Y: &y, Z: &z,
+		GiftWrapped: true, GiftWrapSpriteID: &sprite, GiftWrapBoxID: &box, GiftWrapRibbonID: &ribbon}
+	item.ID = 40
+	_, records := FloorItems([]furnituremodel.Item{item}, map[int64]furnituremodel.Definition{2: {SpriteID: 39}}, nil, nil)
+	if len(records) != 1 || records[0].SpriteID != 3379 || records[0].Kind != 2007 {
+		t.Fatalf("unexpected gift room record %#v", records)
 	}
 }

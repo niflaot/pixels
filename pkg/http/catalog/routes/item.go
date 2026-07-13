@@ -6,6 +6,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	catalogadmin "github.com/niflaot/pixels/internal/realm/catalog/admin"
+	catalogmodel "github.com/niflaot/pixels/internal/realm/catalog/model"
 )
 
 // itemsHandler lists active catalog offers.
@@ -39,6 +40,9 @@ func createItemHandler(dependencies Dependencies) fiber.Handler {
 		if err != nil {
 			return catalogError(err)
 		}
+		if _, _, err := publishCatalog(ctx.Context(), dependencies); err != nil {
+			return err
+		}
 
 		return ctx.JSON(itemResponse(item))
 	}
@@ -59,6 +63,9 @@ func updateItemHandler(dependencies Dependencies) fiber.Handler {
 		if err != nil {
 			return catalogError(err)
 		}
+		if _, _, err := publishCatalog(ctx.Context(), dependencies); err != nil {
+			return err
+		}
 
 		return ctx.JSON(itemResponse(item))
 	}
@@ -73,6 +80,9 @@ func deleteItemHandler(dependencies Dependencies) fiber.Handler {
 		}
 		if err := dependencies.Catalog.DeleteItem(ctx.Context(), id); err != nil {
 			return catalogError(err)
+		}
+		if _, _, err := publishCatalog(ctx.Context(), dependencies); err != nil {
+			return err
 		}
 
 		return ctx.SendStatus(fiber.StatusNoContent)
@@ -96,12 +106,61 @@ func optionalPageID(raw string) (*int64, error) {
 func itemPatch(request ItemPatchRequest) catalogadmin.ItemPatch {
 	patch := catalogadmin.ItemPatch{PageID: request.PageID, DefinitionID: request.DefinitionID, Name: request.Name,
 		CostCredits: request.CostCredits, CostPoints: request.CostPoints, PointsType: request.PointsType,
-		Amount: request.Amount, LimitedStack: request.LimitedStack, ClubOnly: request.ClubOnly,
+		Amount: request.Amount, LimitedStack: request.LimitedStack, BundleDiscountEnabled: request.BundleDiscountEnabled,
+		Giftable: request.Giftable, ClubOnly: request.ClubOnly,
 		OrderNum: request.OrderNum, Enabled: request.Enabled, ExtraData: request.ExtraData}
-	if request.OfferID != nil {
-		offerID := request.OfferID
-		patch.OfferID = &offerID
-	}
 
 	return patch
+}
+
+// vouchersHandler lists catalog vouchers.
+func vouchersHandler(dependencies Dependencies) fiber.Handler {
+	return func(ctx *fiber.Ctx) error {
+		vouchers, err := dependencies.Vouchers.Vouchers(ctx.Context())
+		if err != nil {
+			return catalogError(err)
+		}
+		return ctx.JSON(vouchers)
+	}
+}
+
+// saveVoucherHandler creates or updates one voucher.
+func saveVoucherHandler(dependencies Dependencies, update bool) fiber.Handler {
+	return func(ctx *fiber.Ctx) error {
+		var request VoucherRequest
+		if err := ctx.BodyParser(&request); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "invalid catalog voucher request")
+		}
+		id := int64(0)
+		if update {
+			var err error
+			id, err = routeID(ctx)
+			if err != nil {
+				return err
+			}
+		}
+		voucher, err := dependencies.Vouchers.SaveVoucher(ctx.Context(), catalogmodel.Voucher{ID: id, Code: request.Code,
+			CostCredits: request.CostCredits, CostPoints: request.CostPoints, PointsType: request.PointsType,
+			CatalogItemID: request.CatalogItemID, RedemptionCap: request.RedemptionCap, PerPlayerCap: request.PerPlayerCap,
+			Enabled: request.Enabled, ExpiresAt: request.ExpiresAt})
+		if err != nil {
+			return catalogError(err)
+		}
+		return ctx.JSON(voucher)
+	}
+}
+
+// voucherRedemptionsHandler lists voucher use history.
+func voucherRedemptionsHandler(dependencies Dependencies) fiber.Handler {
+	return func(ctx *fiber.Ctx) error {
+		id, err := routeID(ctx)
+		if err != nil {
+			return err
+		}
+		redemptions, err := dependencies.Vouchers.VoucherRedemptions(ctx.Context(), id)
+		if err != nil {
+			return catalogError(err)
+		}
+		return ctx.JSON(redemptions)
+	}
 }

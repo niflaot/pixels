@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	permissionservice "github.com/niflaot/pixels/internal/permission/service"
 	catalogmodel "github.com/niflaot/pixels/internal/realm/catalog/model"
@@ -10,6 +11,7 @@ import (
 	furnituremodel "github.com/niflaot/pixels/internal/realm/furniture/model"
 	furnitureservice "github.com/niflaot/pixels/internal/realm/furniture/service"
 	currencyservice "github.com/niflaot/pixels/internal/realm/inventory/currency/service"
+	playerservice "github.com/niflaot/pixels/internal/realm/player/service"
 	"github.com/niflaot/pixels/pkg/bus"
 	"go.uber.org/zap"
 )
@@ -18,6 +20,8 @@ import (
 type Service struct {
 	// store persists catalog records and transaction boundaries.
 	store catalogrepo.Store
+	// commerce persists optional extended store capabilities.
+	commerce catalogrepo.CommerceStore
 
 	// currencies charges player balances.
 	currencies currencyservice.Granter
@@ -38,6 +42,15 @@ type Service struct {
 	log *zap.Logger
 	// permissions resolves optional catalog page requirements.
 	permissions permissionservice.Checker
+
+	// players resolves gift recipients.
+	players playerservice.Finder
+}
+
+// WithPlayers configures player lookup for catalog gifts.
+func (service *Service) WithPlayers(players playerservice.Finder) *Service {
+	service.players = players
+	return service
 }
 
 // New creates a catalog service.
@@ -47,6 +60,7 @@ func New(store catalogrepo.Store, currencies currencyservice.Granter, furniture 
 	}
 
 	service := &Service{store: store, currencies: currencies, furniture: furniture, cache: newCache(), events: events, log: log}
+	service.commerce, _ = store.(catalogrepo.CommerceStore)
 	if len(checkers) > 0 {
 		service.permissions = checkers[0]
 	}
@@ -75,10 +89,22 @@ func (service *Service) Refresh(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("refresh catalog furniture definitions: %w", err)
 	}
+	var products []catalogmodel.Product
+	if service.commerce != nil {
+		products, err = service.commerce.ListProducts(ctx)
+		if err != nil {
+			return fmt.Errorf("refresh catalog products: %w", err)
+		}
+	}
 
-	service.cache.replace(pages, items, definitions)
+	service.cache.replace(pages, items, definitions, products)
 
 	return nil
+}
+
+// Products returns cached bundle products for one offer.
+func (service *Service) Products(_ context.Context, catalogItemID int64) []catalogmodel.Product {
+	return service.cache.products(catalogItemID)
 }
 
 // Definition returns cached furniture metadata for one catalog offer.
@@ -135,36 +161,34 @@ func (service *Service) SanitizeList(ctx context.Context) ([]furnituremodel.Defi
 	return service.store.SanitizeList(ctx)
 }
 
-// pageAccessible verifies a page and every cached ancestor.
-func (service *Service) pageAccessible(ctx context.Context, page catalogmodel.Page, playerID int64, hasClub bool) (bool, error) {
-	visited := make(map[int64]struct{})
-	for {
-		if _, found := visited[page.ID]; found {
-			return false, nil
-		}
-		visited[page.ID] = struct{}{}
-		if !page.Accessible(hasClub) {
-			return false, nil
-		}
-		if page.RequiredNode != nil {
-			if service.permissions == nil {
-				return false, nil
-			}
-			allowed, err := service.permissions.HasPermission(ctx, playerID, *page.RequiredNode)
-			if err != nil {
-				return false, err
-			}
-			if !allowed {
-				return false, nil
-			}
-		}
-		if page.ParentID == nil {
-			return true, nil
-		}
-		parent, found := service.cache.page(*page.ParentID)
-		if !found {
-			return false, nil
-		}
-		page = parent
+// MarkNewAdditionsSeen records catalog novelty acknowledgement.
+func (service *Service) MarkNewAdditionsSeen(ctx context.Context, playerID int64) error {
+	if service.commerce == nil {
+		return ErrCommerceUnavailable
 	}
+	return service.commerce.MarkNewAdditionsSeen(ctx, playerID)
+}
+
+// NewAdditionsAvailable reports whether one player has unseen novelty offers.
+func (service *Service) NewAdditionsAvailable(ctx context.Context, playerID int64) (bool, error) {
+	if service.commerce == nil {
+		return false, nil
+	}
+	return service.commerce.NewAdditionsAvailable(ctx, playerID)
+}
+
+// CreditsSpentSince sums kickback-eligible catalog spending.
+func (service *Service) CreditsSpentSince(ctx context.Context, playerID int64, since time.Time) (int64, error) {
+	if service.commerce == nil {
+		return 0, ErrCommerceUnavailable
+	}
+	return service.commerce.CreditsSpentSince(ctx, playerID, since)
+}
+
+// CreditsSpentBetween sums kickback-eligible spending inside one payday period.
+func (service *Service) CreditsSpentBetween(ctx context.Context, playerID int64, after time.Time, through time.Time) (int64, error) {
+	if service.commerce == nil {
+		return 0, ErrCommerceUnavailable
+	}
+	return service.commerce.CreditsSpentBetween(ctx, playerID, after, through)
 }

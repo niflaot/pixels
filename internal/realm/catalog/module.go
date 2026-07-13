@@ -6,10 +6,12 @@ import (
 
 	permissionservice "github.com/niflaot/pixels/internal/permission/service"
 	catalogadmin "github.com/niflaot/pixels/internal/realm/catalog/admin"
+	"github.com/niflaot/pixels/internal/realm/catalog/gift"
 	catalogrepo "github.com/niflaot/pixels/internal/realm/catalog/repository"
 	catalogservice "github.com/niflaot/pixels/internal/realm/catalog/service"
 	furnitureservice "github.com/niflaot/pixels/internal/realm/furniture/service"
 	currencyservice "github.com/niflaot/pixels/internal/realm/inventory/currency/service"
+	playerservice "github.com/niflaot/pixels/internal/realm/player/service"
 	"github.com/niflaot/pixels/pkg/bus"
 	"github.com/niflaot/pixels/pkg/postgres"
 	"go.uber.org/fx"
@@ -24,15 +26,22 @@ var Module = fx.Module(
 		NewService,
 		NewManager,
 		NewReader,
+		gift.NewOptions,
 		catalogadmin.New,
 		NewAdminManager,
+		NewVoucherManager,
 	),
 	fx.Invoke(RegisterLifecycle, RegisterConnectionHandlers),
 )
 
 // NewService creates permission-aware catalog behavior.
-func NewService(store catalogrepo.Store, currencies currencyservice.Granter, furniture furnitureservice.DefinitionGranter, teleportPairs furnitureservice.TeleportPairer, events bus.Publisher, log *zap.Logger, permissions permissionservice.Checker) *catalogservice.Service {
-	return catalogservice.New(store, currencies, furniture, events, log, permissions).WithTeleportPairer(teleportPairs)
+func NewService(store catalogrepo.Store, currencies currencyservice.Granter, furniture furnitureservice.DefinitionGranter, teleportPairs furnitureservice.TeleportPairer, events bus.Publisher, log *zap.Logger, permissions permissionservice.Checker, players playerservice.Finder) *catalogservice.Service {
+	return catalogservice.New(store, currencies, furniture, events, log, permissions).WithTeleportPairer(teleportPairs).WithPlayers(players)
+}
+
+// NewVoucherManager exposes voucher administration behavior.
+func NewVoucherManager(service *catalogadmin.Service) catalogadmin.VoucherManager {
+	return service
 }
 
 // NewStore creates catalog persistence behavior.

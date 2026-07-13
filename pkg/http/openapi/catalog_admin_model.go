@@ -96,8 +96,10 @@ type CatalogItemRequest struct {
 	Amount int32 `json:"amount" required:"true" minimum:"1"`
 	// LimitedStack stores numbered stock or zero.
 	LimitedStack int32 `json:"limitedStack" minimum:"0"`
-	// OfferID stores an optional future grouping id.
-	OfferID *int64 `json:"offerId,omitempty" minimum:"1"`
+	// BundleDiscountEnabled permits bulk purchases with protocol discounts.
+	BundleDiscountEnabled bool `json:"bundleDiscountEnabled"`
+	// Giftable permits purchasing the offer for another player.
+	Giftable bool `json:"giftable"`
 	// ClubOnly reports club access policy.
 	ClubOnly bool `json:"clubOnly"`
 	// OrderNum stores page display order.

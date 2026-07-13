@@ -35,6 +35,9 @@ func createPageHandler(dependencies Dependencies) fiber.Handler {
 		if err != nil {
 			return catalogError(err)
 		}
+		if _, _, err := publishCatalog(ctx.Context(), dependencies); err != nil {
+			return err
+		}
 
 		return ctx.JSON(pageResponse(page))
 	}
@@ -54,6 +57,9 @@ func updatePageHandler(dependencies Dependencies) fiber.Handler {
 		page, err := dependencies.Catalog.UpdatePage(ctx.Context(), id, pagePatch(request))
 		if err != nil {
 			return catalogError(err)
+		}
+		if _, _, err := publishCatalog(ctx.Context(), dependencies); err != nil {
+			return err
 		}
 
 		return ctx.JSON(pageResponse(page))

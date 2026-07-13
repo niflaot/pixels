@@ -152,13 +152,15 @@ func assignValues(destinations []any, values []any) {
 // pageValuesForTest returns one scannable page row.
 func pageValuesForTest() []any {
 	now := time.Date(2026, 7, 9, 12, 0, 0, 0, time.UTC)
-	return []any{int64(1), pgtype.Int8{}, "chairs", "default_3x3", int32(1), int32(2), int32(1), int32(0), true, true, false, now, now, pgtype.Timestamptz{}, int64(1)}
+	return []any{int64(1), pgtype.Int8{}, "chairs", "default_3x3", int32(1), int32(2), pgtype.Text{}, int32(0),
+		true, true, false, false, pgtype.Timestamptz{}, false, now, now, pgtype.Timestamptz{}, int64(1)}
 }
 
 // itemValuesForTest returns one scannable offer row.
 func itemValuesForTest() []any {
 	now := time.Date(2026, 7, 9, 12, 0, 0, 0, time.UTC)
-	return []any{int64(2), int64(1), int64(3), "chair_plasto", int64(10), int64(0), int32(-1), int32(1), int32(0), int32(0), pgtype.Int8{}, false, int32(0), true, "0", now, now, pgtype.Timestamptz{}, int64(1)}
+	return []any{int64(2), int64(1), int64(3), "chair_plasto", int64(10), int64(0), int32(-1), int32(1), int32(0), int32(0),
+		false, false, false, int32(0), true, "0", pgtype.Timestamptz{}, now, now, pgtype.Timestamptz{}, int64(1)}
 }
 
 // TestRepositoryTransactionRunsWork verifies the injected transaction boundary.

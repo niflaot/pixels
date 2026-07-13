@@ -18,6 +18,7 @@ var Module = fx.Module(
 		NewService,
 		NewCreator,
 		NewFinder,
+		NewClubWriter,
 		NewManager,
 	),
 )
@@ -25,6 +26,11 @@ var Module = fx.Module(
 // NewService creates player behavior with default permission assignment.
 func NewService(store repository.Store, permissions permissionservice.DefaultAssigner) *service.Service {
 	return service.New(store, permissions)
+}
+
+// NewClubWriter exposes derived club entitlement updates.
+func NewClubWriter(playerService *service.Service) service.ClubWriter {
+	return playerService
 }
 
 // NewStore creates the player persistence store.

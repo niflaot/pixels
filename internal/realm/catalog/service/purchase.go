@@ -9,21 +9,40 @@ import (
 	catalogmodel "github.com/niflaot/pixels/internal/realm/catalog/model"
 	furnituremodel "github.com/niflaot/pixels/internal/realm/furniture/model"
 	furnitureservice "github.com/niflaot/pixels/internal/realm/furniture/service"
-	currencyservice "github.com/niflaot/pixels/internal/realm/inventory/currency/service"
 	"github.com/niflaot/pixels/pkg/bus"
 	"go.uber.org/zap"
 )
 
+const (
+	// MaxPurchaseUnits is the maximum number of furniture instances in one purchase.
+	MaxPurchaseUnits int32 = 100
+	// DiscountBatchSize controls the base bulk discount cadence.
+	DiscountBatchSize int32 = 6
+)
+
+var (
+	// AdditionalDiscountThresholds stores extra free-unit thresholds.
+	AdditionalDiscountThresholds = [...]int32{40, 99}
+)
+
 // Purchase buys one catalog offer.
 func (service *Service) Purchase(ctx context.Context, params PurchaseParams) (PurchaseResult, error) {
+	if params.Amount == 0 {
+		params.Amount = 1
+	}
 	item, err := service.purchaseOffer(ctx, params)
 	if err != nil {
 		return PurchaseResult{}, err
 	}
 
+	products := service.cache.products(item.ID)
+	overrideQuantity := params.OverrideCredits != nil || params.OverridePoints != nil
+	if err := validateAmount(item, products, params.Amount, overrideQuantity); err != nil {
+		return PurchaseResult{}, err
+	}
 	result := PurchaseResult{Item: item}
 	err = service.store.WithinTransaction(ctx, func(txCtx context.Context) error {
-		return service.commitPurchase(txCtx, params, item, &result)
+		return service.commitPurchase(txCtx, params, item, products, &result)
 	})
 	if err != nil {
 		return PurchaseResult{}, err
@@ -67,7 +86,7 @@ func (service *Service) purchaseOffer(ctx context.Context, params PurchaseParams
 }
 
 // commitPurchase charges and grants one offer inside the active transaction.
-func (service *Service) commitPurchase(ctx context.Context, params PurchaseParams, item catalogmodel.Item, result *PurchaseResult) error {
+func (service *Service) commitPurchase(ctx context.Context, params PurchaseParams, item catalogmodel.Item, products []catalogmodel.Product, result *PurchaseResult) error {
 	if item.IsLimited() {
 		number, reserved, err := service.store.ReserveLimitedUnit(ctx, item.ID, params.PlayerID)
 		if err != nil {
@@ -79,21 +98,40 @@ func (service *Service) commitPurchase(ctx context.Context, params PurchaseParam
 		result.LimitedUnitNumber = &number
 	}
 
-	balance, err := service.charge(ctx, params.PlayerID, item)
+	balance, credits, points, err := service.charge(ctx, params.PlayerID, item, params)
 	if err != nil {
 		return err
 	}
+	result.ChargedCredits = credits
+	result.ChargedPoints = points
 	if item.IsCredits() {
 		result.NewCreditsBalance = balance
 	} else {
 		result.NewPointsBalance = balance
 	}
 
-	result.GrantedItems, err = service.furniture.Grant(ctx, furnitureservice.GrantParams{
-		DefinitionID: item.DefinitionID, OwnerPlayerID: params.PlayerID, Quantity: item.Amount, ExtraData: item.ExtraData,
-	})
-	if err != nil {
-		return fmt.Errorf("grant catalog item %d furniture: %w", item.ID, err)
+	recipientID := params.RecipientPlayerID
+	if recipientID == 0 {
+		recipientID = params.PlayerID
+	}
+	if len(products) == 0 {
+		products = []catalogmodel.Product{{DefinitionID: item.DefinitionID, Quantity: item.Amount}}
+	}
+	for _, product := range products {
+		var granted []furnituremodel.Item
+		var grantErr error
+		grant := furnitureservice.GrantParams{DefinitionID: product.DefinitionID, OwnerPlayerID: recipientID, Quantity: product.Quantity * params.Amount, ExtraData: item.ExtraData}
+		if params.Gift == nil {
+			granted, grantErr = service.furniture.Grant(ctx, grant)
+		} else if gifts, ok := service.furniture.(furnitureservice.GiftGranter); ok {
+			granted, grantErr = gifts.GrantGift(ctx, furnitureservice.GiftGrantParams{GrantParams: grant, SpriteID: params.Gift.SpriteID, BoxID: params.Gift.BoxID, RibbonID: params.Gift.RibbonID, SenderPlayerID: params.Gift.SenderPlayerID, Message: params.Gift.Message})
+		} else {
+			grantErr = ErrOfferNotGiftable
+		}
+		if grantErr != nil {
+			return fmt.Errorf("grant catalog item %d furniture: %w", item.ID, grantErr)
+		}
+		result.GrantedItems = append(result.GrantedItems, granted...)
 	}
 	if err := service.pairGrantedTeleports(ctx, params.PlayerID, item, result.GrantedItems); err != nil {
 		return err
@@ -110,44 +148,61 @@ func (service *Service) commitPurchase(ctx context.Context, params PurchaseParam
 			return ErrLimitedCompletion
 		}
 	}
-
-	return nil
-}
-
-// pairGrantedTeleports pairs every adjacent teleport instance from one offer.
-func (service *Service) pairGrantedTeleports(ctx context.Context, playerID int64, item catalogmodel.Item, granted []furnituremodel.Item) error {
-	definition, found := service.cache.definition(item.DefinitionID)
-	if !found || (definition.InteractionType != "teleport" && definition.InteractionType != "teleport_tile") {
-		return nil
-	}
-	if service.teleportPairs == nil || len(granted) == 0 || len(granted)%2 != 0 {
-		return ErrTeleportPairing
-	}
-	for index := 0; index < len(granted); index += 2 {
-		if err := service.teleportPairs.PairTeleports(ctx, playerID, granted[index].ID, granted[index+1].ID); err != nil {
-			return fmt.Errorf("%w: %v", ErrTeleportPairing, err)
+	if !params.Free && service.commerce != nil {
+		itemIDs := make([]int64, len(result.GrantedItems))
+		for index, granted := range result.GrantedItems {
+			itemIDs[index] = granted.ID
+		}
+		if err := service.commerce.LogPurchase(ctx, params.PlayerID, item, params.Amount, credits, points, itemIDs); err != nil {
+			return fmt.Errorf("log catalog purchase: %w", err)
 		}
 	}
 
 	return nil
 }
 
-// charge deducts the configured offer price.
-func (service *Service) charge(ctx context.Context, playerID int64, item catalogmodel.Item) (int64, error) {
-	currencyType := item.PointsType
-	cost := item.CostPoints
-	if item.IsCredits() {
-		currencyType = catalogmodel.CreditsType
-		cost = item.CostCredits
+// DiscountedUnits returns the number of free units for a bulk amount.
+func DiscountedUnits(amount int32) int32 {
+	basic := amount / DiscountBatchSize
+	bonus := int32(0)
+	if basic >= 1 {
+		if amount%DiscountBatchSize == DiscountBatchSize-1 {
+			bonus = 1
+		}
+		bonus += basic - 1
 	}
-	if cost == 0 {
-		return 0, nil
+	additional := int32(0)
+	for _, threshold := range AdditionalDiscountThresholds {
+		if amount >= threshold {
+			additional++
+		}
 	}
+	discounted := basic + bonus + additional
+	if discounted > amount {
+		return amount
+	}
+	return discounted
+}
 
-	return service.currencies.Grant(ctx, currencyservice.GrantParams{
-		PlayerID: playerID, CurrencyType: currencyType, Amount: -cost,
-		Reason: "catalog_purchase", ActorKind: currencyservice.ActorPlayer,
-	})
+// validateAmount validates anti-cheat purchase quantity rules.
+func validateAmount(item catalogmodel.Item, products []catalogmodel.Product, amount int32, overrideQuantity bool) error {
+	if amount <= 0 || item.IsLimited() && amount != 1 {
+		return ErrInvalidAmount
+	}
+	if amount > 1 && !overrideQuantity && !item.BulkDiscountEligible(len(products) > 0) {
+		return ErrInvalidAmount
+	}
+	units := item.Amount
+	if len(products) > 0 {
+		units = 0
+		for _, product := range products {
+			units += product.Quantity
+		}
+	}
+	if int64(units)*int64(amount) > int64(MaxPurchaseUnits) {
+		return ErrInvalidAmount
+	}
+	return nil
 }
 
 // refreshAfterLimited refreshes stock cache after an LTD purchase.

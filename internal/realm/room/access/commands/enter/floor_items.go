@@ -40,14 +40,51 @@ func (handler Handler) sendFloorItems(ctx context.Context, connection netconn.Co
 	if err != nil {
 		return err
 	}
+	senders, err := handler.giftSenders(ctx, active, items)
+	if err != nil {
+		return err
+	}
 
-	owners, records := projection.FloorItems(items, definitions, names)
+	owners, records := projection.FloorItems(items, definitions, names, senders)
 	packet, err := outflooritems.Encode(owners, records)
 	if err != nil {
 		return err
 	}
 
 	return connection.Send(ctx, packet)
+}
+
+// giftSenders resolves visible sender data for placed gifts.
+func (handler Handler) giftSenders(ctx context.Context, active *roomlive.Room, items []furnituremodel.Item) (map[int64]projection.GiftSender, error) {
+	senders := make(map[int64]projection.GiftSender)
+	if active != nil {
+		for _, occupant := range active.Occupants() {
+			senders[occupant.PlayerID] = projection.GiftSender{Name: occupant.Username, Figure: occupant.Figure}
+		}
+	}
+	if handler.PlayerDirectory == nil {
+		return senders, nil
+	}
+
+	for _, item := range items {
+		if item.GiftSenderPlayerID == nil {
+			continue
+		}
+		if _, resolved := senders[*item.GiftSenderPlayerID]; resolved {
+			continue
+		}
+		record, found, err := handler.PlayerDirectory.FindByID(ctx, *item.GiftSenderPlayerID)
+		if err != nil {
+			return nil, err
+		}
+		if found {
+			senders[*item.GiftSenderPlayerID] = projection.GiftSender{
+				Name: record.Player.Username, Figure: record.Profile.Look,
+			}
+		}
+	}
+
+	return senders, nil
 }
 
 // ownerNames resolves owner display names from the room owner, current occupants, and, for any

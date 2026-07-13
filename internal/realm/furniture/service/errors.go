@@ -41,4 +41,13 @@ var (
 
 	// ErrStateConflict reports a concurrent furniture state mutation.
 	ErrStateConflict = errors.New("furniture state changed concurrently")
+
+	// ErrGiftWriterUnavailable reports furniture persistence without wrapped grants.
+	ErrGiftWriterUnavailable = errors.New("furniture gift writer unavailable")
+
+	// ErrGiftOpenerUnavailable reports furniture persistence without gift opening support.
+	ErrGiftOpenerUnavailable = errors.New("furniture gift opener unavailable")
+
+	// ErrItemNotGift reports an open request for a non-gift item.
+	ErrItemNotGift = errors.New("furniture item is not an unopened gift")
 )

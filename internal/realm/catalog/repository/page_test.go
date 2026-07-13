@@ -19,7 +19,7 @@ func TestPagePersistenceScansAndWrites(t *testing.T) {
 
 	executor.row = fakeRow{values: pageValuesForTest()}
 	created, err := newRepository(executor).CreatePage(context.Background(), catalogmodel.Page{Name: "chairs", Layout: catalogmodel.DefaultLayout, Visible: true, Enabled: true})
-	if err != nil || created.ID != 1 || len(executor.arguments) != 10 {
+	if err != nil || created.ID != 1 || len(executor.arguments) != 13 {
 		t.Fatalf("unexpected created=%#v args=%#v err=%v", created, executor.arguments, err)
 	}
 }

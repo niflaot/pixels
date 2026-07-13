@@ -11,6 +11,7 @@ import (
 	catalogmodel "github.com/niflaot/pixels/internal/realm/catalog/model"
 	catalogprojection "github.com/niflaot/pixels/internal/realm/catalog/projection"
 	catalogservice "github.com/niflaot/pixels/internal/realm/catalog/service"
+	furnituremodel "github.com/niflaot/pixels/internal/realm/furniture/model"
 	currencyservice "github.com/niflaot/pixels/internal/realm/inventory/currency/service"
 	playerlive "github.com/niflaot/pixels/internal/realm/player/live"
 	"github.com/niflaot/pixels/internal/realm/session/binding"
@@ -52,6 +53,8 @@ type Handler struct {
 	Bindings *binding.Registry
 	// Catalog manages catalog purchases.
 	Catalog catalogservice.Manager
+	// Club purchases subscription offers exposed by club catalog pages.
+	Club ClubPurchaser
 	// Log records unexpected purchase failures.
 	Log *zap.Logger
 }
@@ -75,11 +78,14 @@ func (handler Handler) Handle(ctx context.Context, envelope command.Envelope[Com
 	if err != nil {
 		return err
 	}
-	if envelope.Command.Amount != 1 {
+	if envelope.Command.Amount <= 0 {
 		return handler.sendUnavailable(ctx, envelope.Command.Connection)
 	}
 	hasClub := catalogsession.HasClub(player)
-	_, items, err := handler.Catalog.Page(ctx, envelope.Command.PageID, player.ID(), hasClub)
+	page, items, err := handler.Catalog.Page(ctx, envelope.Command.PageID, player.ID(), hasClub)
+	if err == nil && page.Layout == ClubLayout {
+		return handler.handleClub(ctx, envelope.Command.Connection, player.ID(), envelope.Command.OfferID, envelope.Command.Amount)
+	}
 	if err != nil || !containsOffer(items, envelope.Command.OfferID) {
 		if err == nil {
 			err = catalogservice.ErrOfferNotFound
@@ -88,22 +94,33 @@ func (handler Handler) Handle(ctx context.Context, envelope command.Envelope[Com
 	}
 	result, err := handler.Catalog.Purchase(ctx, catalogservice.PurchaseParams{
 		PlayerID: player.ID(), CatalogItemID: envelope.Command.OfferID,
-		HasClub: hasClub,
+		HasClub: hasClub, Amount: envelope.Command.Amount,
 	})
 	if err != nil {
 		return handler.sendError(ctx, envelope.Command.Connection, envelope.Command.OfferID, err)
 	}
-	definition, found, err := handler.Catalog.Definition(ctx, result.Item.DefinitionID)
-	if err != nil || !found {
-		if err == nil {
-			err = fmt.Errorf("furniture definition %d not found", result.Item.DefinitionID)
+	var products []catalogmodel.Product
+	if bundles, ok := handler.Catalog.(catalogservice.BundleReader); ok {
+		products = bundles.Products(ctx, result.Item.ID)
+	}
+	if len(products) == 0 {
+		products = []catalogmodel.Product{{DefinitionID: result.Item.DefinitionID, Quantity: result.Item.Amount}}
+	}
+	definitions := make(map[int64]furnituremodel.Definition, len(products))
+	for _, product := range products {
+		definition, found, findErr := handler.Catalog.Definition(ctx, product.DefinitionID)
+		if findErr != nil || !found {
+			if findErr == nil {
+				findErr = fmt.Errorf("furniture definition %d not found", product.DefinitionID)
+			}
+			return handler.sendError(ctx, envelope.Command.Connection, envelope.Command.OfferID, findErr)
 		}
-		return handler.sendError(ctx, envelope.Command.Connection, envelope.Command.OfferID, err)
+		definitions[product.DefinitionID] = definition
 	}
 	if result.Item.IsLimited() {
 		result.Item.LimitedSells++
 	}
-	mapped, err := catalogprojection.Offer(result.Item, definition)
+	mapped, err := catalogprojection.OfferProducts(result.Item, products, definitions)
 	if err != nil {
 		return handler.sendError(ctx, envelope.Command.Connection, envelope.Command.OfferID, err)
 	}
@@ -155,7 +172,7 @@ func (handler Handler) sendError(ctx context.Context, connection netconn.Context
 	}
 	if errors.Is(err, catalogservice.ErrOfferNotFound) || errors.Is(err, catalogservice.ErrOfferNotVisible) ||
 		errors.Is(err, catalogservice.ErrOfferDisabled) || errors.Is(err, catalogservice.ErrPageNotFound) ||
-		errors.Is(err, currencyservice.ErrInsufficientBalance) {
+		errors.Is(err, catalogservice.ErrInvalidAmount) || errors.Is(err, currencyservice.ErrInsufficientBalance) {
 		return handler.sendUnavailable(ctx, connection)
 	}
 	if handler.Log != nil {

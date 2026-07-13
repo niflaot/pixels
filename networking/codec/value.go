@@ -21,6 +21,9 @@ const (
 
 	// ByteKind names a raw unsigned 8-bit integer.
 	ByteKind
+
+	// DoubleKind names an IEEE-754 64-bit floating-point number.
+	DoubleKind
 )
 
 var (
@@ -41,6 +44,9 @@ var (
 
 	// ByteField encodes a required raw unsigned 8-bit integer.
 	ByteField = Field{Kind: ByteKind}
+
+	// DoubleField encodes a required IEEE-754 64-bit floating-point number.
+	DoubleField = Field{Kind: DoubleKind}
 )
 
 // Field describes one payload field in declaration order.
@@ -70,6 +76,8 @@ type Value struct {
 	String string
 	// Byte stores a raw unsigned 8-bit payload value.
 	Byte uint8
+	// Double stores a 64-bit floating-point payload value.
+	Double float64
 }
 
 // Bool returns a boolean payload value.
@@ -100,6 +108,11 @@ func String(value string) Value {
 // Byte returns a raw unsigned 8-bit payload value.
 func Byte(value uint8) Value {
 	return Value{Byte: value}
+}
+
+// Float64 returns a 64-bit floating-point payload value.
+func Float64(value float64) Value {
+	return Value{Double: value}
 }
 
 // Optional returns an optional field declaration.

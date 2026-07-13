@@ -7,6 +7,7 @@ import (
 	inventoryviewer "github.com/niflaot/pixels/internal/realm/furniture/viewer/live"
 	currencyholder "github.com/niflaot/pixels/internal/realm/inventory/currency/holder"
 	navviewer "github.com/niflaot/pixels/internal/realm/navigator/viewer/live"
+	playermodel "github.com/niflaot/pixels/internal/realm/player/model"
 )
 
 // Player is the live runtime player composition root.
@@ -40,6 +41,13 @@ type Player struct {
 
 	// room stores the player's current room presence.
 	room RoomPresence
+}
+
+// SetClub replaces the live club entitlement projection.
+func (player *Player) SetClub(club playermodel.Club) {
+	player.mutex.Lock()
+	defer player.mutex.Unlock()
+	player.snapshot.Club = club
 }
 
 // NewPlayer creates a live player.

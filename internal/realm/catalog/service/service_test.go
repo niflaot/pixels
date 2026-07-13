@@ -135,6 +135,8 @@ type fakeFurniture struct {
 
 	// calls stores committed grant inputs.
 	calls []furnitureservice.GrantParams
+	// giftCalls stores committed wrapped grant inputs.
+	giftCalls []furnitureservice.GiftGrantParams
 
 	// err stores an optional grant failure.
 	err error
@@ -194,6 +196,15 @@ func (furniture *fakeFurniture) Grant(_ context.Context, params furnitureservice
 	}
 
 	return items, nil
+}
+
+// GrantGift creates fake wrapped inventory items.
+func (furniture *fakeFurniture) GrantGift(ctx context.Context, params furnitureservice.GiftGrantParams) ([]furnituremodel.Item, error) {
+	furniture.mutex.Lock()
+	furniture.giftCalls = append(furniture.giftCalls, params)
+	furniture.mutex.Unlock()
+
+	return furniture.Grant(ctx, params.GrantParams)
 }
 
 // serviceFixture contains catalog service test collaborators.

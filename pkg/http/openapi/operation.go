@@ -64,3 +64,50 @@ func errorResponses(statuses ...int) []response {
 
 	return responses
 }
+
+// adminSubscription creates one protected subscription administration operation.
+func adminSubscription(method string, path string, summary string, request any, body any, status int) operation {
+	responses := errorResponses(http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound, http.StatusInternalServerError)
+	if body == nil {
+		responses = append([]response{emptyResponse(status, summary+".")}, responses...)
+	} else {
+		responses = append([]response{jsonResponse(status, body, summary+".")}, responses...)
+	}
+
+	return operation{method: method, path: path, tag: "Admin Subscriptions", summary: summary,
+		description: summary + ".", request: request, responses: responses, secured: true}
+}
+
+// adminMessenger creates a protected messenger administration operation.
+func adminMessenger(method string, path string, summary string, request any, body any, status int) operation {
+	return operation{method: method, path: path, tag: "Admin Messenger", summary: summary,
+		description: summary + ".", request: request,
+		responses: append([]response{jsonResponse(status, body, summary+".")},
+			errorResponses(http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound, http.StatusInternalServerError)...), secured: true}
+}
+
+// adminChat creates a protected chat administration operation.
+func adminChat(method string, path string, summary string, request any, body any, status int) operation {
+	responses := errorResponses(http.StatusBadRequest, http.StatusUnauthorized, http.StatusInternalServerError)
+	if body == nil {
+		responses = append([]response{emptyResponse(status, summary+".")}, responses...)
+	} else {
+		responses = append([]response{jsonResponse(status, body, summary+".")}, responses...)
+	}
+
+	return operation{method: method, path: path, tag: "Admin Chat", summary: summary,
+		description: summary + ".", request: request, responses: responses, secured: true}
+}
+
+// adminCatalog creates a catalog administration operation.
+func adminCatalog(method string, path string, summary string, request any, body any) operation {
+	responses := errorResponses(http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound, http.StatusConflict, http.StatusInternalServerError)
+	if body == nil {
+		responses = append([]response{emptyResponse(http.StatusNoContent, summary+".")}, responses...)
+	} else {
+		responses = append([]response{jsonResponse(http.StatusOK, body, summary+".")}, responses...)
+	}
+
+	return operation{method: method, path: path, tag: "Admin Catalog", summary: summary,
+		description: summary + ".", request: request, responses: responses, secured: true}
+}

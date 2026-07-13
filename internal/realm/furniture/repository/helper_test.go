@@ -145,6 +145,8 @@ func assignValue(destination any, value any) {
 		*target = value.(time.Time)
 	case *pgtype.Int2:
 		*target = value.(pgtype.Int2)
+	case *pgtype.Int4:
+		*target = value.(pgtype.Int4)
 	case *pgtype.Int8:
 		*target = value.(pgtype.Int8)
 	case *pgtype.Float8:

@@ -22,9 +22,6 @@ const (
 
 	// unknownTrailer is a constant trailing field observed in the real protocol.
 	unknownTrailer int32 = -1
-
-	// floorTrailerKind is the floor-specific trailing gift/default value.
-	floorTrailerKind int32 = 1
 )
 
 var (
@@ -79,6 +76,15 @@ type Item struct {
 
 	// AllowInventoryStack reports whether inventory can group identical items.
 	AllowInventoryStack bool
+
+	// GiftWrapped reports whether Nitro should expose gift wrapping variants.
+	GiftWrapped bool
+
+	// GiftBoxID stores the selected gift box variant.
+	GiftBoxID int32
+
+	// GiftRibbonID stores the selected gift ribbon variant.
+	GiftRibbonID int32
 }
 
 // Encode creates a FURNITURE_INVENTORY packet for one fragment of a player's inventory.
@@ -108,12 +114,14 @@ func appendItem(dst []byte, item Item) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	adjustedID := int32(item.ID)
+	kind := itemKind(item)
 	dst, err = codec.AppendPayload(dst, itemDefinition(),
-		codec.Int32(int32(item.ID)),
+		codec.Int32(adjustedID),
 		codec.String(typeCode),
 		codec.Int32(int32(item.ID)),
 		codec.Int32(int32(item.SpriteID)),
-		codec.Int32(int32(itemCategory(item.Category))),
+		codec.Int32(kind),
 		codec.Int32(nonLimitedFlag),
 		codec.String(item.ExtraData),
 		codec.Bool(false),
@@ -128,7 +136,16 @@ func appendItem(dst []byte, item Item) ([]byte, error) {
 		return dst, err
 	}
 
-	return codec.AppendPayload(dst, floorDefinition(), codec.String(""), codec.Int32(floorTrailerKind))
+	return codec.AppendPayload(dst, floorDefinition(), codec.String(""), codec.Int32(kind))
+}
+
+// itemKind resolves the normal category or packed gift box and ribbon variant.
+func itemKind(item Item) int32 {
+	if item.GiftWrapped {
+		return item.GiftBoxID*1000 + item.GiftRibbonID
+	}
+
+	return int32(itemCategory(item.Category))
 }
 
 // itemCategory resolves the zero value to Nitro's regular furniture category.

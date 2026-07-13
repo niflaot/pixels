@@ -2,11 +2,34 @@ package routes
 
 import (
 	"strconv"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/niflaot/pixels/internal/permission"
 	catalogadmin "github.com/niflaot/pixels/internal/realm/catalog/admin"
 )
+
+// VoucherRequest contains writable voucher fields.
+type VoucherRequest struct {
+	// Code stores the case-insensitive voucher code.
+	Code string `json:"code"`
+	// CostCredits stores granted credits.
+	CostCredits int64 `json:"costCredits"`
+	// CostPoints stores granted activity points.
+	CostPoints int64 `json:"costPoints"`
+	// PointsType identifies the activity-points currency.
+	PointsType int32 `json:"pointsType"`
+	// CatalogItemID optionally identifies a free catalog reward.
+	CatalogItemID *int64 `json:"catalogItemId"`
+	// RedemptionCap optionally limits global uses.
+	RedemptionCap *int32 `json:"redemptionCap"`
+	// PerPlayerCap limits uses per player.
+	PerPlayerCap int32 `json:"perPlayerCap"`
+	// Enabled reports whether the voucher may be redeemed.
+	Enabled bool `json:"enabled"`
+	// ExpiresAt stores optional expiration.
+	ExpiresAt *time.Time `json:"expiresAt"`
+}
 
 // PageRequest contains catalog page mutation fields.
 type PageRequest struct {
@@ -76,8 +99,10 @@ type ItemRequest struct {
 	Amount int32 `json:"amount"`
 	// LimitedStack stores numbered stock.
 	LimitedStack int32 `json:"limitedStack"`
-	// OfferID stores an optional future grouping id.
-	OfferID *int64 `json:"offerId"`
+	// BundleDiscountEnabled reports whether bulk discounts are enabled.
+	BundleDiscountEnabled bool `json:"bundleDiscountEnabled"`
+	// Giftable reports whether the offer may be gifted.
+	Giftable bool `json:"giftable"`
 	// ClubOnly reports whether club membership is required.
 	ClubOnly bool `json:"clubOnly"`
 	// OrderNum stores page display order.
@@ -106,8 +131,10 @@ type ItemPatchRequest struct {
 	Amount *int32 `json:"amount"`
 	// LimitedStack replaces numbered stock.
 	LimitedStack *int32 `json:"limitedStack"`
-	// OfferID replaces the optional future grouping id.
-	OfferID *int64 `json:"offerId"`
+	// BundleDiscountEnabled replaces bulk discount eligibility.
+	BundleDiscountEnabled *bool `json:"bundleDiscountEnabled"`
+	// Giftable replaces gift eligibility.
+	Giftable *bool `json:"giftable"`
 	// ClubOnly replaces club access policy.
 	ClubOnly *bool `json:"clubOnly"`
 	// OrderNum replaces page display order.
@@ -139,6 +166,6 @@ func pageInput(request PageRequest) catalogadmin.PageInput {
 func itemInput(request ItemRequest) catalogadmin.ItemInput {
 	return catalogadmin.ItemInput{PageID: request.PageID, DefinitionID: request.DefinitionID, Name: request.Name,
 		CostCredits: request.CostCredits, CostPoints: request.CostPoints, PointsType: request.PointsType,
-		Amount: request.Amount, LimitedStack: request.LimitedStack, OfferID: request.OfferID, ClubOnly: request.ClubOnly,
+		Amount: request.Amount, LimitedStack: request.LimitedStack, BundleDiscountEnabled: request.BundleDiscountEnabled, Giftable: request.Giftable, ClubOnly: request.ClubOnly,
 		OrderNum: request.OrderNum, Enabled: request.Enabled, ExtraData: request.ExtraData}
 }

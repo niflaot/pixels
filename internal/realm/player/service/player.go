@@ -94,6 +94,18 @@ func (service *Service) FindByUsername(ctx context.Context, username string) (Re
 	return service.record(ctx, player)
 }
 
+// SetClub updates one player's derived club entitlement.
+func (service *Service) SetClub(ctx context.Context, playerID int64, club playermodel.Club) error {
+	if err := validatePlayerID(playerID); err != nil {
+		return err
+	}
+	if service.clubs == nil {
+		return ErrClubWriterUnavailable
+	}
+
+	return service.clubs.UpdateClub(ctx, playerID, club)
+}
+
 // UpdatePrivacy persists messenger privacy fields.
 func (service *Service) UpdatePrivacy(ctx context.Context, playerID int64, params PrivacyParams) (Record, error) {
 	player, found, err := service.store.FindPlayerByID(ctx, playerID)

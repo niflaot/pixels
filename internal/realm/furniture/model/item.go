@@ -38,6 +38,24 @@ type Item struct {
 	// ExtraData stores simple protocol-facing visual state.
 	ExtraData string
 
+	// GiftWrapped reports whether this inventory item is an unopened gift.
+	GiftWrapped bool
+
+	// GiftWrapSpriteID stores the selected wrapping furniture sprite.
+	GiftWrapSpriteID *int32
+
+	// GiftWrapBoxID stores the selected wrapping box.
+	GiftWrapBoxID *int32
+
+	// GiftWrapRibbonID stores the selected ribbon.
+	GiftWrapRibbonID *int32
+
+	// GiftSenderPlayerID identifies the sender when their identity is visible.
+	GiftSenderPlayerID *int64
+
+	// GiftMessage stores the sender's message.
+	GiftMessage *string
+
 	// Metadata stores server-only structured data, such as seed origin.
 	Metadata json.RawMessage
 }

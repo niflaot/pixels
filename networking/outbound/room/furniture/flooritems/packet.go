@@ -1,7 +1,10 @@
 // Package flooritems contains the ROOM_FLOOR_ITEMS outbound packet.
 package flooritems
 
-import "github.com/niflaot/pixels/networking/codec"
+import (
+	"github.com/niflaot/pixels/networking/codec"
+	"github.com/niflaot/pixels/networking/outbound/furniture/stuffdata"
+)
 
 const (
 	// Header is the ROOM_FLOOR_ITEMS packet identifier.
@@ -55,8 +58,26 @@ type FloorItem struct {
 	// UsagePolicy stores the item interaction usage policy.
 	UsagePolicy int32
 
+	// Kind stores the packed gift variant or the regular default value.
+	Kind int32
+
+	// GiftWrapped reports whether Kind may intentionally be zero.
+	GiftWrapped bool
+
 	// OwnerID stores the durable owner player id.
 	OwnerID int64
+
+	// GiftMessage stores the gift tag text for wrapped presents.
+	GiftMessage string
+
+	// GiftProductCode stores the wrapped product code or furniture class name.
+	GiftProductCode string
+
+	// GiftSenderName stores the visible gift sender name.
+	GiftSenderName string
+
+	// GiftSenderFigure stores the visible gift sender figure.
+	GiftSenderFigure string
 }
 
 // Encode creates a ROOM_FLOOR_ITEMS packet.
@@ -96,7 +117,7 @@ func appendOwner(dst []byte, owner Owner) ([]byte, error) {
 
 // appendFloorItem appends one floor item record.
 func appendFloorItem(dst []byte, item FloorItem) ([]byte, error) {
-	return codec.AppendPayload(dst, floorItemDefinition(),
+	payload, err := codec.AppendPayload(dst, floorItemPrefixDefinition(),
 		codec.Int32(int32(item.ID)),
 		codec.Int32(int32(item.SpriteID)),
 		codec.Int32(int32(item.X)),
@@ -104,13 +125,35 @@ func appendFloorItem(dst []byte, item FloorItem) ([]byte, error) {
 		codec.Int32(int32(item.Rotation)),
 		codec.String(item.Z),
 		codec.String(item.ExtraHeight),
-		codec.Int32(defaultKind),
-		codec.Int32(nonLimitedFlag),
-		codec.String(item.ExtraData),
+		codec.Int32(itemKind(item)),
+	)
+	if err != nil {
+		return dst, err
+	}
+	if item.GiftWrapped {
+		payload, err = appendGiftData(payload, item)
+	} else {
+		payload, err = codec.AppendPayload(payload, regularDataDefinition(),
+			codec.Int32(nonLimitedFlag), codec.String(item.ExtraData))
+	}
+	if err != nil {
+		return dst, err
+	}
+
+	return codec.AppendPayload(payload, floorItemSuffixDefinition(),
 		codec.Int32(unknownExpiration),
 		codec.Int32(item.UsagePolicy),
 		codec.Int32(int32(item.OwnerID)),
 	)
+}
+
+// itemKind resolves the zero value to the normal furniture kind.
+func itemKind(item FloorItem) int32 {
+	if item.GiftWrapped || item.Kind != 0 {
+		return item.Kind
+	}
+
+	return defaultKind
 }
 
 // ownerDefinition returns the owner name field order.
@@ -123,6 +166,36 @@ func ownerDefinition() codec.Definition {
 
 // floorItemDefinition returns the floor item field order.
 func floorItemDefinition() codec.Definition {
+	definition := floorItemPrefixDefinition()
+	definition = append(definition, regularDataDefinition()...)
+	definition = append(definition, floorItemSuffixDefinition()...)
+
+	return definition
+}
+
+// appendGiftData appends Nitro's map object data for present tags.
+func appendGiftData(dst []byte, item FloorItem) ([]byte, error) {
+	return stuffdata.AppendMap(dst, []stuffdata.Pair{
+		{Key: "EXTRA_PARAM", Value: ""},
+		{Key: "MESSAGE", Value: item.GiftMessage},
+		{Key: "PURCHASER_NAME", Value: item.GiftSenderName},
+		{Key: "PURCHASER_FIGURE", Value: item.GiftSenderFigure},
+		{Key: "PRODUCT_CODE", Value: item.GiftProductCode},
+		{Key: "state", Value: giftState(item.ExtraData)},
+	})
+}
+
+// giftState resolves the present visual state value.
+func giftState(value string) string {
+	if value == "" {
+		return "0"
+	}
+
+	return value
+}
+
+// floorItemPrefixDefinition returns the fields before object data.
+func floorItemPrefixDefinition() codec.Definition {
 	return codec.Definition{
 		codec.Named("id", codec.Int32Field),
 		codec.Named("spriteId", codec.Int32Field),
@@ -132,8 +205,20 @@ func floorItemDefinition() codec.Definition {
 		codec.Named("z", codec.StringField),
 		codec.Named("extraHeight", codec.StringField),
 		codec.Named("kind", codec.Int32Field),
+	}
+}
+
+// regularDataDefinition returns the legacy simple object-data fields.
+func regularDataDefinition() codec.Definition {
+	return codec.Definition{
 		codec.Named("limitedFlag", codec.Int32Field),
 		codec.Named("extradata", codec.StringField),
+	}
+}
+
+// floorItemSuffixDefinition returns the fields after object data.
+func floorItemSuffixDefinition() codec.Definition {
+	return codec.Definition{
 		codec.Named("expiration", codec.Int32Field),
 		codec.Named("usagePolicy", codec.Int32Field),
 		codec.Named("ownerId", codec.Int32Field),

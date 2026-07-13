@@ -2,6 +2,8 @@
 package model
 
 import (
+	"time"
+
 	"github.com/niflaot/pixels/internal/permission"
 	sharedmodel "github.com/niflaot/pixels/pkg/model"
 )
@@ -45,6 +47,15 @@ type Page struct {
 
 	// ClubOnly reports whether the page requires club membership.
 	ClubOnly bool
+
+	// NewAdditions reports whether new offers contribute to the novelty badge.
+	NewAdditions bool
+
+	// ExpiresAt stores the optional client-facing page expiry.
+	ExpiresAt *time.Time
+
+	// ExcludedFromKickback excludes purchases from HC kickback totals.
+	ExcludedFromKickback bool
 }
 
 // Accessible reports whether visibility and club requirements allow page access.

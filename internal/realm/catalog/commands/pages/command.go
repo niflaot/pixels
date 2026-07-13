@@ -68,7 +68,14 @@ func (handler Handler) Handle(ctx context.Context, envelope command.Envelope[Com
 	if err != nil {
 		return err
 	}
-	packet, err := outpages.Encode(nodes, viewer.Mode())
+	newAdditions := false
+	if novelty, ok := handler.Catalog.(catalogservice.NoveltyManager); ok {
+		newAdditions, err = novelty.NewAdditionsAvailable(ctx, player.ID())
+		if err != nil {
+			return err
+		}
+	}
+	packet, err := outpages.Encode(nodes, viewer.Mode(), newAdditions)
 	if err != nil {
 		return err
 	}

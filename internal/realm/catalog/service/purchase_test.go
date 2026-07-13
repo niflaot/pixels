@@ -29,6 +29,19 @@ func TestPurchaseCreditsChargesAndGrants(t *testing.T) {
 	}
 }
 
+// TestPurchaseOverrideQuantityUsesFixedUnitPrice verifies targeted-offer quantities bypass catalog bulk policy.
+func TestPurchaseOverrideQuantityUsesFixedUnitPrice(t *testing.T) {
+	fixture := newServiceFixture(t, itemForTest())
+	price := int64(7)
+	result, err := fixture.service.Purchase(context.Background(), PurchaseParams{
+		PlayerID: 7, CatalogItemID: 10, Amount: 2, OverrideCredits: &price,
+	})
+	if err != nil || len(result.GrantedItems) != 2 || len(fixture.currency.calls) != 1 ||
+		fixture.currency.calls[0].Amount != -14 {
+		t.Fatalf("result=%#v calls=%#v error=%v", result, fixture.currency.calls, err)
+	}
+}
+
 // TestPurchasePairsGrantedTeleports verifies teleport offers create one durable pair.
 func TestPurchasePairsGrantedTeleports(t *testing.T) {
 	item := itemForTest()

@@ -49,6 +49,22 @@ func adminOperations() []operation {
 		adminCatalog(http.MethodDelete, "/api/admin/catalog/items/{id}", "Delete catalog offer", &CatalogIDRequest{}, nil),
 		adminCatalog(http.MethodPost, "/api/admin/catalog/refresh", "Refresh and publish catalog", &APIKeyRequest{}, &CatalogRefreshResponse{}),
 		adminCatalog(http.MethodGet, "/api/admin/catalog/sanitize-list", "List definitions without offers", &APIKeyRequest{}, &CatalogDefinitionsResponse{}),
+		adminCatalog(http.MethodGet, "/api/admin/catalog/vouchers", "List catalog vouchers", &APIKeyRequest{}, &VoucherListResponse{}),
+		adminCatalog(http.MethodPost, "/api/admin/catalog/vouchers", "Create catalog voucher", &VoucherRequest{}, &VoucherResponse{}),
+		adminCatalog(http.MethodPatch, "/api/admin/catalog/vouchers/{id}", "Update catalog voucher", &VoucherPatchRequest{}, &VoucherResponse{}),
+		adminCatalog(http.MethodGet, "/api/admin/catalog/vouchers/{id}/redemptions", "List voucher redemptions", &CatalogIDRequest{}, &VoucherRedemptionListResponse{}),
+		adminSubscription(http.MethodGet, "/api/admin/subscriptions/{playerId}", "Read player membership", &SubscriptionPlayerRequest{}, &SubscriptionResponse{}, http.StatusOK),
+		adminSubscription(http.MethodPost, "/api/admin/subscriptions/{playerId}/grant", "Grant or extend membership", &SubscriptionGrantRequest{}, &SubscriptionResponse{}, http.StatusOK),
+		adminSubscription(http.MethodDelete, "/api/admin/subscriptions/{playerId}", "Revoke membership", &SubscriptionPlayerRequest{}, nil, http.StatusNoContent),
+		adminSubscription(http.MethodGet, "/api/admin/subscriptions/club-offers", "List club offers", &APIKeyRequest{}, &ClubOfferListResponse{}, http.StatusOK),
+		adminSubscription(http.MethodPost, "/api/admin/subscriptions/club-offers", "Create club offer", &ClubOfferRequest{}, &ClubOfferResponse{}, http.StatusOK),
+		adminSubscription(http.MethodPatch, "/api/admin/subscriptions/club-offers/{id}", "Update club offer", &ClubOfferPatchRequest{}, &ClubOfferResponse{}, http.StatusOK),
+		adminSubscription(http.MethodGet, "/api/admin/subscriptions/targeted-offers", "List targeted offers", &APIKeyRequest{}, &TargetedOfferListResponse{}, http.StatusOK),
+		adminSubscription(http.MethodPost, "/api/admin/subscriptions/targeted-offers", "Create targeted offer", &TargetedOfferRequest{}, &TargetedOfferResponse{}, http.StatusOK),
+		adminSubscription(http.MethodPatch, "/api/admin/subscriptions/targeted-offers/{id}", "Update targeted offer", &TargetedOfferPatchRequest{}, &TargetedOfferResponse{}, http.StatusOK),
+		adminSubscription(http.MethodGet, "/api/admin/subscriptions/calendar/campaigns", "List calendar campaigns", &APIKeyRequest{}, &CampaignListResponse{}, http.StatusOK),
+		adminSubscription(http.MethodPost, "/api/admin/subscriptions/calendar/campaigns", "Create calendar campaign", &CampaignRequest{}, &CampaignResponse{}, http.StatusOK),
+		adminSubscription(http.MethodPatch, "/api/admin/subscriptions/calendar/campaigns/{id}", "Update calendar campaign", &CampaignPatchRequest{}, &CampaignResponse{}, http.StatusOK),
 		adminChat(http.MethodGet, "/api/admin/chat/filters", "List global chat filters", &APIKeyRequest{}, &ChatFilterListResponse{}, http.StatusOK),
 		adminChat(http.MethodPost, "/api/admin/chat/filters", "Add global chat filter", &ChatFilterRequest{}, &ChatMutationResponse{}, http.StatusCreated),
 		adminChat(http.MethodDelete, "/api/admin/chat/filters/{word}", "Remove global chat filter", &ChatFilterDeleteRequest{}, nil, http.StatusNoContent),
@@ -72,27 +88,6 @@ func adminOperations() []operation {
 	}
 }
 
-// adminMessenger creates a protected messenger administration operation.
-func adminMessenger(method string, path string, summary string, request any, body any, status int) operation {
-	return operation{method: method, path: path, tag: "Admin Messenger", summary: summary,
-		description: summary + ".", request: request,
-		responses: append([]response{jsonResponse(status, body, summary+".")},
-			errorResponses(http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound, http.StatusInternalServerError)...), secured: true}
-}
-
-// adminChat creates a protected chat administration operation.
-func adminChat(method string, path string, summary string, request any, body any, status int) operation {
-	responses := errorResponses(http.StatusBadRequest, http.StatusUnauthorized, http.StatusInternalServerError)
-	if body == nil {
-		responses = append([]response{emptyResponse(status, summary+".")}, responses...)
-	} else {
-		responses = append([]response{jsonResponse(status, body, summary+".")}, responses...)
-	}
-
-	return operation{method: method, path: path, tag: "Admin Chat", summary: summary,
-		description: summary + ".", request: request, responses: responses, secured: true}
-}
-
 // adminRoomAudit creates a protected room audit read operation.
 func adminRoomAudit(path string, summary string, request any, body any) operation {
 	return operation{
@@ -114,19 +109,6 @@ func adminPermission(method string, path string, summary string, request any, bo
 	}
 
 	return operation{method: method, path: path, tag: "Admin Permissions", summary: summary,
-		description: summary + ".", request: request, responses: responses, secured: true}
-}
-
-// adminCatalog creates a catalog administration operation.
-func adminCatalog(method string, path string, summary string, request any, body any) operation {
-	responses := errorResponses(http.StatusBadRequest, http.StatusUnauthorized, http.StatusNotFound, http.StatusConflict, http.StatusInternalServerError)
-	if body == nil {
-		responses = append([]response{emptyResponse(http.StatusNoContent, summary+".")}, responses...)
-	} else {
-		responses = append([]response{jsonResponse(http.StatusOK, body, summary+".")}, responses...)
-	}
-
-	return operation{method: method, path: path, tag: "Admin Catalog", summary: summary,
 		description: summary + ".", request: request, responses: responses, secured: true}
 }
 

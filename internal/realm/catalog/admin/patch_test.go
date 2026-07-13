@@ -43,19 +43,20 @@ func TestApplyItemPatchAppliesEveryPresentField(t *testing.T) {
 	pointsType := int32(-1)
 	amount := int32(2)
 	stack := int32(10)
-	offerID := int64(7)
+	bundle := true
+	giftable := true
 	club := true
 	order := int32(8)
 	enabled := true
 	extra := "state"
-	offer := &offerID
 	item := catalogmodel.Item{}
 	applyItemPatch(&item, ItemPatch{PageID: &pageID, DefinitionID: &definitionID, Name: &name, CostCredits: &credits,
-		CostPoints: &points, PointsType: &pointsType, Amount: &amount, LimitedStack: &stack, OfferID: &offer,
+		CostPoints: &points, PointsType: &pointsType, Amount: &amount, LimitedStack: &stack,
+		BundleDiscountEnabled: &bundle, Giftable: &giftable,
 		ClubOnly: &club, OrderNum: &order, Enabled: &enabled, ExtraData: &extra})
 	if item.PageID != pageID || item.DefinitionID != definitionID || item.Name != name || item.CostCredits != credits ||
-		item.PointsType != pointsType || item.Amount != amount || item.LimitedStack != stack || item.OfferID == nil ||
-		*item.OfferID != offerID || !item.ClubOnly || item.OrderNum != order || !item.Enabled || item.ExtraData != extra {
+		item.PointsType != pointsType || item.Amount != amount || item.LimitedStack != stack || !item.BundleDiscountEnabled ||
+		!item.Giftable || !item.ClubOnly || item.OrderNum != order || !item.Enabled || item.ExtraData != extra {
 		t.Fatalf("unexpected item %#v", item)
 	}
 }

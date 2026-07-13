@@ -65,6 +65,18 @@ func TestInventoryCategoryMapsRoomEffects(t *testing.T) {
 	}
 }
 
+// TestFragmentRecordsProjectsGiftWrapper verifies unopened gifts use wrapper visuals.
+func TestFragmentRecordsProjectsGiftWrapper(t *testing.T) {
+	sprite, box, ribbon := int32(3379), int32(2), int32(7)
+	items := []furnituremodel.Item{{Base: sharedmodel.Base{Identity: sharedmodel.Identity{ID: 40}}, DefinitionID: 2,
+		GiftWrapped: true, GiftWrapSpriteID: &sprite, GiftWrapBoxID: &box, GiftWrapRibbonID: &ribbon}}
+	definitions := map[int64]furnituremodel.Definition{2: {SpriteID: 39, Kind: furnituremodel.KindFloor}}
+	records := fragmentRecords(items, definitions, 0)
+	if len(records) != 1 || records[0].SpriteID != 3379 || records[0].GiftBoxID != 2 || records[0].GiftRibbonID != 7 || records[0].AllowInventoryStack {
+		t.Fatalf("unexpected gift inventory records %#v", records)
+	}
+}
+
 // TestHandleSendsMultipleFragmentsForLargeInventory verifies pagination beyond 1000 items.
 func TestHandleSendsMultipleFragmentsForLargeInventory(t *testing.T) {
 	connection, sent := connectionForTest(t)

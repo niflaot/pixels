@@ -21,6 +21,12 @@ type Finder interface {
 	FindByUsername(ctx context.Context, username string) (Record, bool, error)
 }
 
+// ClubWriter updates derived club entitlement fields.
+type ClubWriter interface {
+	// SetClub updates one player's derived club entitlement.
+	SetClub(ctx context.Context, playerID int64, club playermodel.Club) error
+}
+
 // Manager creates and reads player records.
 type Manager interface {
 	Creator

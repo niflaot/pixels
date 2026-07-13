@@ -41,21 +41,26 @@ func TestCatalogAdministrationRoutes(t *testing.T) {
 	pointsType := int32(-1)
 	amount := int32(1)
 	stack := int32(0)
-	offerID := int64(4)
+	bundle := true
+	giftable := true
 	club := false
 	order := int32(2)
 	enabled := true
 	extra := "0"
 	assertStatus(t, app, http.MethodPatch, basePath+"/items/1", ItemPatchRequest{PageID: &itemPage, DefinitionID: &definitionID,
 		Name: &itemName, CostCredits: &credits, CostPoints: &points, PointsType: &pointsType, Amount: &amount,
-		LimitedStack: &stack, OfferID: &offerID, ClubOnly: &club, OrderNum: &order, Enabled: &enabled, ExtraData: &extra}, http.StatusOK)
+		LimitedStack: &stack, BundleDiscountEnabled: &bundle, Giftable: &giftable, ClubOnly: &club,
+		OrderNum: &order, Enabled: &enabled, ExtraData: &extra}, http.StatusOK)
 	assertStatus(t, app, http.MethodGet, basePath+"/items?pageId=1", nil, http.StatusOK)
 	assertStatus(t, app, http.MethodGet, basePath+"/sanitize-list", nil, http.StatusOK)
 	assertStatus(t, app, http.MethodPost, basePath+"/refresh", nil, http.StatusOK)
-	if admin.refreshes != 1 || len(*sent) != 1 || (*sent)[0].Header != outupdated.Header {
+	if admin.refreshes != 1 || len(*sent) != 5 || (*sent)[0].Header != outupdated.Header {
 		t.Fatalf("unexpected refreshes=%d packets=%#v", admin.refreshes, *sent)
 	}
 	assertStatus(t, app, http.MethodDelete, basePath+"/items/1", nil, http.StatusNoContent)
+	if len(*sent) != 6 {
+		t.Fatalf("expected one publication per mutation, got %d", len(*sent))
+	}
 }
 
 // TestCatalogErrorMapsAdministrationFailures verifies HTTP status mapping.

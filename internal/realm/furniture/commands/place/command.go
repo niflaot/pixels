@@ -13,9 +13,9 @@ import (
 	furnituremodel "github.com/niflaot/pixels/internal/realm/furniture/model"
 	furnitureservice "github.com/niflaot/pixels/internal/realm/furniture/service"
 	playerlive "github.com/niflaot/pixels/internal/realm/player/live"
+	playerservice "github.com/niflaot/pixels/internal/realm/player/service"
 	"github.com/niflaot/pixels/internal/realm/room/runtime/broadcast"
 	roomlive "github.com/niflaot/pixels/internal/realm/room/runtime/live"
-	"github.com/niflaot/pixels/internal/realm/room/runtime/projection"
 	worldfurniture "github.com/niflaot/pixels/internal/realm/room/world/furniture"
 	roomfurniture "github.com/niflaot/pixels/internal/realm/room/world/items"
 	"github.com/niflaot/pixels/internal/realm/session/binding"
@@ -63,6 +63,9 @@ type Handler struct {
 
 	// Furniture manages placed and inventory furniture records.
 	Furniture furnitureservice.Manager
+
+	// PlayerDirectory resolves durable player identities for gift sender tags.
+	PlayerDirectory playerservice.Finder
 
 	// Runtime stores active rooms.
 	Runtime *roomlive.Registry
@@ -176,7 +179,12 @@ func (handler Handler) broadcastAdd(ctx context.Context, active *roomlive.Room, 
 		return nil
 	}
 
-	packet, err := outadd.Encode(addRecord(item, definition, ownerName))
+	sender, err := handler.giftSender(ctx, item)
+	if err != nil {
+		return err
+	}
+
+	packet, err := outadd.Encode(addRecord(item, definition, ownerName, sender))
 	if err != nil {
 		return err
 	}
@@ -209,21 +217,4 @@ func (handler Handler) publish(ctx context.Context, playerID int64, itemID int64
 			PlayerID: playerID, ItemID: itemID, DefinitionID: definitionID, RoomID: roomID, X: x, Y: y, Rotation: rotation,
 		},
 	})
-}
-
-// addRecord maps a placed item and its definition into an ADD_FLOOR_ITEM record.
-func addRecord(item furnituremodel.Item, definition furnituremodel.Definition, ownerName string) outadd.FloorItem {
-	return outadd.FloorItem{
-		ID:          item.ID,
-		SpriteID:    definition.SpriteID,
-		X:           *item.X,
-		Y:           *item.Y,
-		Rotation:    int(item.Rotation),
-		Z:           projection.FurnitureHeightValue(*item.Z),
-		ExtraHeight: projection.ExtraHeightValue(definition),
-		ExtraData:   item.ExtraData,
-		UsagePolicy: projection.UsagePolicyValue(definition),
-		OwnerID:     item.OwnerPlayerID,
-		OwnerName:   ownerName,
-	}
 }

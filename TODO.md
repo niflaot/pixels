@@ -17,3 +17,31 @@ Upon already coded things.
   completion alone will not expose this action in the current UI. Do not modify
   Nitro as part of the server implementation; treat client support as a separate
   compatibility decision.
+
+## Store Boundaries
+
+- TODO: Add real targeted-offer eligibility policies only after campaign
+  requirements are defined. Current offers are global and use only enabled,
+  expiration, dismissal, and per-player purchase-limit gates; future policies
+  may compose club tier, permission group, account age, or purchase history.
+
+- UNIMPLEMENTED: Builders Club has no gameplay effect. It is a discontinued
+  subscription tier without a real Arcturus implementation; Pixels only sends
+  neutral compatibility packets so Nitro never waits indefinitely.
+- DEFERRED: Direct SMS Club billing has no effect because Pixels has no
+  carrier billing provider. The protocol request receives an explicit
+  unavailable response.
+- DEFERRED: Room bundles have no effect because complete room cloning,
+  bundled room layouts, and bot ownership do not exist yet.
+- UNIMPLEMENTED: Marketplace and direct player trade have no effect in the
+  store realm because they belong to the separate `economy-trading` protocol
+  surface and require escrow, commissions, and offer lifecycle rules.
+- UNIMPLEMENTED: Crafting and recycling have no effect because they belong to
+  the separate `crafting-recycling` realm and need recipes and material state.
+- UNIMPLEMENTED: Group catalog products have no effect because Pixels has no
+  group realm capable of owning or granting them.
+- UNIMPLEMENTED: Pet, bot, and badge catalog products have no effect because
+  those recipient realms do not exist; accepting the products would charge a
+  player without being able to grant the result.
+- UNIMPLEMENTED: The `VipHC` achievement has no effect because Pixels has no
+  achievement realm to receive accumulated membership progress.

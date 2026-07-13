@@ -60,8 +60,10 @@ type ItemResponse struct {
 	LimitedStack int32 `json:"limitedStack"`
 	// LimitedSells stores committed numbered sales.
 	LimitedSells int32 `json:"limitedSells"`
-	// OfferID stores an optional grouping id.
-	OfferID *int64 `json:"offerId"`
+	// BundleDiscountEnabled reports bulk discount eligibility.
+	BundleDiscountEnabled bool `json:"bundleDiscountEnabled"`
+	// Giftable reports gift eligibility.
+	Giftable bool `json:"giftable"`
 	// ClubOnly reports club access policy.
 	ClubOnly bool `json:"clubOnly"`
 	// OrderNum stores page display order.
@@ -105,7 +107,7 @@ func pageResponse(page catalogmodel.Page) PageResponse {
 func itemResponse(item catalogmodel.Item) ItemResponse {
 	return ItemResponse{ID: item.ID, PageID: item.PageID, DefinitionID: item.DefinitionID, Name: item.Name,
 		CostCredits: item.CostCredits, CostPoints: item.CostPoints, PointsType: item.PointsType, Amount: item.Amount,
-		LimitedStack: item.LimitedStack, LimitedSells: item.LimitedSells, OfferID: item.OfferID, ClubOnly: item.ClubOnly,
+		LimitedStack: item.LimitedStack, LimitedSells: item.LimitedSells, BundleDiscountEnabled: item.BundleDiscountEnabled, Giftable: item.Giftable, ClubOnly: item.ClubOnly,
 		OrderNum: item.OrderNum, Enabled: item.Enabled, ExtraData: item.ExtraData, Version: item.Version.Version}
 }
 
