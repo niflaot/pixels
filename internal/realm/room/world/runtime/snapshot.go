@@ -219,8 +219,12 @@ func (world *World) sortedPlayerIDs() []int64 {
 
 // unitSnapshot maps a mutable unit to a stable snapshot.
 func unitSnapshot(playerID int64, roomUnit *worldunit.Unit) UnitSnapshot {
+	durablePlayerID := playerID
+	if roomUnit.Kind() != worldunit.KindPlayer {
+		durablePlayerID = 0
+	}
 	return UnitSnapshot{
-		PlayerID: playerID, UnitID: roomUnit.ID(), Position: roomUnit.Position(), Previous: roomUnit.Previous(),
+		EntityKey: playerID, PlayerID: durablePlayerID, OwnerID: roomUnit.OwnerID(), Kind: roomUnit.Kind(), UnitID: roomUnit.ID(), Position: roomUnit.Position(), Previous: roomUnit.Previous(),
 		BodyRotation: roomUnit.BodyRotation(), HeadRotation: roomUnit.HeadRotation(),
 		Moving: roomUnit.InMotion(), Statuses: roomUnit.Statuses(), HandItem: roomUnit.HandItem(), Idle: roomUnit.Idle(), IdleSince: roomUnit.IdleSince(), ManualIdle: roomUnit.ManualIdle(), ActiveEffectID: roomUnit.ActiveEffect(),
 	}

@@ -32,7 +32,7 @@ select $2, $3, name, description, model_name, door_mode, password_hash,
 from rooms where id=$1 and deleted_at is null and is_bundle_template
 returning ` + roomColumns
 	// recordBundlePurchaseSQL records template provenance.
-	recordBundlePurchaseSQL = `insert into room_bundle_purchases (catalog_item_id,template_room_id,created_room_id,buyer_player_id,furniture_item_count) values ($1,$2,$3,$4,$5)`
+	recordBundlePurchaseSQL = `insert into room_bundle_purchases (catalog_item_id,template_room_id,created_room_id,buyer_player_id,furniture_item_count,bot_count) values ($1,$2,$3,$4,$5,$6)`
 	// setBundleTemplateSQL changes a room's template state.
 	setBundleTemplateSQL = `update rooms set is_bundle_template=$2,updated_at=now(),version=version+1 where id=$1 and deleted_at is null returning ` + roomColumns
 	// countActiveBundleReferencesSQL counts enabled active catalog references.
@@ -80,7 +80,7 @@ func (repository *Repository) CloneBundleRoom(ctx context.Context, templateRoomI
 
 // RecordBundlePurchase records bundle provenance.
 func (repository *Repository) RecordBundlePurchase(ctx context.Context, params roombundle.PurchaseRecord) error {
-	_, err := repository.executorFor(ctx).Exec(ctx, recordBundlePurchaseSQL, params.CatalogItemID, params.TemplateRoomID, params.CreatedRoomID, params.BuyerPlayerID, params.FurnitureCount)
+	_, err := repository.executorFor(ctx).Exec(ctx, recordBundlePurchaseSQL, params.CatalogItemID, params.TemplateRoomID, params.CreatedRoomID, params.BuyerPlayerID, params.FurnitureCount, params.BotCount)
 	if err != nil {
 		return fmt.Errorf("record room bundle purchase: %w", err)
 	}

@@ -18,6 +18,7 @@ import (
 	roomlayout "github.com/niflaot/pixels/internal/realm/room/world/layout"
 	"github.com/niflaot/pixels/pkg/build"
 	"github.com/niflaot/pixels/pkg/config"
+	botroutes "github.com/niflaot/pixels/pkg/http/bot/routes"
 	catalogroutes "github.com/niflaot/pixels/pkg/http/catalog/routes"
 	chatroutes "github.com/niflaot/pixels/pkg/http/chat/routes"
 	"github.com/niflaot/pixels/pkg/http/clientconfig"
@@ -47,7 +48,7 @@ func registerPublic(app *fiber.App, config config.AppConfig, info build.Info, we
 }
 
 // registerPrivate registers private authenticated fallback routes.
-func registerPrivate(app *fiber.App, sso *sso.Service, redisClient *redispkg.Client, players playerservice.AdminManager, effects playereffect.Manager, rooms roomservice.Manager, runtime *roomlive.Registry, roomEntry *roomentry.Service, navigator navservice.Manager, currencyAdmin currencyroutes.Dependencies, catalogAdmin catalogroutes.Dependencies, permissionAdmin permissionroutes.Dependencies, roomAdmin roomroutes.Dependencies, chatAdmin chatroutes.Dependencies, messengerAdmin messengerroutes.Dependencies, subscriptionAdmin subscriptionroutes.Dependencies, tradingAdmin tradingroutes.Dependencies) {
+func registerPrivate(app *fiber.App, sso *sso.Service, redisClient *redispkg.Client, players playerservice.AdminManager, effects playereffect.Manager, rooms roomservice.Manager, runtime *roomlive.Registry, roomEntry *roomentry.Service, navigator navservice.Manager, currencyAdmin currencyroutes.Dependencies, catalogAdmin catalogroutes.Dependencies, botAdmin botroutes.Dependencies, permissionAdmin permissionroutes.Dependencies, roomAdmin roomroutes.Dependencies, chatAdmin chatroutes.Dependencies, messengerAdmin messengerroutes.Dependencies, subscriptionAdmin subscriptionroutes.Dependencies, tradingAdmin tradingroutes.Dependencies) {
 	app.Post("/api/sso/tickets", createSSOTicketHandler(sso, redisClient))
 	playerroutes.Register(app, players, redisClient, currencyAdmin.Players, currencyAdmin.Connections, effects)
 	wsroutes.Register(app, currencyAdmin.Connections)
@@ -55,6 +56,9 @@ func registerPrivate(app *fiber.App, sso *sso.Service, redisClient *redispkg.Cli
 	notificationroutes.Register(app, currencyAdmin.Players, currencyAdmin.Connections, currencyAdmin.Translations)
 	currencyroutes.Register(app, currencyAdmin)
 	catalogroutes.Register(app, catalogAdmin)
+	if botAdmin.Bots != nil {
+		botroutes.Register(app, botAdmin)
+	}
 	permissionroutes.Register(app, permissionAdmin)
 	chatroutes.Register(app, chatAdmin)
 	messengerroutes.Register(app, messengerAdmin)

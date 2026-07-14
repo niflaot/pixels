@@ -77,6 +77,45 @@ func (world *World) AddUnit(playerID int64) {
 	world.nextUnitID++
 }
 
+// AddEntity creates a non-player unit at an explicit resolved position.
+func (world *World) AddEntity(entityKey int64, ownerID int64, kind worldunit.Kind, position worldpath.Position, rotation worldunit.Rotation) (UnitSnapshot, error) {
+	if entityKey == 0 || ownerID <= 0 || kind == worldunit.KindPlayer {
+		return UnitSnapshot{}, ErrInvalidWorld
+	}
+	if _, exists := world.units[entityKey]; exists {
+		return unitSnapshot(entityKey, world.units[entityKey]), nil
+	}
+	section, err := world.resolver.TopSection(position.Point)
+	if err != nil || !world.rules.AllowsSection(section) {
+		return UnitSnapshot{}, worldpath.ErrInvalidGoal
+	}
+	for _, current := range world.units {
+		if current.Position().Point == position.Point {
+			return UnitSnapshot{}, ErrTileOccupied
+		}
+	}
+	position.Z = section.Z()
+	roomUnit, err := worldunit.New(worldunit.Params{ID: world.nextUnitID, OwnerID: ownerID, Kind: kind, Position: position, Body: rotation, Head: rotation})
+	if err != nil {
+		return UnitSnapshot{}, err
+	}
+	world.units[entityKey] = roomUnit
+	world.nextUnitID++
+	return unitSnapshot(entityKey, roomUnit), nil
+}
+
+// RemoveEntity removes a non-player unit and releases its reserved slot.
+func (world *World) RemoveEntity(entityKey int64) (UnitSnapshot, bool) {
+	roomUnit, found := world.units[entityKey]
+	if !found {
+		return UnitSnapshot{}, false
+	}
+	snapshot := unitSnapshot(entityKey, roomUnit)
+	world.releaseSlot(entityKey)
+	delete(world.units, entityKey)
+	return snapshot, true
+}
+
 // RemoveUnit removes a player world unit and releases its furniture slot.
 func (world *World) RemoveUnit(playerID int64) {
 	world.releaseSlot(playerID)

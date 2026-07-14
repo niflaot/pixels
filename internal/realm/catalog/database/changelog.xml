@@ -19,4 +19,5 @@
     <include file="migrations/0012_room_bundles.sql" relativeToChangelogFile="true"/>
     <include file="migrations/0013_room_bundle_audit_name.sql" relativeToChangelogFile="true"/>
     <include file="migrations/0014_add_effect_grants.sql" relativeToChangelogFile="true"/>
+    <include file="migrations/0015_room_bundle_bot_audit.sql" relativeToChangelogFile="true"/>
 </databaseChangeLog>

@@ -875,6 +875,39 @@ minimum manual checks expected when touching it.
   - Open `/docs` and verify `Admin Trading`; lock/unlock one player, read their
     trade log, and force-close an open Marketplace listing.
 
+### FEATURE: Room Bots
+
+- Owns `internal/realm/bot`, `sdk/bot`, bot packets under `networking`, and
+  `pkg/http/bot/routes`.
+- Provides durable inventory and placed bots, owner/rights authorization,
+  bounded room and inventory limits, Nitro type-four unit projection, native
+  bot configuration skills, random walking, automatic filtered chat, following,
+  and deferred position persistence.
+- Bot movement advances from the existing room-owned 500ms loop. Never create a
+  timer or goroutine per bot; slow behavior hooks use the fixed shared worker
+  pool, and the ordinary cycle must remain free of database I/O and allocations.
+- Built-in behaviors are `generic`, `bartender`, and `visitor_log`. External
+  behavior implementations register through the controlled `sdk/bot` contract;
+  unknown durable behavior names fall back safely to `generic`.
+- Bartender keywords are whole-word, admin-managed mappings. Visitor history is
+  bounded and starts at the room owner's durable last logout. Bot speech passes
+  through global and room filters plus the explicit no-op Wired interceptor.
+- Complete-room bundle purchases clone template bots and ordered chat lines in
+  the same transaction when `PIXELS_ROOM_BUNDLE_BOTS_ENABLED` is true.
+- Test after changes:
+  - `go test -race ./internal/realm/bot/... ./internal/realm/room/... ./networking/inbound/bot/... ./networking/outbound/bot/...`
+  - `go test ./pkg/http/bot/routes ./pkg/http/openapi ./networking/inbound/inventory/bots ./networking/outbound/inventory/bots/...`
+  - `go test ./internal/realm/bot/core/tests -run '^$' -bench BenchmarkBotCycleTick -benchmem`
+  - Place, configure, walk, follow, pick up, and delete a seeded bot; verify the
+    inventory and room entity update without reconnecting.
+  - Say exact and substring bartender keywords at near and far distances; verify
+    only an exact nearby word transfers the hand item.
+  - Enter the visitor bot's room as its owner after other visits, accept the
+    summary, and verify the bounded list appears only once per placement.
+  - Buy a complete-room bundle containing a template bot and verify the cloned
+    room owns a separate bot with the same placement and chat configuration.
+  - Open `/docs` and verify the protected `Admin Bots` route group.
+
 ## SDK Rules
 
 - Treat `sdk/` as a controlled extension surface.

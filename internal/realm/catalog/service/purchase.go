@@ -128,6 +128,7 @@ func (service *Service) commitPurchase(ctx context.Context, params PurchaseParam
 		result.CreatedRoomID = &created.Room.ID
 		result.CreatedRoomName = created.Room.Name
 		result.ClonedFurnitureCount = created.FurnitureCount
+		result.ClonedBotCount = created.BotCount
 	}
 
 	balance, credits, points, err := service.charge(ctx, params.PlayerID, item, params)

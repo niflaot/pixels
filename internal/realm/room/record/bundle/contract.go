@@ -43,6 +43,12 @@ type Store interface {
 	ListBundleTemplateRooms(ctx context.Context) ([]roommodel.Room, error)
 }
 
+// BotCloner copies placed bots inside the bundle transaction.
+type BotCloner interface {
+	// CloneRoom copies every placed bot and its chat into a new owner room.
+	CloneRoom(context.Context, int64, int64, int64) (int, error)
+}
+
 // CloneParams contains a purchased room clone request.
 type CloneParams struct {
 	// TemplateRoomID identifies the marked source room.
@@ -61,6 +67,8 @@ type CloneResult struct {
 	Room roommodel.Room
 	// FurnitureCount stores the number of cloned furniture rows.
 	FurnitureCount int
+	// BotCount stores the number of cloned bot rows.
+	BotCount int
 }
 
 // Product contains one grouped furniture definition.
@@ -83,4 +91,6 @@ type PurchaseRecord struct {
 	BuyerPlayerID int64
 	// FurnitureCount stores cloned furniture count.
 	FurnitureCount int
+	// BotCount stores cloned bot count.
+	BotCount int
 }

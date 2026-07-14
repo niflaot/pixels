@@ -39,6 +39,7 @@ func routeTags() []openapi3.Tag {
 		tag("Client Config", "Public Nitro configuration and localized text extensions."),
 		tag("SSO", "Protected single-sign-on ticket routes."),
 		tag("Admin Players", "Protected player identity and profile administration routes."),
+		tag("Admin Bots", "Protected bot inspection, recovery, and bartender configuration routes."),
 		tag("Admin Connections", "Protected connection inspection and disconnection routes."),
 		tag("Admin Notifications", "Protected localized player communication routes."),
 		tag("Admin Currencies", "Protected player currency balance routes."),

@@ -29,8 +29,10 @@ type Registry struct {
 	doorbellTimeout time.Duration
 	// tickInterval stores active room movement cadence.
 	tickInterval time.Duration
-	// cyclePublish advances registered room domain cycles.
-	cyclePublish CyclePublisher
+	// cyclePublishers advance registered room domain cycles from the single room loop.
+	cyclePublishers []CyclePublisher
+	// closePublishers release domain state associated with closed rooms.
+	closePublishers []ClosePublisher
 }
 
 // NewRegistry creates an active room registry.
@@ -61,7 +63,11 @@ func (registry *Registry) Activate(snapshot Snapshot) (*Room, error) {
 	if active, found := registry.rooms[snapshot.ID]; found {
 		return active, nil
 	}
-	room.startLoop(context.Background(), registry.tickInterval, registry.movementPublish, registry.doorbellPublish, registry.cyclePublish, registry.doorbellTimeout)
+	var cycles CyclePublisher
+	if len(registry.cyclePublishers) > 0 {
+		cycles = registry.publishCycles
+	}
+	room.startLoop(context.Background(), registry.tickInterval, registry.movementPublish, registry.doorbellPublish, cycles, registry.doorbellTimeout)
 	registry.rooms[snapshot.ID] = room
 	return room, nil
 }
@@ -181,6 +187,11 @@ func (registry *Registry) Close(ctx context.Context, roomID int64) (Occupancy, b
 	registry.mutex.Unlock()
 
 	occupancy, expired := room.CloseWithDoorbell()
+	registry.mutex.RLock()
+	for _, publisher := range registry.closePublishers {
+		publisher(roomID)
+	}
+	registry.mutex.RUnlock()
 	if len(expired) > 0 && registry.doorbellPublish != nil {
 		_ = registry.doorbellPublish(ctx, room, expired)
 	}

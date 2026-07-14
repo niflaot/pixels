@@ -131,11 +131,49 @@ type DoorbellApprover func(context.Context, *Room) (bool, error)
 // CyclePublisher advances optional room-owned domain cycles.
 type CyclePublisher func(context.Context, *Room, time.Time) error
 
+// ClosePublisher observes an active room after it has been unregistered.
+type ClosePublisher func(int64)
+
 // SetCyclePublisher configures the optional domain cycle before rooms activate.
 func (registry *Registry) SetCyclePublisher(publisher CyclePublisher) {
 	registry.mutex.Lock()
-	registry.cyclePublish = publisher
+	registry.cyclePublishers = nil
+	if publisher != nil {
+		registry.cyclePublishers = append(registry.cyclePublishers, publisher)
+	}
 	registry.mutex.Unlock()
+}
+
+// AddCyclePublisher appends a domain cycle to the single owner loop used by every active room.
+func (registry *Registry) AddCyclePublisher(publisher CyclePublisher) {
+	if publisher == nil {
+		return
+	}
+	registry.mutex.Lock()
+	registry.cyclePublishers = append(registry.cyclePublishers, publisher)
+	registry.mutex.Unlock()
+}
+
+// AddClosePublisher appends a lightweight active-room cleanup observer.
+func (registry *Registry) AddClosePublisher(publisher ClosePublisher) {
+	if publisher == nil {
+		return
+	}
+	registry.mutex.Lock()
+	registry.closePublishers = append(registry.closePublishers, publisher)
+	registry.mutex.Unlock()
+}
+
+// publishCycles runs registered publishers without allocating on the room hot path.
+func (registry *Registry) publishCycles(ctx context.Context, room *Room, now time.Time) error {
+	registry.mutex.RLock()
+	defer registry.mutex.RUnlock()
+	for _, publisher := range registry.cyclePublishers {
+		if err := publisher(ctx, room, now); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // RegistryOption configures a room registry.

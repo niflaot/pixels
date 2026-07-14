@@ -9,10 +9,15 @@ const (
 
 	// AvatarType is the Nitro avatar unit type.
 	AvatarType int32 = 1
+
+	// RentableBotType is the Nitro owner-configurable bot unit type.
+	RentableBotType int32 = 4
 )
 
 // Unit stores one avatar unit record.
 type Unit struct {
+	// Type stores the Nitro unit type and defaults to AvatarType.
+	Type int32
 	// UserID stores the durable player id.
 	UserID int64
 
@@ -60,6 +65,15 @@ type Unit struct {
 
 	// Moderator reports whether the user has moderator badge state.
 	Moderator bool
+
+	// OwnerID stores the owner of a rentable bot.
+	OwnerID int64
+
+	// OwnerName stores the owner name of a rentable bot.
+	OwnerName string
+
+	// Skills stores the available rentable bot command identifiers.
+	Skills []uint16
 }
 
 // Encode creates a UNIT packet.
@@ -80,7 +94,11 @@ func Encode(records []Unit) (codec.Packet, error) {
 
 // appendUnit appends one avatar unit.
 func appendUnit(dst []byte, record Unit) ([]byte, error) {
-	return codec.AppendPayload(dst, unitDefinition(),
+	unitType := record.Type
+	if unitType == 0 {
+		unitType = AvatarType
+	}
+	payload, err := codec.AppendPayload(dst, baseDefinition(),
 		codec.Int32(int32(record.UserID)),
 		codec.String(record.Name),
 		codec.String(record.Motto),
@@ -90,7 +108,27 @@ func appendUnit(dst []byte, record Unit) ([]byte, error) {
 		codec.Int32(record.Y),
 		codec.String(record.Z),
 		codec.Int32(record.Direction),
-		codec.Int32(AvatarType),
+		codec.Int32(unitType),
+	)
+	if err != nil {
+		return nil, err
+	}
+	if unitType == RentableBotType {
+		payload, err = codec.AppendPayload(payload, botDefinition(),
+			codec.String(record.Gender), codec.Int32(int32(record.OwnerID)), codec.String(record.OwnerName), codec.Int32(int32(len(record.Skills))),
+		)
+		if err != nil {
+			return nil, err
+		}
+		for _, skill := range record.Skills {
+			payload, err = codec.AppendPayload(payload, codec.Definition{codec.Uint16Field}, codec.Uint16(skill))
+			if err != nil {
+				return nil, err
+			}
+		}
+		return payload, nil
+	}
+	return codec.AppendPayload(payload, avatarDefinition(),
 		codec.String(record.Gender),
 		codec.Int32(record.GroupID),
 		codec.Int32(record.GroupStatus),
@@ -101,8 +139,8 @@ func appendUnit(dst []byte, record Unit) ([]byte, error) {
 	)
 }
 
-// unitDefinition returns the avatar unit field order.
-func unitDefinition() codec.Definition {
+// baseDefinition returns fields shared by every room unit.
+func baseDefinition() codec.Definition {
 	return codec.Definition{
 		codec.Named("userId", codec.Int32Field),
 		codec.Named("name", codec.StringField),
@@ -114,6 +152,12 @@ func unitDefinition() codec.Definition {
 		codec.Named("z", codec.StringField),
 		codec.Named("direction", codec.Int32Field),
 		codec.Named("type", codec.Int32Field),
+	}
+}
+
+// avatarDefinition returns avatar-only room unit fields.
+func avatarDefinition() codec.Definition {
+	return codec.Definition{
 		codec.Named("sex", codec.StringField),
 		codec.Named("groupId", codec.Int32Field),
 		codec.Named("groupStatus", codec.Int32Field),
@@ -121,5 +165,15 @@ func unitDefinition() codec.Definition {
 		codec.Named("swimFigure", codec.StringField),
 		codec.Named("activityPoints", codec.Int32Field),
 		codec.Named("isModerator", codec.BooleanField),
+	}
+}
+
+// botDefinition returns rentable-bot fields before its variable skill list.
+func botDefinition() codec.Definition {
+	return codec.Definition{
+		codec.Named("sex", codec.StringField),
+		codec.Named("ownerId", codec.Int32Field),
+		codec.Named("ownerName", codec.StringField),
+		codec.Named("skillCount", codec.Int32Field),
 	}
 }

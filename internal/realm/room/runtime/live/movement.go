@@ -9,6 +9,16 @@ import (
 	worldunit "github.com/niflaot/pixels/internal/realm/room/world/unit"
 )
 
+// UnitMotion returns allocation-free movement state for one room-owned cycle.
+func (room *Room) UnitMotion(entityKey int64) (UnitSnapshot, bool) {
+	room.mutex.RLock()
+	defer room.mutex.RUnlock()
+	if room.world == nil {
+		return UnitSnapshot{}, false
+	}
+	return room.world.UnitMotion(entityKey)
+}
+
 // MoveTo sets a unit movement goal.
 func (room *Room) MoveTo(playerID int64, goal grid.Point) (worldpath.Path, error) {
 	return room.moveTo(playerID, goal, worldunit.ControlNone)

@@ -20,4 +20,6 @@ type Payload struct {
 	CreatedRoomID int64
 	// FurnitureCount stores copied furniture count.
 	FurnitureCount int
+	// BotCount stores copied bot count.
+	BotCount int
 }

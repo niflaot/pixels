@@ -28,7 +28,7 @@ func Units(room *roomlive.Room, playerIDs ...int64) []outunits.Unit {
 	allowed := allowedPlayers(playerIDs)
 	records := make([]outunits.Unit, 0, len(units))
 	for _, unit := range units {
-		if len(allowed) > 0 && !allowed[unit.PlayerID] {
+		if len(allowed) > 0 && !allowed[unit.EntityKey] {
 			continue
 		}
 		occupant, ok := occupants[unit.PlayerID]
@@ -51,7 +51,7 @@ func Statuses(room *roomlive.Room, playerIDs ...int64) []outstatus.Unit {
 	allowed := allowedPlayers(playerIDs)
 	records := make([]outstatus.Unit, 0, len(units))
 	for _, unit := range units {
-		if len(allowed) > 0 && !allowed[unit.PlayerID] {
+		if len(allowed) > 0 && !allowed[unit.EntityKey] {
 			continue
 		}
 		records = append(records, statusPositionRecord(unit, unit.Position, statusActions(unit.Statuses)))

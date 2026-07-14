@@ -1,0 +1,221 @@
+package core
+
+import (
+	"context"
+	"time"
+
+	botrecord "github.com/niflaot/pixels/internal/realm/bot/record"
+	roomlive "github.com/niflaot/pixels/internal/realm/room/runtime/live"
+	"github.com/niflaot/pixels/internal/realm/room/world/grid"
+	sdkbot "github.com/niflaot/pixels/sdk/bot"
+	"go.uber.org/zap"
+)
+
+// AddPlaced inserts one newly placed bot into a loaded room generation.
+func (service *Service) AddPlaced(bot botrecord.Bot) {
+	if bot.RoomID == nil {
+		return
+	}
+	service.mutex.Lock()
+	state := service.active[*bot.RoomID]
+	if state == nil {
+		state = &roomState{bots: make(map[int64]*activeBot)}
+		service.active[*bot.RoomID] = state
+	}
+	state.bots[bot.ID] = service.newActiveBot(bot, time.Now())
+	state.rebuildSnapshot()
+	service.mutex.Unlock()
+}
+
+// RemovePlaced removes one bot from a loaded room generation.
+func (service *Service) RemovePlaced(roomID int64, botID int64) {
+	service.mutex.Lock()
+	if state := service.active[roomID]; state != nil {
+		delete(state.bots, botID)
+		state.rebuildSnapshot()
+	}
+	service.mutex.Unlock()
+}
+
+// ReplacePlaced refreshes one loaded bot after a durable settings save.
+func (service *Service) ReplacePlaced(saved botrecord.Bot) {
+	if saved.RoomID == nil {
+		return
+	}
+	if bot, found := service.activeByID(*saved.RoomID, saved.ID); found {
+		bot.mutex.Lock()
+		bot.record = saved
+		bot.mutex.Unlock()
+	}
+}
+
+// UnloadRoom releases one inactive room bot generation.
+func (service *Service) UnloadRoom(roomID int64) {
+	service.mutex.Lock()
+	delete(service.active, roomID)
+	service.mutex.Unlock()
+}
+
+// roomBots returns a stable pointer snapshot without per-tick database work.
+func (service *Service) roomBots(roomID int64) []*activeBot {
+	service.mutex.RLock()
+	state := service.active[roomID]
+	if state == nil {
+		service.mutex.RUnlock()
+		return nil
+	}
+	snapshot := state.snapshot.Load()
+	service.mutex.RUnlock()
+	if snapshot == nil {
+		return nil
+	}
+	return snapshot.bots
+}
+
+// PlacedCount returns one loaded room bot count.
+func (service *Service) PlacedCount(roomID int64) int {
+	service.mutex.RLock()
+	state := service.active[roomID]
+	count := 0
+	if state != nil {
+		count = len(state.bots)
+	}
+	service.mutex.RUnlock()
+	return count
+}
+
+// activeByID returns one loaded bot by room and durable id.
+func (service *Service) activeByID(roomID int64, botID int64) (*activeBot, bool) {
+	service.mutex.RLock()
+	state := service.active[roomID]
+	var bot *activeBot
+	if state != nil {
+		bot = state.bots[botID]
+	}
+	service.mutex.RUnlock()
+	return bot, bot != nil
+}
+
+// capturePosition queues deferred persistence when a moving bot changed position.
+func (service *Service) capturePosition(roomID int64, bot *activeBot, unit roomlive.UnitSnapshot, now time.Time) {
+	x, y, z, rotation := int(unit.Position.Point.X), int(unit.Position.Point.Y), float64(unit.Position.Z), int16(unit.BodyRotation)
+	unchanged := bot.record.X != nil && *bot.record.X == x && bot.record.Y != nil && *bot.record.Y == y && bot.record.Z != nil && *bot.record.Z == z && bot.record.Rotation != nil && *bot.record.Rotation == rotation
+	if unchanged || now.Sub(bot.lastPositionFlush) < service.config.PositionFlushInterval {
+		return
+	}
+	service.queuePosition(roomID, bot, x, y, z, rotation, now)
+}
+
+// queuePosition updates mutable pointers and defers the durable write outside the hot path.
+func (service *Service) queuePosition(roomID int64, bot *activeBot, x int, y int, z float64, rotation int16, now time.Time) {
+	bot.record.X, bot.record.Y, bot.record.Z, bot.record.Rotation = &x, &y, &z, &rotation
+	bot.lastPositionFlush = now
+	botID := bot.record.ID
+	service.dispatch(func() {
+		if err := service.store.SavePosition(context.Background(), botID, roomID, x, y, z, rotation); err != nil && service.log != nil {
+			service.log.Warn("save bot position", zap.Int64("bot_id", botID), zap.Error(err))
+		}
+	})
+}
+
+// follow updates one bot goal behind its live target.
+func (service *Service) follow(active *roomlive.Room, bot *activeBot, unit roomlive.UnitSnapshot) {
+	target, found := active.Unit(bot.followingPlayerID)
+	if !found {
+		bot.followingPlayerID = 0
+		return
+	}
+	goal, valid := rotatedNeighbor(target.Position.Point, (int(target.BodyRotation)+4)%8)
+	if !valid {
+		goal, valid = rotatedNeighbor(target.Position.Point, int(target.BodyRotation))
+	}
+	if valid && squaredDistance(unit.Position.Point, target.Position.Point) >= 4 {
+		_, _ = active.MoveTo(EntityKey(bot.id), goal)
+	}
+}
+
+// StartFollowing assigns one player target while both entities share a room.
+func (service *Service) StartFollowing(roomID int64, botID int64, playerID int64) error {
+	bot, found := service.activeByID(roomID, botID)
+	if !found {
+		return botrecord.ErrBotNotFound
+	}
+	bot.mutex.Lock()
+	bot.followingPlayerID = playerID
+	bot.mutex.Unlock()
+	return nil
+}
+
+// StopFollowing clears any bot following the supplied player.
+func (service *Service) StopFollowing(roomID int64, playerID int64) {
+	for _, bot := range service.roomBots(roomID) {
+		bot.mutex.Lock()
+		if bot.followingPlayerID == playerID {
+			bot.followingPlayerID = 0
+		}
+		bot.mutex.Unlock()
+	}
+}
+
+// StopFollowingEverywhere clears a followed player from every loaded room.
+func (service *Service) StopFollowingEverywhere(playerID int64) {
+	service.mutex.RLock()
+	states := make([]*roomState, 0, len(service.active))
+	for _, state := range service.active {
+		states = append(states, state)
+	}
+	service.mutex.RUnlock()
+	for _, state := range states {
+		snapshot := state.snapshot.Load()
+		if snapshot == nil {
+			continue
+		}
+		for _, bot := range snapshot.bots {
+			bot.mutex.Lock()
+			if bot.followingPlayerID == playerID {
+				bot.followingPlayerID = 0
+			}
+			bot.mutex.Unlock()
+		}
+	}
+}
+
+// RandomWalk implements the SDK bounded random movement action.
+func (service *Service) RandomWalk(_ context.Context, view sdkbot.Bot) error {
+	active, found := service.rooms.Find(view.RoomID)
+	if !found {
+		return botrecord.ErrRoomNotFound
+	}
+	bot, found := service.activeByID(view.RoomID, view.ID)
+	if !found {
+		return botrecord.ErrBotNotFound
+	}
+	bot.mutex.Lock()
+	delay := 5 + int(service.source.Uint64()%34)
+	bot.nextWalk = time.Now().Add(time.Duration(delay) * time.Second)
+	bot.mutex.Unlock()
+	radius := service.config.WalkRadius
+	if !service.config.LimitWalkRadius {
+		radius = 1 << 16
+	}
+	goal, found := active.RandomWalkablePoint(EntityKey(view.ID), radius, service.source.Uint64())
+	if !found {
+		return nil
+	}
+	_, err := active.MoveTo(EntityKey(view.ID), goal)
+	return err
+}
+
+// squaredDistance returns allocation-free tile distance squared.
+func squaredDistance(first grid.Point, second grid.Point) int {
+	dx, dy := int(first.X)-int(second.X), int(first.Y)-int(second.Y)
+	return dx*dx + dy*dy
+}
+
+// rotatedNeighbor returns one adjacent tile in an eight-direction rotation.
+func rotatedNeighbor(point grid.Point, rotation int) (grid.Point, bool) {
+	offsets := [8][2]int{{0, -1}, {1, -1}, {1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}}
+	offset := offsets[rotation&7]
+	x, y := int(point.X)+offset[0], int(point.Y)+offset[1]
+	return grid.NewPoint(x, y)
+}

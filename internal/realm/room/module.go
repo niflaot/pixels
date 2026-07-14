@@ -41,6 +41,7 @@ var Module = fx.Module(
 		layout.NewService,
 		service.New,
 		NewBundleStore,
+		roombundle.LoadConfig,
 		roombundle.New,
 		NewLiveRegistry,
 		NewLayoutManager,
