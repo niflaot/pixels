@@ -138,7 +138,7 @@ func (world *World) Tick() []Movement {
 		if settled {
 			world.settleUnit(playerID, roomUnit)
 		}
-		exited := settled && roomUnit.Position().Point == world.door.Point
+		exited := settled && roomUnit.Kind() == worldunit.KindPlayer && roomUnit.Position().Point == world.door.Point
 		movements = append(movements, Movement{
 			PlayerID: playerID, Unit: unitSnapshot(playerID, roomUnit), Step: step,
 			Moved: moved, Settled: settled, Exited: exited,

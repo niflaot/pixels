@@ -29,7 +29,7 @@ func (service *Service) publishPurchase(ctx context.Context, playerID int64, res
 	}
 	err = service.events.Publish(ctx, bus.Event{Name: roompurchased.Name, Payload: roompurchased.Payload{
 		PlayerID: playerID, CatalogItemID: result.Item.ID, TemplateRoomID: *result.Item.RoomBundleTemplateRoomID,
-		CreatedRoomID: *result.CreatedRoomID, FurnitureCount: result.ClonedFurnitureCount,
+		CreatedRoomID: *result.CreatedRoomID, FurnitureCount: result.ClonedFurnitureCount, BotCount: result.ClonedBotCount,
 	}})
 	if err != nil && !errors.Is(err, context.Canceled) {
 		service.log.Warn("room bundle purchase event projection failed", zap.Int64("player_id", playerID), zap.Error(err))

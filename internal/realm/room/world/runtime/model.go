@@ -51,8 +51,14 @@ type Config struct {
 
 // UnitSnapshot stores stable world unit state.
 type UnitSnapshot struct {
+	// EntityKey stores the world index used by players, bots, and future pets.
+	EntityKey int64
 	// PlayerID stores the owning player id.
 	PlayerID int64
+	// OwnerID stores the durable owner for non-player units.
+	OwnerID int64
+	// Kind identifies the room unit family.
+	Kind worldunit.Kind
 	// UnitID stores the room-local unit id.
 	UnitID int64
 	// Position stores the current unit position.
@@ -115,4 +121,75 @@ type MovementPlan struct {
 	Goal grid.Point
 	// Occupancy stores positions reserved by other units.
 	Occupancy worldpath.Occupancy
+}
+
+// UnitMotion returns allocation-free movement state for room-owned domain cycles.
+func (world *World) UnitMotion(entityKey int64) (UnitSnapshot, bool) {
+	roomUnit, found := world.units[entityKey]
+	if !found {
+		return UnitSnapshot{}, false
+	}
+	durablePlayerID := entityKey
+	if roomUnit.Kind() != worldunit.KindPlayer {
+		durablePlayerID = 0
+	}
+	return UnitSnapshot{
+		EntityKey: entityKey, PlayerID: durablePlayerID, OwnerID: roomUnit.OwnerID(), Kind: roomUnit.Kind(), UnitID: roomUnit.ID(),
+		Position: roomUnit.Position(), Previous: roomUnit.Previous(), BodyRotation: roomUnit.BodyRotation(), HeadRotation: roomUnit.HeadRotation(),
+		Moving: roomUnit.InMotion(), HandItem: roomUnit.HandItem(), ActiveEffectID: roomUnit.ActiveEffect(),
+	}, true
+}
+
+// RandomWalkablePoint selects one walkable unoccupied tile with reservoir sampling and no allocation.
+func (world *World) RandomWalkablePoint(entityKey int64, radius int, random uint64) (grid.Point, bool) {
+	roomUnit, found := world.units[entityKey]
+	if !found || radius <= 0 {
+		return grid.Point{}, false
+	}
+	origin := roomUnit.Position().Point
+	minX, maxX := boundedRange(int(origin.X), radius, int(world.grid.Width()))
+	minY, maxY := boundedRange(int(origin.Y), radius, int(world.grid.Height()))
+	selected := grid.Point{}
+	count := uint64(0)
+	for y := minY; y < maxY; y++ {
+		for x := minX; x < maxX; x++ {
+			point := grid.Point{X: uint16(x), Y: uint16(y)}
+			if point == origin || world.pointOccupied(entityKey, point) {
+				continue
+			}
+			section, err := world.resolver.TopSection(point)
+			if err != nil || !world.rules.AllowsSection(section) {
+				continue
+			}
+			count++
+			if random%count == 0 {
+				selected = point
+			}
+			random = random*6364136223846793005 + 1442695040888963407
+		}
+	}
+	return selected, count > 0
+}
+
+// pointOccupied reports whether another unit currently owns a tile.
+func (world *World) pointOccupied(excludedKey int64, point grid.Point) bool {
+	for key, roomUnit := range world.units {
+		if key != excludedKey && roomUnit.Position().Point == point {
+			return true
+		}
+	}
+	return false
+}
+
+// boundedRange returns a half-open coordinate range.
+func boundedRange(origin int, radius int, limit int) (int, int) {
+	minimum := origin - radius
+	if minimum < 0 {
+		minimum = 0
+	}
+	maximum := origin + radius + 1
+	if maximum > limit {
+		maximum = limit
+	}
+	return minimum, maximum
 }

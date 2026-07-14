@@ -12,6 +12,8 @@ import (
 
 // Service implements room bundle cloning and administration.
 type Service struct {
+	// config stores optional bundle cloning policy.
+	config Config
 	// store persists atomic bundle records.
 	store Store
 	// rooms reads ordinary room records.
@@ -20,11 +22,13 @@ type Service struct {
 	layouts layout.CustomManager
 	// furniture clones and summarizes room items.
 	furniture furnitureservice.RoomBundleManager
+	// bots clones placed room bots and their chat.
+	bots BotCloner
 }
 
 // New creates room bundle behavior.
-func New(store Store, rooms *roomservice.Service, layouts *layout.Service, furniture furnitureservice.RoomBundleManager) *Service {
-	return &Service{store: store, rooms: rooms, layouts: layouts, furniture: furniture}
+func New(config Config, store Store, rooms *roomservice.Service, layouts *layout.Service, furniture furnitureservice.RoomBundleManager, bots BotCloner) *Service {
+	return &Service{config: config, store: store, rooms: rooms, layouts: layouts, furniture: furniture, bots: bots}
 }
 
 // Clone clones room data, custom geometry, and furniture atomically.
@@ -64,8 +68,15 @@ func (service *Service) Clone(ctx context.Context, params CloneParams) (CloneRes
 		if err != nil {
 			return err
 		}
-		result = CloneResult{Room: created, FurnitureCount: furnitureCount}
-		return service.store.RecordBundlePurchase(txCtx, PurchaseRecord{CatalogItemID: params.CatalogItemID, TemplateRoomID: template.ID, CreatedRoomID: created.ID, BuyerPlayerID: params.BuyerPlayerID, FurnitureCount: furnitureCount})
+		botCount := 0
+		if service.config.CloneBots && service.bots != nil {
+			botCount, err = service.bots.CloneRoom(txCtx, template.ID, created.ID, params.BuyerPlayerID)
+			if err != nil {
+				return err
+			}
+		}
+		result = CloneResult{Room: created, FurnitureCount: furnitureCount, BotCount: botCount}
+		return service.store.RecordBundlePurchase(txCtx, PurchaseRecord{CatalogItemID: params.CatalogItemID, TemplateRoomID: template.ID, CreatedRoomID: created.ID, BuyerPlayerID: params.BuyerPlayerID, FurnitureCount: furnitureCount, BotCount: botCount})
 	})
 	if err != nil {
 		return CloneResult{}, fmt.Errorf("clone room bundle: %w", err)

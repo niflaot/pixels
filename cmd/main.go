@@ -4,6 +4,7 @@ package main
 import (
 	"github.com/niflaot/pixels/internal/auth/sso"
 	permissionmodule "github.com/niflaot/pixels/internal/permission/module"
+	realmbot "github.com/niflaot/pixels/internal/realm/bot"
 	realmcatalog "github.com/niflaot/pixels/internal/realm/catalog"
 	realmchat "github.com/niflaot/pixels/internal/realm/chat"
 	realmconn "github.com/niflaot/pixels/internal/realm/connection"
@@ -51,6 +52,7 @@ func options() []fx.Option {
 	options = append(options, permissionmodule.Module)
 	options = append(options, pixelhttp.Module)
 	options = append(options, realmconn.Module)
+	options = append(options, realmbot.Module)
 	options = append(options, realmcatalog.Module)
 	options = append(options, realmchat.Module)
 	options = append(options, realmfurniture.Module)

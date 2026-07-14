@@ -171,6 +171,9 @@ type PurchaseResult struct {
 	// ClonedFurnitureCount stores furniture copied into a created room.
 	ClonedFurnitureCount int
 
+	// ClonedBotCount stores bots copied into a created room.
+	ClonedBotCount int
+
 	// LimitedUnitNumber stores the optional LTD edition number.
 	LimitedUnitNumber *int32
 

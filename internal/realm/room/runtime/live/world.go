@@ -3,10 +3,41 @@ package live
 import (
 	worldfurniture "github.com/niflaot/pixels/internal/realm/room/world/furniture"
 	"github.com/niflaot/pixels/internal/realm/room/world/grid"
+	worldpath "github.com/niflaot/pixels/internal/realm/room/world/path"
 	worldruntime "github.com/niflaot/pixels/internal/realm/room/world/runtime"
 	"github.com/niflaot/pixels/internal/realm/room/world/surface"
 	worldunit "github.com/niflaot/pixels/internal/realm/room/world/unit"
 )
+
+// AddEntity adds a non-player unit to the loaded room world.
+func (room *Room) AddEntity(entityKey int64, ownerID int64, kind worldunit.Kind, position worldpath.Position, rotation worldunit.Rotation) (UnitSnapshot, error) {
+	room.mutex.Lock()
+	defer room.mutex.Unlock()
+	if room.world == nil {
+		return UnitSnapshot{}, ErrWorldNotLoaded
+	}
+	return room.world.AddEntity(entityKey, ownerID, kind, position, rotation)
+}
+
+// RemoveEntity removes a non-player unit from the loaded room world.
+func (room *Room) RemoveEntity(entityKey int64) (UnitSnapshot, bool) {
+	room.mutex.Lock()
+	defer room.mutex.Unlock()
+	if room.world == nil {
+		return UnitSnapshot{}, false
+	}
+	return room.world.RemoveEntity(entityKey)
+}
+
+// RandomWalkablePoint selects one nearby unoccupied tile without allocating a candidate list.
+func (room *Room) RandomWalkablePoint(entityKey int64, radius int, random uint64) (grid.Point, bool) {
+	room.mutex.RLock()
+	defer room.mutex.RUnlock()
+	if room.world == nil {
+		return grid.Point{}, false
+	}
+	return room.world.RandomWalkablePoint(entityKey, radius, random)
+}
 
 // LoadWorld loads or replaces room world behavior.
 func (room *Room) LoadWorld(config WorldConfig) error {

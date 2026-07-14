@@ -126,16 +126,22 @@ func (fakeFurniture) PreviewRoom(context.Context, int64) ([]furnitureservice.Roo
 	return []furnitureservice.RoomBundleProduct{{DefinitionID: 3, Quantity: 2}}, nil
 }
 
+// fakeBots clones a fixed number of template bots.
+type fakeBots struct{}
+
+// CloneRoom returns a fixed bot count.
+func (fakeBots) CloneRoom(context.Context, int64, int64, int64) (int, error) { return 3, nil }
+
 // TestCloneCopiesCustomLayoutFurnitureAndAudit verifies complete cloning.
 func TestCloneCopiesCustomLayoutFurnitureAndAudit(t *testing.T) {
 	store := &fakeStore{}
 	layouts := &fakeLayouts{}
-	service := &Service{store: store, rooms: fakeRooms{}, layouts: layouts, furniture: fakeFurniture{}}
+	service := &Service{config: Config{CloneBots: true}, store: store, rooms: fakeRooms{}, layouts: layouts, furniture: fakeFurniture{}, bots: fakeBots{}}
 	result, err := service.Clone(context.Background(), CloneParams{TemplateRoomID: 10, BuyerPlayerID: 7, BuyerName: "demo", CatalogItemID: 1101})
-	if err != nil || result.Room.ID != 44 || result.FurnitureCount != 7 {
+	if err != nil || result.Room.ID != 44 || result.FurnitureCount != 7 || result.BotCount != 3 {
 		t.Fatalf("result=%#v error=%v", result, err)
 	}
-	if !store.cloned || layouts.saved.RoomID != 44 || store.recorded.FurnitureCount != 7 {
+	if !store.cloned || layouts.saved.RoomID != 44 || store.recorded.FurnitureCount != 7 || store.recorded.BotCount != 3 {
 		t.Fatalf("audit=%#v layout=%#v", store.recorded, layouts.saved)
 	}
 }
@@ -206,7 +212,7 @@ func TestPreviewGroupsFurnitureAndValidatesTemplate(t *testing.T) {
 
 // TestNewCreatesService verifies constructor dependency wiring.
 func TestNewCreatesService(t *testing.T) {
-	if service := New(nil, nil, nil, nil); service == nil {
+	if service := New(Config{}, nil, nil, nil, nil, nil); service == nil {
 		t.Fatal("expected service")
 	}
 }

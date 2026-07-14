@@ -173,7 +173,7 @@ func (service *Service) fail(ctx context.Context, roomID int64, transit Transit,
 
 // Register wires room cycle and lifecycle event integration.
 func Register(lifecycle fx.Lifecycle, subscriber bus.Subscriber, runtime *roomlive.Registry, service *Service) error {
-	runtime.SetCyclePublisher(service.Cycle)
+	runtime.AddCyclePublisher(service.Cycle)
 	enteredSubscription, err := subscriber.Subscribe(roomentered.Name, bus.PriorityHigh, func(ctx context.Context, event bus.Event) error {
 		payload, ok := event.Payload.(roomentered.Payload)
 		if !ok {

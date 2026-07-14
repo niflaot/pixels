@@ -134,7 +134,13 @@
       "catalog.item.landscape": "Paisaje",
       "catalog.alert.published.title": "Catálogo actualizado",
       "catalog.alert.published.message": "El catálogo del hotel fue actualizado.",
-      "room.furniture.cannon.kicked": "Un cañón te expulsó de la sala."
+      "room.furniture.cannon.kicked": "Un cañón te expulsó de la sala.",
+      "bots.placement.hello": "¡Hola!",
+      "bots.placement.party": "¡La fiesta puede empezar!",
+      "bots.placement.welcome": "¡Bienvenido a la sala!",
+      "bots.bartender.given": "Aquí tienes tu {item}.",
+      "bots.visitor.no_visits": "Nadie visitó la sala mientras no estabas.",
+      "bots.visitor.visits": "Hubo {count} visitas mientras no estabas. Di sí para ver la lista."
     },
     "en": {
       "session.bubble.furniture.invalid_move": "You cannot place that there.",
@@ -267,7 +273,13 @@
       "catalog.item.landscape": "Landscape",
       "catalog.alert.published.title": "Catalog updated",
       "catalog.alert.published.message": "The hotel catalog was updated.",
-      "room.furniture.cannon.kicked": "A cannon fired you out of the room."
+      "room.furniture.cannon.kicked": "A cannon fired you out of the room.",
+      "bots.placement.hello": "Hello!",
+      "bots.placement.party": "The party can begin!",
+      "bots.placement.welcome": "Welcome to the room!",
+      "bots.bartender.given": "Here is your {item}.",
+      "bots.visitor.no_visits": "Nobody visited the room while you were away.",
+      "bots.visitor.visits": "There were {count} visits while you were away. Say yes to see the list."
     }
   }
 }
