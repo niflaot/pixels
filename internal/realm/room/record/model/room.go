@@ -139,4 +139,13 @@ type Room struct {
 
 	// IsBundleTemplate reports whether the room is an administrative bundle source.
 	IsBundleTemplate bool
+
+	// FloorPaint stores the Nitro floor pattern and color value.
+	FloorPaint string
+
+	// Wallpaper stores the Nitro wall pattern and color value.
+	Wallpaper string
+
+	// Landscape stores the Nitro window landscape value.
+	Landscape string
 }

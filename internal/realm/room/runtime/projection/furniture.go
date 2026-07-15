@@ -6,6 +6,7 @@ import (
 	furnituremodel "github.com/niflaot/pixels/internal/realm/furniture/model"
 	roomfurniture "github.com/niflaot/pixels/internal/realm/room/world/items"
 	outflooritems "github.com/niflaot/pixels/networking/outbound/room/furniture/flooritems"
+	outwallitems "github.com/niflaot/pixels/networking/outbound/room/furniture/wallitems"
 )
 
 // GiftSender stores visible gift sender identity for present tags.
@@ -22,7 +23,7 @@ func FloorItems(items []furnituremodel.Item, definitions map[int64]furnituremode
 	records := make([]outflooritems.FloorItem, 0, len(items))
 	for _, item := range items {
 		definition, ok := definitions[item.DefinitionID]
-		if !ok || item.X == nil || item.Y == nil || item.Z == nil {
+		if !ok || definition.Kind == furnituremodel.KindWall || item.X == nil || item.Y == nil || item.Z == nil {
 			continue
 		}
 		records = append(records, floorItemRecord(item, definition, giftSenders))
@@ -31,10 +32,30 @@ func FloorItems(items []furnituremodel.Item, definitions map[int64]furnituremode
 	return owners, records
 }
 
+// WallItems maps placed wall furniture into Nitro owner and item records.
+func WallItems(items []furnituremodel.Item, definitions map[int64]furnituremodel.Definition, ownerNames map[int64]string) ([]outwallitems.Owner, []outwallitems.Item) {
+	seen := make(map[int64]struct{}, len(items))
+	owners := make([]outwallitems.Owner, 0, len(items))
+	records := make([]outwallitems.Item, 0, len(items))
+	for _, item := range items {
+		definition, found := definitions[item.DefinitionID]
+		if !found || definition.Kind != furnituremodel.KindWall || item.WallPosition == nil {
+			continue
+		}
+		if _, found = seen[item.OwnerPlayerID]; !found {
+			seen[item.OwnerPlayerID] = struct{}{}
+			owners = append(owners, outwallitems.Owner{ID: item.OwnerPlayerID, Name: ownerNames[item.OwnerPlayerID]})
+		}
+		records = append(records, outwallitems.Item{ID: item.ID, SpriteID: definition.SpriteID, WallPosition: *item.WallPosition, ExtraData: item.ExtraData, UsagePolicy: UsagePolicyValue(definition), OwnerID: item.OwnerPlayerID})
+	}
+
+	return owners, records
+}
+
 // floorItemRecord maps one persisted item and its definition to a protocol floor item.
 func floorItemRecord(item furnituremodel.Item, definition furnituremodel.Definition, giftSenders map[int64]GiftSender) outflooritems.FloorItem {
 	sender := giftSenderRecord(item, giftSenders)
-	return outflooritems.FloorItem{
+	record := outflooritems.FloorItem{
 		ID:               item.ID,
 		SpriteID:         FurnitureSpriteID(item, definition),
 		X:                *item.X,
@@ -52,6 +73,9 @@ func floorItemRecord(item furnituremodel.Item, definition furnituremodel.Definit
 		GiftSenderName:   sender.Name,
 		GiftSenderFigure: sender.Figure,
 	}
+	record.Data = SpecializedObjectData(definition.InteractionType, item.ExtraData)
+
+	return record
 }
 
 // giftMessage returns the optional persisted gift message.

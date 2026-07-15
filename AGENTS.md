@@ -908,6 +908,46 @@ minimum manual checks expected when touching it.
     room owns a separate bot with the same placement and chat configuration.
   - Open `/docs` and verify the protected `Admin Bots` route group.
 
+### FEATURE: Room Decoration and Remaining Room Entities
+
+- Owns `internal/realm/room/decoration`, decorator commands below
+  `internal/realm/furniture/commands/decor`, wall-furniture projections, room
+  appearance persistence, and hand-item transfer commands below
+  `internal/realm/room/world/commands/handitem`.
+- Provides consumable floor colors/patterns, wallpaper, and window landscapes;
+  generic wall-item placement, movement, pickup, and entry snapshots; editable
+  filtered post-its with sticky-pole guest placement; mannequin outfit naming,
+  saving, and same-gender application; three durable mood-light presets; and
+  typed background-toner object data.
+- Room bundles clone floor, wallpaper, landscape, wall items, decorator object
+  data, and dimmer presets in their existing purchase transaction. Development
+  seeds include catalog surface variants and a decorated bundle template.
+- A room may contain only one dimmer. The persistence guard serializes placement
+  by room so concurrent requests cannot bypass the limit.
+- Player hand-item drop and adjacent transfer resolve room-local unit ids through
+  the world's reverse unit index. Keep that lookup at zero allocations and do
+  not scan all units or query persistence on this path.
+- `UNIT_NUMBER` and `UNIT_INFO` remain focused outbound encoders; they do not own
+  additional room state.
+- Test after changes:
+  - `go test -race ./internal/realm/room/... ./internal/realm/furniture/...`
+  - `go test ./networking/inbound/furniture/... ./networking/outbound/room/...`
+  - `go test -run '^$' -bench BenchmarkUnitByID -benchmem ./internal/realm/room/world/runtime/tests`
+  - Buy and apply every seeded floor, wallpaper, and landscape variant; verify
+    every current occupant updates immediately and re-entry restores the choice.
+  - Buy, place, move, and pick up a mood light; verify a second mood light is
+    rejected, all three presets save, and toggle state survives a restart.
+  - Place a post-it as owner and through a sticky pole as a visitor; edit color
+    and filtered text, then re-enter and verify the durable wall snapshot.
+  - Save and rename male and female mannequins; apply them with matching and
+    mismatched genders and verify only clothing parts change in the valid case.
+  - Configure and toggle a background toner and verify other occupants and late
+    entrants receive its integer-array object data.
+  - Give a hand item to an adjacent player, reject a distant target, and drop it;
+    verify every occupant sees both unit hand-item updates.
+  - Buy the decorated complete-room bundle and verify its surfaces, post-it,
+    mannequin, toner, mood light, and mood-light presets are independent copies.
+
 ## SDK Rules
 
 - Treat `sdk/` as a controlled extension surface.

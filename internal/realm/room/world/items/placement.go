@@ -30,6 +30,9 @@ func ResolveWorldItem(ctx context.Context, active *roomlive.Room, manager furnit
 	if !found {
 		return worldfurniture.Item{}, furnituremodel.Definition{}, ErrDefinitionNotFound
 	}
+	if definition.Kind == furnituremodel.KindWall {
+		return worldfurniture.Item{}, furnituremodel.Definition{}, ErrInvalidTarget
+	}
 
 	worldDefinition, err := ToWorldDefinition(definition)
 	if err != nil {

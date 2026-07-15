@@ -31,12 +31,16 @@ func (world *World) Unit(playerID int64) (UnitSnapshot, bool) {
 
 // UnitByID returns one unit by its room-local identifier without allocation.
 func (world *World) UnitByID(unitID int64) (UnitSnapshot, bool) {
-	for playerID, roomUnit := range world.units {
-		if roomUnit.ID() == unitID {
-			return unitSnapshot(playerID, roomUnit), true
-		}
+	entityKey, found := world.unitKeys[unitID]
+	if !found {
+		return UnitSnapshot{}, false
 	}
-	return UnitSnapshot{}, false
+	roomUnit, found := world.units[entityKey]
+	if !found {
+		return UnitSnapshot{}, false
+	}
+
+	return unitSnapshot(entityKey, roomUnit), true
 }
 
 // SetUnitStatus stores one status on a player unit.

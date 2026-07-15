@@ -72,6 +72,9 @@ func (handler Handler) sendEntered(ctx context.Context, connection netconn.Conte
 	if err := handler.sendFloorItems(ctx, connection, room, active); err != nil {
 		return err
 	}
+	if err := sendAppearance(ctx, connection, room); err != nil {
+		return err
+	}
 	if err := handler.sendHeightMap(ctx, connection, active); err != nil {
 		return err
 	}

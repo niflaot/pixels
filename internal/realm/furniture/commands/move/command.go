@@ -52,6 +52,9 @@ type Command struct {
 
 	// Rotation stores the destination floor instance rotation.
 	Rotation int
+
+	// WallPosition stores Nitro wall coordinates for a wall item.
+	WallPosition string
 }
 
 // Handler handles furniture move commands.
@@ -117,6 +120,9 @@ func (handler Handler) Handle(ctx context.Context, envelope command.Envelope[Com
 	}
 	if !found {
 		return nil
+	}
+	if envelope.Command.WallPosition != "" {
+		return handler.moveWall(ctx, envelope.Command, player, active, roomID, item)
 	}
 
 	rotation := furnituremodel.Rotation(envelope.Command.Rotation)

@@ -38,6 +38,9 @@ func ToWorldItem(item furnituremodel.Item, definitions map[int64]furnituremodel.
 	if !found {
 		return worldfurniture.Item{}, false, nil
 	}
+	if definition.Kind == furnituremodel.KindWall {
+		return worldfurniture.Item{}, false, nil
+	}
 	point, ok := grid.NewPoint(*item.X, *item.Y)
 	if !ok {
 		return worldfurniture.Item{}, false, nil

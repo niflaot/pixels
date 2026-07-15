@@ -30,6 +30,8 @@ type World struct {
 	rules worldpath.Rules
 	// units stores world units by player id.
 	units map[int64]*worldunit.Unit
+	// unitKeys resolves room-local unit ids to entity keys without scanning occupants.
+	unitKeys map[int64]int64
 	// nextUnitID stores the next room-local unit id.
 	nextUnitID int64
 	// unitSlots stores the slot tile occupied by each player.
@@ -56,7 +58,7 @@ func New(config Config) (*World, error) {
 	return &World{
 		grid: config.Grid, resolver: resolver, furniture: furnitureIndex, interactions: interactionIndex,
 		door: config.Door, body: config.Body, head: config.Head, rules: config.Rules.Normalize(),
-		units: make(map[int64]*worldunit.Unit), nextUnitID: 1,
+		units: make(map[int64]*worldunit.Unit), unitKeys: make(map[int64]int64), nextUnitID: 1,
 		unitSlots: make(map[int64]grid.Point), slotOccupants: make(map[grid.Point]int64),
 	}, nil
 }
@@ -74,6 +76,7 @@ func (world *World) AddUnit(playerID int64) {
 		return
 	}
 	world.units[playerID] = roomUnit
+	world.unitKeys[roomUnit.ID()] = playerID
 	world.nextUnitID++
 }
 
@@ -100,6 +103,7 @@ func (world *World) AddEntity(entityKey int64, ownerID int64, kind worldunit.Kin
 		return UnitSnapshot{}, err
 	}
 	world.units[entityKey] = roomUnit
+	world.unitKeys[roomUnit.ID()] = entityKey
 	world.nextUnitID++
 	return unitSnapshot(entityKey, roomUnit), nil
 }
@@ -112,6 +116,7 @@ func (world *World) RemoveEntity(entityKey int64) (UnitSnapshot, bool) {
 	}
 	snapshot := unitSnapshot(entityKey, roomUnit)
 	world.releaseSlot(entityKey)
+	delete(world.unitKeys, roomUnit.ID())
 	delete(world.units, entityKey)
 	return snapshot, true
 }
@@ -119,12 +124,16 @@ func (world *World) RemoveEntity(entityKey int64) (UnitSnapshot, bool) {
 // RemoveUnit removes a player world unit and releases its furniture slot.
 func (world *World) RemoveUnit(playerID int64) {
 	world.releaseSlot(playerID)
+	if roomUnit, found := world.units[playerID]; found {
+		delete(world.unitKeys, roomUnit.ID())
+	}
 	delete(world.units, playerID)
 }
 
 // ClearUnits removes every world unit and slot reservation.
 func (world *World) ClearUnits() {
 	world.units = make(map[int64]*worldunit.Unit)
+	world.unitKeys = make(map[int64]int64)
 	world.unitSlots = make(map[int64]grid.Point)
 	world.slotOccupants = make(map[grid.Point]int64)
 }
