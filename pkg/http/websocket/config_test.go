@@ -37,24 +37,30 @@ func TestConfigNormalize(t *testing.T) {
 
 // TestCloseMappings verifies protocol and WebSocket close mappings.
 func TestCloseMappings(t *testing.T) {
-	if code, ok := pixelErrorCode(netconn.DisconnectProtocolError); !ok || code != 1002 {
+	if code, ok := pixelErrorCode(netconn.DisconnectProtocolError); !ok || code != 0 {
 		t.Fatalf("expected protocol error code, got %d %v", code, ok)
 	}
 
-	if _, ok := errorPacket(netconn.Reason{Code: netconn.DisconnectLocalClose}); ok {
-		t.Fatal("expected no local-close error packet")
+	if _, ok := errorPacket(netconn.Reason{Code: netconn.DisconnectKicked}); !ok {
+		t.Fatal("expected kicked error packet")
 	}
 
 	if websocketCloseCode(netconn.DisconnectAuthenticationFailed) == 0 {
 		t.Fatal("expected websocket close code")
 	}
 
-	if code, ok := pixelErrorCode(netconn.DisconnectServerShutdown); !ok || code != 1012 {
+	if code, ok := pixelErrorCode(netconn.DisconnectServerShutdown); !ok || code != 0 {
 		t.Fatalf("expected shutdown code, got %d %v", code, ok)
 	}
 
 	if _, ok := pixelErrorCode(netconn.DisconnectRemoteClose); ok {
 		t.Fatal("expected no remote-close error code")
+	}
+	if code, ok := pixelDisconnectCode(netconn.DisconnectBanned); !ok || code != 1 {
+		t.Fatalf("expected banned disconnect code, got %d %v", code, ok)
+	}
+	if _, ok := disconnectPacket(netconn.Reason{Code: netconn.DisconnectTransportError}); ok {
+		t.Fatal("expected no transport-error disconnect packet")
 	}
 
 	if websocketCloseCode(netconn.DisconnectIdleTimeout) != fastws.CloseGoingAway {

@@ -132,15 +132,19 @@ func (socket *socketSession) dispose(ctx context.Context, reason netconn.Reason)
 	}
 
 	socket.enqueueClose(ctx, reason)
+	socket.wait()
 
 	return nil
 }
 
 // wait blocks until the writer has stopped.
 func (socket *socketSession) wait() {
+	timer := time.NewTimer(socket.config.CloseGrace)
+	defer timer.Stop()
+
 	select {
 	case <-socket.done:
-	case <-time.After(socket.config.CloseGrace):
+	case <-timer.C:
 		socket.finish()
 	}
 }

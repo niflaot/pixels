@@ -61,14 +61,14 @@ func TestSocketSessionActivateBackpressure(t *testing.T) {
 
 // TestSocketSessionDisposeClosesOnce verifies graceful close enqueueing.
 func TestSocketSessionDisposeClosesOnce(t *testing.T) {
-	socket := testQueuedSocket(t, 3)
+	socket := testQueuedSocket(t, 4)
 
 	err := socket.dispose(context.Background(), netconn.Reason{Code: netconn.DisconnectProtocolError, Message: "bad"})
 	if err != nil {
 		t.Fatalf("dispose: %v", err)
 	}
-	if len(socket.queue) != 2 {
-		t.Fatalf("expected protocol and close frames, got %d", len(socket.queue))
+	if len(socket.queue) != 3 {
+		t.Fatalf("expected protocol reason, error, and close frames, got %d", len(socket.queue))
 	}
 	if err := socket.dispose(context.Background(), netconn.Reason{}); !errors.Is(err, netconn.ErrDisposed) {
 		t.Fatalf("expected disposed, got %v", err)

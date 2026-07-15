@@ -43,13 +43,22 @@ func TestActivateSecurityRejectsInvalidChannel(t *testing.T) {
 	}
 }
 
-// TestEnqueueCloseForLocalClose verifies close-only disposal enqueueing.
+// TestEnqueueCloseForLocalClose verifies terminal packet disposal enqueueing.
 func TestEnqueueCloseForLocalClose(t *testing.T) {
-	socket := testQueuedSocket(t, 2)
+	socket := testQueuedSocket(t, 3)
 	socket.enqueueClose(context.Background(), netconn.Reason{Code: netconn.DisconnectLocalClose})
 
-	if len(socket.queue) != 1 {
-		t.Fatalf("expected one close item, got %d", len(socket.queue))
+	if len(socket.queue) != 3 {
+		t.Fatalf("expected two protocol packets and one close item, got %d", len(socket.queue))
+	}
+	if item := <-socket.queue; item.kind != writePacket || item.packet.Header != 4000 {
+		t.Fatalf("expected disconnect reason first, got %#v", item)
+	}
+	if item := <-socket.queue; item.kind != writePacket || item.packet.Header != 1004 {
+		t.Fatalf("expected connection error second, got %#v", item)
+	}
+	if item := <-socket.queue; item.kind != writeClose {
+		t.Fatalf("expected websocket close last, got %#v", item)
 	}
 }
 

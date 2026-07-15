@@ -8,6 +8,7 @@ import (
 	fastws "github.com/fasthttp/websocket"
 	"github.com/niflaot/pixels/networking/codec"
 	netconn "github.com/niflaot/pixels/networking/connection"
+	outreason "github.com/niflaot/pixels/networking/outbound/client/disconnect/reason"
 	outerror "github.com/niflaot/pixels/networking/outbound/connection/error"
 	"go.uber.org/zap"
 )
@@ -65,6 +66,21 @@ func errorPacket(reason netconn.Reason) (codec.Packet, bool) {
 	return packet, true
 }
 
+// disconnectPacket returns Nitro's protocol-native disconnect reason packet.
+func disconnectPacket(reason netconn.Reason) (codec.Packet, bool) {
+	code, ok := pixelDisconnectCode(reason.Code)
+	if !ok {
+		return codec.Packet{}, false
+	}
+
+	packet, err := outreason.Encode(outreason.WithReason(code))
+	if err != nil {
+		return codec.Packet{}, false
+	}
+
+	return packet, true
+}
+
 // handleWrite applies one queued write item.
 func (socket *socketSession) handleWrite(item writeItem) bool {
 	switch item.kind {
@@ -115,6 +131,9 @@ func (socket *socketSession) activateSecurity(channel netconn.SecureChannel) boo
 
 // enqueueClose enqueues final protocol and close frames.
 func (socket *socketSession) enqueueClose(ctx context.Context, reason netconn.Reason) {
+	if packet, ok := disconnectPacket(reason); ok {
+		socket.enqueueBestEffort(ctx, writeItem{kind: writePacket, packet: packet})
+	}
 	if packet, ok := errorPacket(reason); ok {
 		socket.enqueueBestEffort(ctx, writeItem{kind: writePacket, packet: packet})
 	}
@@ -139,18 +158,24 @@ func (socket *socketSession) enqueueBestEffort(ctx context.Context, item writeIt
 // pixelErrorCode maps disconnect codes to client error codes.
 func pixelErrorCode(code netconn.DisconnectCode) (int32, bool) {
 	switch code {
-	case netconn.DisconnectUnknown:
-		return 0, true
-	case netconn.DisconnectProtocolError:
-		return 1002, true
-	case netconn.DisconnectAuthenticationFailed, netconn.DisconnectAuthenticationTimeout:
-		return 1008, true
-	case netconn.DisconnectRateLimited, netconn.DisconnectPolicyViolation, netconn.DisconnectBanned:
-		return 1008, true
-	case netconn.DisconnectServerShutdown:
-		return 1012, true
-	default:
+	case netconn.DisconnectRemoteClose, netconn.DisconnectTransportError:
 		return 0, false
+	default:
+		return 0, true
+	}
+}
+
+// pixelDisconnectCode maps server disconnects to Nitro's reason enumeration.
+func pixelDisconnectCode(code netconn.DisconnectCode) (int32, bool) {
+	switch code {
+	case netconn.DisconnectRemoteClose, netconn.DisconnectTransportError:
+		return 0, false
+	case netconn.DisconnectBanned:
+		return 1, true
+	case netconn.DisconnectDuplicateSession:
+		return 2, true
+	default:
+		return 0, true
 	}
 }
 

@@ -137,6 +137,31 @@ func TestSessionDisconnectDisposesOnce(t *testing.T) {
 	}
 }
 
+// TestSessionDisconnectClosesSecurityAfterDisposal verifies terminal writes can remain encrypted.
+func TestSessionDisconnectClosesSecurityAfterDisposal(t *testing.T) {
+	fixture := sessionFixture(t)
+	channel := &fakeSecureChannel{state: SecurityReady}
+	securityReadyDuringDispose := false
+	fixture.Disposer = func(context.Context, Reason) error {
+		securityReadyDuringDispose = channel.State() == SecurityReady
+		return nil
+	}
+	session := mustSession(t, fixture)
+	if err := session.AttachSecurity(channel); err != nil {
+		t.Fatalf("attach security: %v", err)
+	}
+
+	if err := session.Disconnect(context.Background(), Reason{Code: DisconnectKicked}); err != nil {
+		t.Fatalf("disconnect session: %v", err)
+	}
+	if !securityReadyDuringDispose {
+		t.Fatal("expected security to remain ready during transport disposal")
+	}
+	if channel.State() != SecurityFailed {
+		t.Fatalf("expected security closed after disposal, got %d", channel.State())
+	}
+}
+
 // TestSessionRejectsInvalidConfig verifies required transport callbacks.
 func TestSessionRejectsInvalidConfig(t *testing.T) {
 	_, err := NewSession(SessionConfig{})

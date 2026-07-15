@@ -228,11 +228,10 @@ func (session *Session) Disconnect(ctx context.Context, reason Reason) error {
 	if logsDisconnect {
 		logger.Disconnected(context, reason)
 	}
+	err := disposer(ctx, reason)
 	if security != nil {
 		_ = security.Close(reason)
 	}
-
-	err := disposer(ctx, reason)
 
 	session.mutex.Lock()
 	session.state = StateClosed
