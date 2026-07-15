@@ -12,12 +12,12 @@ type Payload struct {
 	PlayerID int32
 	// Message stores the decoded wire field.
 	Message string
-	// Hours stores the decoded wire field.
-	Hours int32
 	// TopicID stores the decoded wire field.
 	TopicID int32
-	// Permanent stores the decoded wire field.
-	Permanent bool
+	// ActionIndex identifies Nitro's selected ban option.
+	ActionIndex int32
+	// AvatarOnly reports Nitro's avatar-only long-ban option.
+	AvatarOnly bool
 	// IssueID stores the decoded wire field.
 	IssueID int32
 }
@@ -26,9 +26,9 @@ type Payload struct {
 var Definition = codec.Definition{
 	codec.Named("playerID", codec.Int32Field),
 	codec.Named("message", codec.StringField),
-	codec.Named("hours", codec.Int32Field),
 	codec.Named("topicID", codec.Int32Field),
-	codec.Named("permanent", codec.BooleanField),
+	codec.Named("actionIndex", codec.Int32Field),
+	codec.Named("avatarOnly", codec.BooleanField),
 	codec.Optional(codec.Named("issueID", codec.Int32Field)),
 }
 
@@ -42,11 +42,11 @@ func Decode(packet codec.Packet) (Payload, error) {
 		return Payload{}, err
 	}
 	payload := Payload{
-		PlayerID:  values[0].Int32,
-		Message:   values[1].String,
-		Hours:     values[2].Int32,
-		TopicID:   values[3].Int32,
-		Permanent: values[4].Boolean,
+		PlayerID:    values[0].Int32,
+		Message:     values[1].String,
+		TopicID:     values[2].Int32,
+		ActionIndex: values[3].Int32,
+		AvatarOnly:  values[4].Boolean,
 	}
 	if len(values) > 5 {
 		payload.IssueID = values[5].Int32

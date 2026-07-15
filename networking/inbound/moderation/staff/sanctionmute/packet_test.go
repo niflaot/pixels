@@ -20,7 +20,19 @@ func TestDecodeWithoutOptionalIssue(t *testing.T) {
 		t.Fatal(err)
 	}
 	payload, err := Decode(packet)
-	if err != nil || payload.IssueID != 0 {
+	if err != nil || payload.TopicID != 4 || payload.IssueID != 0 {
+		t.Fatalf("payload=%+v err=%v", payload, err)
+	}
+}
+
+// TestDecodeWithOptionalIssue verifies Nitro's issue-linked packet shape.
+func TestDecodeWithOptionalIssue(t *testing.T) {
+	packet, err := codec.NewPacket(Header, Definition, codec.Int32(2), codec.String("reason"), codec.Int32(4), codec.Int32(9))
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload, err := Decode(packet)
+	if err != nil || payload.IssueID != 9 {
 		t.Fatalf("payload=%+v err=%v", payload, err)
 	}
 }

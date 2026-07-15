@@ -8,7 +8,9 @@ const Header uint16 = 1691
 
 // Entry stores one client-selected evidence pair.
 type Entry struct {
-	Pattern string
+	// PlayerID identifies the author of the selected chat message.
+	PlayerID int32
+	// Message stores the selected chat text.
 	Message string
 }
 
@@ -26,17 +28,17 @@ func Decode(packet codec.Packet) (Payload, error) {
 	if packet.Header != Header {
 		return Payload{}, codec.ErrUnexpectedHeader
 	}
-	values, rest, err := codec.DecodePayload(nil, codec.Definition{codec.StringField, codec.Int32Field, codec.Int32Field, codec.Int32Field, codec.Int32Field}, packet.Payload)
-	if err != nil || values[4].Int32 < 0 || values[4].Int32 > 100 {
+	values, rest, err := codec.DecodePayload(nil, codec.Definition{codec.StringField, codec.Int32Field, codec.Int32Field, codec.Int32Field, codec.Uint16Field}, packet.Payload)
+	if err != nil || values[4].Uint16 > 100 {
 		return Payload{}, codec.ErrInvalidField
 	}
-	result := Payload{Message: values[0].String, TopicID: values[1].Int32, ReportedPlayerID: values[2].Int32, RoomID: values[3].Int32, Entries: make([]Entry, values[4].Int32)}
+	result := Payload{Message: values[0].String, TopicID: values[1].Int32, ReportedPlayerID: values[2].Int32, RoomID: values[3].Int32, Entries: make([]Entry, int(values[4].Uint16))}
 	for i := range result.Entries {
-		values, rest, err = codec.DecodePayload(values[:0], codec.Definition{codec.StringField, codec.StringField}, rest)
+		values, rest, err = codec.DecodePayload(values[:0], codec.Definition{codec.Int32Field, codec.StringField}, rest)
 		if err != nil {
 			return Payload{}, err
 		}
-		result.Entries[i] = Entry{Pattern: values[0].String, Message: values[1].String}
+		result.Entries[i] = Entry{PlayerID: values[0].Int32, Message: values[1].String}
 	}
 	if len(rest) != 0 {
 		return Payload{}, codec.ErrUnexpectedPayload

@@ -43,8 +43,12 @@ type Issue struct {
 	ID int64 `json:"id"`
 	// ReporterPlayerID identifies the reporting player.
 	ReporterPlayerID int64 `json:"reporterPlayerId"`
+	// ReporterName stores the reporting player's display name when projected.
+	ReporterName string `json:"reporterName,omitempty"`
 	// ReportedPlayerID optionally identifies the target.
 	ReportedPlayerID *int64 `json:"reportedPlayerId,omitempty"`
+	// ReportedName stores the target player's display name when projected.
+	ReportedName string `json:"reportedName,omitempty"`
 	// RoomID optionally identifies the incident room.
 	RoomID *int64 `json:"roomId,omitempty"`
 	// TopicID identifies the selected topic.
@@ -59,6 +63,8 @@ type Issue struct {
 	Resolution *int32 `json:"resolution,omitempty"`
 	// PickedByPlayerID optionally identifies the assigned moderator.
 	PickedByPlayerID *int64 `json:"pickedByPlayerId,omitempty"`
+	// PickerName stores the assigned moderator's display name when projected.
+	PickerName string `json:"pickerName,omitempty"`
 	// PickedAt stores assignment time.
 	PickedAt *time.Time `json:"pickedAt,omitempty"`
 	// ClosedByPlayerID optionally identifies the resolver.

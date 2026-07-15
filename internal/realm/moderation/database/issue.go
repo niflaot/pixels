@@ -31,7 +31,7 @@ func (repository *Repository) CreateIssue(ctx context.Context, params moderation
 
 // Issue returns one issue with optional frozen evidence.
 func (repository *Repository) Issue(ctx context.Context, id int64, withChatlog bool) (moderationrecord.Issue, bool, error) {
-	rows, err := repository.executor(ctx).Query(ctx, issueSelect+` where id=$1`, id)
+	rows, err := repository.executor(ctx).Query(ctx, staffIssueSelect+` where i.id=$1`, id)
 	if err != nil {
 		return moderationrecord.Issue{}, false, err
 	}
@@ -39,7 +39,7 @@ func (repository *Repository) Issue(ctx context.Context, id int64, withChatlog b
 	if !rows.Next() {
 		return moderationrecord.Issue{}, false, rows.Err()
 	}
-	value, err := scanIssue(rows)
+	value, err := scanStaffIssue(rows)
 	if err != nil || !withChatlog {
 		return value, err == nil, err
 	}

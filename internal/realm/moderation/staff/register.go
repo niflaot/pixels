@@ -6,19 +6,18 @@ import (
 
 	moderationpolicy "github.com/niflaot/pixels/internal/realm/moderation/policy"
 	moderationruntime "github.com/niflaot/pixels/internal/realm/moderation/runtime"
+	staffroom "github.com/niflaot/pixels/internal/realm/moderation/staff/room"
 	sanctioncore "github.com/niflaot/pixels/internal/realm/sanction/core"
 	"github.com/niflaot/pixels/networking/codec"
 	netconn "github.com/niflaot/pixels/networking/connection"
 	inalertevent "github.com/niflaot/pixels/networking/inbound/moderation/staff/alertevent"
 	incfhlog "github.com/niflaot/pixels/networking/inbound/moderation/staff/cfhchatlog"
-	inchange "github.com/niflaot/pixels/networking/inbound/moderation/staff/changeroom"
 	incloseaction "github.com/niflaot/pixels/networking/inbound/moderation/staff/closeissue"
 	inclose "github.com/niflaot/pixels/networking/inbound/moderation/staff/closeissues"
 	indefault "github.com/niflaot/pixels/networking/inbound/moderation/staff/defaultsanction"
 	inpick "github.com/niflaot/pixels/networking/inbound/moderation/staff/pickissues"
 	inprefs "github.com/niflaot/pixels/networking/inbound/moderation/staff/preferences"
 	inrelease "github.com/niflaot/pixels/networking/inbound/moderation/staff/releaseissues"
-	inroomalert "github.com/niflaot/pixels/networking/inbound/moderation/staff/roomalert"
 	inroomlog "github.com/niflaot/pixels/networking/inbound/moderation/staff/roomchatlog"
 	inroominfo "github.com/niflaot/pixels/networking/inbound/moderation/staff/roominfo"
 	insanction "github.com/niflaot/pixels/networking/inbound/moderation/staff/sanction"
@@ -32,6 +31,7 @@ import (
 	invisits "github.com/niflaot/pixels/networking/inbound/moderation/staff/userrooms"
 	outaction "github.com/niflaot/pixels/networking/outbound/moderation/staff/actionresult"
 	"github.com/niflaot/pixels/networking/outbound/moderation/staff/issueinfo"
+	outmessage "github.com/niflaot/pixels/networking/outbound/moderation/staff/message"
 	outtool "github.com/niflaot/pixels/networking/outbound/moderation/staff/tool"
 )
 
@@ -97,10 +97,9 @@ func Register(registry *netconn.HandlerRegistry, runtime *moderationruntime.Cont
 	_ = registry.Register(inkick.Header, handler.sanctionKick)
 	_ = registry.Register(inban.Header, handler.sanctionBan)
 	_ = registry.Register(intrade.Header, handler.sanctionTradeLock)
-	_ = registry.Register(inroomalert.Header, handler.roomAlert)
-	_ = registry.Register(inchange.Header, handler.changeRoom)
+	staffroom.Register(registry, runtime)
 	_ = registry.Register(indefault.Header, handler.defaultSanction)
-	_ = registry.Register(inalertevent.Header, handler.alertEvent)
+	_ = registry.Register(inalertevent.Header, handler.messageEvent)
 	_ = registry.Register(insanction.Header, handler.sanctionCompatibility)
 }
 
@@ -120,17 +119,36 @@ func (handler Handler) defaultSanction(connection netconn.Context, packet codec.
 	} else if err == nil {
 		err = sanctioncore.ErrUnauthorized
 	}
-	response, _ := outaction.Encode(actionCode(err), err == nil)
+	response, _ := outaction.Encode(payload.PlayerID, err == nil)
 	return connection.Send(context.Background(), response)
 }
 
-// alertEvent maps Nitro's alternate warning shape into the common warn effect.
-func (handler Handler) alertEvent(connection netconn.Context, packet codec.Packet) error {
+// messageEvent delivers Nitro's direct moderator message without creating a punishment.
+func (handler Handler) messageEvent(connection netconn.Context, packet codec.Packet) error {
 	payload, err := inalertevent.Decode(packet)
 	if err != nil {
 		return err
 	}
-	return handler.sanctionRequest(connection, int64(payload.PlayerID), "warn", payload.Message, 0, 0, payload.IssueID)
+	actorID, err := handler.Actor(connection)
+	if err != nil {
+		return err
+	}
+	allowed, err := handler.Permissions.HasPermission(context.Background(), actorID, sanctioncore.ApplyNode)
+	message := handler.Moderation.Sanitize(payload.Message)
+	success := err == nil && allowed && message != ""
+	if success {
+		_, success = handler.Players.Find(int64(payload.PlayerID))
+	}
+	if success {
+		notice, encodeErr := outmessage.Encode(message, "")
+		if encodeErr != nil {
+			success = false
+		} else if sendErr := handler.SendTo(context.Background(), int64(payload.PlayerID), notice); sendErr != nil {
+			success = false
+		}
+	}
+	response, _ := outaction.Encode(payload.PlayerID, success)
+	return connection.Send(context.Background(), response)
 }
 
 // sanctionCompatibility applies Nitro's selected sanction-ladder level.
@@ -148,6 +166,6 @@ func (handler Handler) sanctionCompatibility(connection netconn.Context, packet 
 			return handler.sanctionRequest(connection, int64(payload.PlayerID), entry.Kind, handler.Text("moderation.sanction.default_reason"), entry.DurationHours, payload.TopicID, 0)
 		}
 	}
-	response, _ := outaction.Encode(1, false)
+	response, _ := outaction.Encode(payload.PlayerID, false)
 	return connection.Send(context.Background(), response)
 }

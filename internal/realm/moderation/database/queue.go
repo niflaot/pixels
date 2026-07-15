@@ -11,14 +11,14 @@ func (repository *Repository) Issues(ctx context.Context, state string, limit in
 	if limit <= 0 || limit > 500 {
 		limit = 100
 	}
-	rows, err := repository.executor(ctx).Query(ctx, issueSelect+` where ($1='' or state=$1) order by created_at limit $2`, state, limit)
+	rows, err := repository.executor(ctx).Query(ctx, staffIssueSelect+` where ($1='' or i.state=$1) order by i.created_at limit $2`, state, limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	values := make([]moderationrecord.Issue, 0)
 	for rows.Next() {
-		value, scanErr := scanIssue(rows)
+		value, scanErr := scanStaffIssue(rows)
 		if scanErr != nil {
 			return nil, scanErr
 		}

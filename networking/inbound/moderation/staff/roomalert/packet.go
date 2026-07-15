@@ -8,8 +8,8 @@ const Header uint16 = 3842
 
 // Payload contains decoded moderation roomalert fields.
 type Payload struct {
-	// RoomID stores the decoded wire field.
-	RoomID int32
+	// Action stores Nitro's moderator room-message action.
+	Action int32
 	// Message stores the decoded wire field.
 	Message string
 	// Topic stores the decoded wire field.
@@ -18,7 +18,7 @@ type Payload struct {
 
 // Definition describes moderation roomalert fields.
 var Definition = codec.Definition{
-	codec.Named("roomID", codec.Int32Field),
+	codec.Named("action", codec.Int32Field),
 	codec.Named("message", codec.StringField),
 	codec.Named("topic", codec.StringField),
 }
@@ -33,7 +33,7 @@ func Decode(packet codec.Packet) (Payload, error) {
 		return Payload{}, err
 	}
 	return Payload{
-		RoomID:  values[0].Int32,
+		Action:  values[0].Int32,
 		Message: values[1].String,
 		Topic:   values[2].String,
 	}, nil

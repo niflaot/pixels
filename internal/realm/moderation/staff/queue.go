@@ -129,7 +129,7 @@ func issueParams(issue moderationrecord.Issue) outinfo.Params {
 		pickerID = int32(*issue.PickedByPlayerID)
 	}
 	age := int32(time.Since(issue.CreatedAt).Milliseconds())
-	return outinfo.Params{IssueID: int32(issue.ID), State: state, CategoryID: int32(issue.TopicID), AgeMilliseconds: age, ReporterID: int32(issue.ReporterPlayerID), ReportedID: reportedID, PickerID: pickerID, Message: issue.Message, ChatRecordID: int32(issue.ID)}
+	return outinfo.Params{IssueID: int32(issue.ID), State: state, CategoryID: int32(issue.TopicID), AgeMilliseconds: age, ReporterID: int32(issue.ReporterPlayerID), ReporterName: issue.ReporterName, ReportedID: reportedID, ReportedName: issue.ReportedName, PickerID: pickerID, PickerName: issue.PickerName, Message: issue.Message, ChatRecordID: int32(issue.ID)}
 }
 
 // stringID formats a numeric issue id.

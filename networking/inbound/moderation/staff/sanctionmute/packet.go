@@ -12,8 +12,8 @@ type Payload struct {
 	PlayerID int32
 	// Message stores the decoded wire field.
 	Message string
-	// Hours stores the decoded wire field.
-	Hours int32
+	// TopicID identifies the selected call-for-help topic.
+	TopicID int32
 	// IssueID stores the decoded wire field.
 	IssueID int32
 }
@@ -22,7 +22,7 @@ type Payload struct {
 var Definition = codec.Definition{
 	codec.Named("playerID", codec.Int32Field),
 	codec.Named("message", codec.StringField),
-	codec.Named("hours", codec.Int32Field),
+	codec.Named("topicID", codec.Int32Field),
 	codec.Optional(codec.Named("issueID", codec.Int32Field)),
 }
 
@@ -38,7 +38,7 @@ func Decode(packet codec.Packet) (Payload, error) {
 	payload := Payload{
 		PlayerID: values[0].Int32,
 		Message:  values[1].String,
-		Hours:    values[2].Int32,
+		TopicID:  values[2].Int32,
 	}
 	if len(values) > 3 {
 		payload.IssueID = values[3].Int32

@@ -4,22 +4,22 @@ import (
 	"context"
 	"time"
 
-	moderationcore "github.com/niflaot/pixels/internal/realm/moderation/core"
-	moderationpolicy "github.com/niflaot/pixels/internal/realm/moderation/policy"
-	roommodel "github.com/niflaot/pixels/internal/realm/room/record/model"
-	roomservice "github.com/niflaot/pixels/internal/realm/room/record/service"
 	sanctionrecord "github.com/niflaot/pixels/internal/realm/sanction/record"
 	"github.com/niflaot/pixels/networking/codec"
 	netconn "github.com/niflaot/pixels/networking/connection"
-	inroomchange "github.com/niflaot/pixels/networking/inbound/moderation/staff/changeroom"
-	inroomalert "github.com/niflaot/pixels/networking/inbound/moderation/staff/roomalert"
 	inalert "github.com/niflaot/pixels/networking/inbound/moderation/staff/sanctionalert"
 	inban "github.com/niflaot/pixels/networking/inbound/moderation/staff/sanctionban"
 	inkick "github.com/niflaot/pixels/networking/inbound/moderation/staff/sanctionkick"
 	inmute "github.com/niflaot/pixels/networking/inbound/moderation/staff/sanctionmute"
 	intrade "github.com/niflaot/pixels/networking/inbound/moderation/staff/sanctiontradelock"
 	outaction "github.com/niflaot/pixels/networking/outbound/moderation/staff/actionresult"
-	outalert "github.com/niflaot/pixels/networking/outbound/session/alert"
+)
+
+const (
+	// muteDurationHours is the duration of Nitro's fixed Mute 1h action.
+	muteDurationHours int32 = 1
+	// permanentTradeLockMinutes is Nitro's permanent trade-lock sentinel.
+	permanentTradeLockMinutes int32 = 100 * 365 * 24 * 60
 )
 
 // sanctionRequest applies one decoded staff punishment through the common engine.
@@ -29,7 +29,7 @@ func (handler Handler) sanctionRequest(connection netconn.Context, targetID int6
 		return err
 	}
 	if hours < 0 || hours > sanctionrecord.MaxDurationHours {
-		response, _ := outaction.Encode(1, false)
+		response, _ := outaction.Encode(int32(targetID), false)
 		return connection.Send(context.Background(), response)
 	}
 	var expiresAt *time.Time
@@ -49,7 +49,7 @@ func (handler Handler) sanctionRequest(connection netconn.Context, targetID int6
 	}
 	reason = handler.Moderation.Sanitize(reason)
 	_, err = handler.Sanctions.Apply(context.Background(), sanctionrecord.ApplyParams{ReceiverPlayerID: targetID, IssuerPlayerID: &actorID, IssuerKind: "player", Kind: kind, Reason: reason, CFHTopicID: topic, IssueID: issue, Source: "modtool", ExpiresAt: expiresAt})
-	response, _ := outaction.Encode(actionCode(err), err == nil)
+	response, _ := outaction.Encode(int32(targetID), err == nil)
 	if sendErr := connection.Send(context.Background(), response); sendErr != nil {
 		return sendErr
 	}
@@ -65,13 +65,13 @@ func (handler Handler) sanctionAlert(connection netconn.Context, packet codec.Pa
 	return handler.sanctionRequest(connection, int64(payload.PlayerID), sanctionrecord.KindWarn, payload.Message, 0, payload.TopicID, payload.IssueID)
 }
 
-// sanctionMute applies a timed or permanent global mute.
+// sanctionMute applies Nitro's fixed one-hour global mute.
 func (handler Handler) sanctionMute(connection netconn.Context, packet codec.Packet) error {
 	payload, err := inmute.Decode(packet)
 	if err != nil {
 		return err
 	}
-	return handler.sanctionRequest(connection, int64(payload.PlayerID), sanctionrecord.KindMute, payload.Message, payload.Hours, 0, payload.IssueID)
+	return handler.sanctionRequest(connection, int64(payload.PlayerID), sanctionrecord.KindMute, payload.Message, muteDurationHours, payload.TopicID, payload.IssueID)
 }
 
 // sanctionKick applies an instantaneous hotel kick.
@@ -89,9 +89,9 @@ func (handler Handler) sanctionBan(connection netconn.Context, packet codec.Pack
 	if err != nil {
 		return err
 	}
-	hours := payload.Hours
-	if payload.Permanent {
-		hours = 0
+	hours, valid := banDurationHours(payload.ActionIndex)
+	if !valid {
+		return handler.rejectAction(connection, payload.PlayerID)
 	}
 	return handler.sanctionRequest(connection, int64(payload.PlayerID), sanctionrecord.KindBan, payload.Message, hours, payload.TopicID, payload.IssueID)
 }
@@ -102,88 +102,43 @@ func (handler Handler) sanctionTradeLock(connection netconn.Context, packet code
 	if err != nil {
 		return err
 	}
-	return handler.sanctionRequest(connection, int64(payload.PlayerID), sanctionrecord.KindTradeLock, payload.Message, payload.Hours, payload.TopicID, payload.IssueID)
+	hours, valid := tradeLockDurationHours(payload.Minutes)
+	if !valid {
+		return handler.rejectAction(connection, payload.PlayerID)
+	}
+	return handler.sanctionRequest(connection, int64(payload.PlayerID), sanctionrecord.KindTradeLock, payload.Message, hours, payload.TopicID, payload.IssueID)
 }
 
-// roomAlert broadcasts a localized staff warning without creating punishment history.
-func (handler Handler) roomAlert(connection netconn.Context, packet codec.Packet) error {
-	payload, err := inroomalert.Decode(packet)
-	if err != nil {
-		return err
+// banDurationHours maps the actual Nitro selector index to a finite or permanent ban.
+func banDurationHours(actionIndex int32) (int32, bool) {
+	switch actionIndex {
+	case 2:
+		return 18, true
+	case 3:
+		return 7 * 24, true
+	case 4, 5:
+		return 30 * 24, true
+	case 6, 7:
+		return 0, true
+	default:
+		return 0, false
 	}
-	actorID, err := handler.Actor(connection)
-	if err != nil {
-		return err
-	}
-	allowed, err := handler.Permissions.HasPermission(context.Background(), actorID, moderationpolicy.RoomOverride)
-	if err != nil {
-		return err
-	}
-	if !allowed {
-		response, _ := outaction.Encode(actionCode(moderationcore.ErrUnauthorized), false)
-		return connection.Send(context.Background(), response)
-	}
-	room, found := handler.RoomsLive.Find(int64(payload.RoomID))
-	if !found {
-		response, _ := outaction.Encode(1, false)
-		return connection.Send(context.Background(), response)
-	}
-	response, err := outalert.Encode(handler.Moderation.Sanitize(payload.Message))
-	if err != nil {
-		return err
-	}
-	for _, occupant := range room.Occupants() {
-		_ = handler.SendTo(context.Background(), occupant.PlayerID, response)
-	}
-	result, _ := outaction.Encode(0, true)
-	return connection.Send(context.Background(), result)
 }
 
-// changeRoom applies protocol staff door overrides through ordinary room persistence.
-func (handler Handler) changeRoom(connection netconn.Context, packet codec.Packet) error {
-	payload, err := inroomchange.Decode(packet)
-	if err != nil {
-		return err
+// tradeLockDurationHours converts Nitro's minute value and recognizes its permanent sentinel.
+func tradeLockDurationHours(minutes int32) (int32, bool) {
+	if minutes >= permanentTradeLockMinutes {
+		return 0, true
 	}
-	actorID, err := handler.Actor(connection)
-	if err != nil {
-		return err
+	if minutes <= 0 {
+		return 0, false
 	}
-	allowed, err := handler.Permissions.HasPermission(context.Background(), actorID, moderationpolicy.RoomOverride)
-	if err != nil {
-		return err
-	}
-	if !allowed {
-		response, _ := outaction.Encode(actionCode(moderationcore.ErrUnauthorized), false)
-		return connection.Send(context.Background(), response)
-	}
-	room, found, err := handler.Rooms.FindByID(context.Background(), int64(payload.RoomID))
-	if err != nil {
-		return err
-	}
-	if !found {
-		response, _ := outaction.Encode(1, false)
-		return connection.Send(context.Background(), response)
-	}
-	mode := room.DoorMode
-	password := (*string)(nil)
-	if payload.LockDoor != 0 {
-		mode = roommodel.DoorModeOpen
-		empty := ""
-		password = &empty
-	}
-	_, err = handler.Rooms.Update(context.Background(), room.ID, room.Version.Version, roomservice.UpdateParams{DoorMode: &mode, Password: password, AllowReservedTags: true})
-	response, _ := outaction.Encode(actionCode(err), err == nil)
-	if sendErr := connection.Send(context.Background(), response); sendErr != nil {
-		return sendErr
-	}
-	return nil
+	hours := (minutes + 59) / 60
+	return hours, hours <= sanctionrecord.MaxDurationHours
 }
 
-// actionCode maps common errors to one stable staff response code.
-func actionCode(err error) int32 {
-	if err == nil {
-		return 0
-	}
-	return 1
+// rejectAction sends Nitro's uniform failed-action response.
+func (handler Handler) rejectAction(connection netconn.Context, targetID int32) error {
+	response, _ := outaction.Encode(targetID, false)
+	return connection.Send(context.Background(), response)
 }

@@ -91,26 +91,26 @@ func (handler Handler) callForHelp(fromIM bool) netconn.Handler {
 			if decodeErr != nil {
 				return decodeErr
 			}
-			target := int64(payload.ReportedPlayerID)
-			params.ReportedPlayerID, params.TopicID, params.Message = &target, int64(payload.TopicID), payload.Message
+			params.ReportedPlayerID, params.TopicID, params.Message = positiveReference(payload.ReportedPlayerID), int64(payload.TopicID), payload.Message
 			for _, entry := range payload.Entries {
-				params.Chatlog = append(params.Chatlog, moderationrecord.ChatEntry{PatternID: entry.Pattern, Message: entry.Message})
+				params.Chatlog = append(params.Chatlog, moderationrecord.ChatEntry{PlayerID: positiveReference(entry.PlayerID), PatternID: "IM", Message: entry.Message})
 			}
 		} else {
 			payload, decodeErr := inreport.Decode(packet)
 			if decodeErr != nil {
 				return decodeErr
 			}
-			target, roomID := int64(payload.ReportedPlayerID), int64(payload.RoomID)
-			params.ReportedPlayerID, params.RoomID, params.TopicID, params.Message = &target, &roomID, int64(payload.TopicID), payload.Message
+			params.ReportedPlayerID = positiveReference(payload.ReportedPlayerID)
+			params.RoomID = reportRoomReference(handler.Players, actorID, payload.RoomID)
+			params.TopicID, params.Message = int64(payload.TopicID), payload.Message
 			for _, entry := range payload.Entries {
-				params.Chatlog = append(params.Chatlog, moderationrecord.ChatEntry{PatternID: entry.Pattern, Message: entry.Message})
+				params.Chatlog = append(params.Chatlog, moderationrecord.ChatEntry{PlayerID: positiveReference(entry.PlayerID), PatternID: "ROOM", Message: entry.Message})
 			}
 		}
 		result, reportErr := handler.Moderation.Report(context.Background(), params)
-		code, message := int32(1), handler.Text("moderation.report.received")
+		code, message := int32(0), handler.Text("moderation.report.received")
 		if reportErr != nil {
-			code, message = 2, handler.reportError(reportErr)
+			code, message = handler.reportError(reportErr)
 		} else if result.ReplyKey != "" {
 			message = handler.Text(result.ReplyKey)
 		} else if result.Ignored {
@@ -221,14 +221,14 @@ func (handler Handler) topicsPacket(items []moderationrecord.Topic) (codec.Packe
 	return outtopics.Encode(categories)
 }
 
-// reportError maps expected report failures to localized text.
-func (handler Handler) reportError(err error) string {
+// reportError maps expected report failures to Nitro result codes and localized text.
+func (handler Handler) reportError(err error) (int32, string) {
 	switch err {
 	case moderationcore.ErrDisabled:
-		return handler.Text("moderation.report.disabled")
+		return 3, handler.Text("moderation.report.disabled")
 	case moderationcore.ErrThrottled:
-		return handler.Text("moderation.report.throttled")
+		return 1, handler.Text("moderation.report.throttled")
 	default:
-		return handler.Text("moderation.report.failed")
+		return 3, handler.Text("moderation.report.failed")
 	}
 }
