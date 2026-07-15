@@ -73,7 +73,14 @@ func tileFixture(item Item, point grid.Point, top grid.Height, slotsByPoint map[
 
 // gateOpen reports whether a gate exposes a walkable fixture.
 func gateOpen(item Item) bool {
-	return item.Definition.InteractionType == "gate" && item.ExtraData == "1"
+	if item.Definition.InteractionType != "gate" {
+		return false
+	}
+	if item.Definition.CustomParams == "open_state=0" {
+		return item.ExtraData == "0"
+	}
+
+	return item.ExtraData == "1"
 }
 
 // slotState maps a slot status to its resolver section state.

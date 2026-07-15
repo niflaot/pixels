@@ -82,6 +82,14 @@ func TestFloorItemsProjectsGiftWrapper(t *testing.T) {
 	}
 }
 
+// TestExtraHeightValueProjectsTrophyHeight verifies Nitro receives its required trophy height.
+func TestExtraHeightValueProjectsTrophyHeight(t *testing.T) {
+	definition := furnituremodel.Definition{InteractionType: "trophy", StackHeight: 1}
+	if got := ExtraHeightValue(definition); got != "1.0" {
+		t.Fatalf("expected trophy extra height 1.0, got %q", got)
+	}
+}
+
 // TestWallItemsProjectsOnlyPostItColor verifies room entry does not combine note text with sprite state.
 func TestWallItemsProjectsOnlyPostItColor(t *testing.T) {
 	position := ":w=3,4 l=5,23 r"

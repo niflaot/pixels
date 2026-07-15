@@ -139,9 +139,11 @@ func ownerRecords(items []furnituremodel.Item, ownerNames map[int64]string) []ou
 	return owners
 }
 
-// ExtraHeightValue returns the walkable top height string for walk/sit definitions, matching Arcturus's
-// serializeFloorData rule of only reporting it for allowWalk or allowSit items (not allowLay).
+// ExtraHeightValue returns the protocol extra-height string for a floor definition.
 func ExtraHeightValue(definition furnituremodel.Definition) string {
+	if definition.InteractionType == "trophy" {
+		return "1.0"
+	}
 	if !definition.AllowWalk && !definition.AllowSit {
 		return ""
 	}

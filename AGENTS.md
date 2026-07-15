@@ -594,6 +594,28 @@ minimum manual checks expected when touching it.
     buyer dialog closes and the online recipient receives an inventory novelty.
   - Call `/api/admin/catalog/refresh` and verify connected clients re-fetch.
 
+### FEATURE: MISC Furniture Catalog
+
+- Owns MISC furniture/catalog development seeds and
+  `internal/realm/catalog/trophy`.
+- Provides asset-safe wall decoration, plants, carpets, lighting, dividers,
+  complete classic lines, shared-definition poster variants, trophies, and
+  multi-product decoration packs.
+- Supports definition-configured reversed gate states for assets whose closed
+  Nitro frame is state `1`, without changing normal gate semantics.
+- Trophy purchases consume client extra data only for trophy definitions. The
+  server resolves the buyer, strips protocol separators, applies the global
+  hotel filter, truncates Unicode text, and persists the immutable inscription.
+- Test after changes:
+  - `go test ./internal/realm/catalog/trophy ./internal/realm/catalog/...`
+  - Run Liquibase validation and apply the development seed changelog.
+  - Verify generated definitions have unique sprites, whitelisted interactions,
+    and enabled offers; keep the sanitize-list baseline documented in
+    `docs/MISC.md`.
+  - In Nitro, exercise every new page, poster art, wall placement, carpet
+    traversal, closed/open Bazaar curtain collision, classic sit/lay slot,
+    trophy inscription, the top-level room-paint page, and both packs.
+
 ### FEATURE: Store Final and Subscriptions
 
 - Owns catalog bundle, gift, voucher, and freshness behavior plus

@@ -19,4 +19,6 @@
     <include file="development/0012_effects.sql" relativeToChangelogFile="true" contextFilter="development"/>
     <include file="development/0013_effect_asset_ids.sql" relativeToChangelogFile="true" contextFilter="development"/>
     <include file="development/0014_room_decorators.sql" relativeToChangelogFile="true" contextFilter="development"/>
+    <include file="development/0019_misc_catalog_pages.sql" relativeToChangelogFile="true" contextFilter="development"/>
+    <include file="development/0020_misc_usability_fixes.sql" relativeToChangelogFile="true" contextFilter="development"/>
 </databaseChangeLog>
