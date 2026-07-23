@@ -15,7 +15,7 @@ Pixels itself ships as a single Go binary, but it needs a handful of backing ser
 | **Go 1.26 or newer** | Building from source | Only needed if you're not using the container image |
 | **Docker** | Building or running the container image | Optional if you build and run the binary directly |
 
-Nothing else is required to start the server. Individual realms enable or disable optional behavior through their own configuration, all of it documented with defaults in [`.env.example`](https://github.com/niflaot/pixels/blob/main/.env.example).
+Nothing else is required to start the server. Individual realms enable or disable optional behavior through their own configuration, all of it documented with defaults in [`.env.example`](https://github.com/pixelados-net/pixels/blob/main/.env.example).
 
 ## Minimum configuration
 
@@ -85,7 +85,7 @@ Tickets are single-use and expire after five minutes by default (`ttlSeconds` in
 Pre-built images are published to the GitHub Container Registry on every tagged release:
 
 ```sh
-docker pull ghcr.io/niflaot/pixels:latest
+docker pull ghcr.io/pixelados-net/pixels:latest
 ```
 
 Or build one locally from the repository root:
@@ -99,7 +99,7 @@ The image is a multi-stage build. The first stage compiles with CGO enabled beca
 Run it with your configuration passed in as environment variables:
 
 ```sh
-docker run --rm -p 3000:3000 --env-file .env ghcr.io/niflaot/pixels:latest
+docker run --rm -p 3000:3000 --env-file .env ghcr.io/pixelados-net/pixels:latest
 ```
 
 The container listens on `0.0.0.0:3000` by default. Database migrations are not applied by the image on startup; run them the same way as in local development, against your target database, before pointing a container at it.

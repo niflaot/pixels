@@ -1,9 +1,10 @@
 # Pixels
 
-[![CI](https://github.com/niflaot/pixels/actions/workflows/ci.yml/badge.svg)](https://github.com/niflaot/pixels/actions/workflows/ci.yml)
-[![Package](https://github.com/niflaot/pixels/actions/workflows/package.yml/badge.svg)](https://github.com/niflaot/pixels/actions/workflows/package.yml)
-[![Go Version](https://img.shields.io/github/go-mod/go-version/niflaot/pixels)](go.mod)
-[![Version](https://img.shields.io/badge/version-v0.0.1-blue)](https://github.com/niflaot/pixels/releases)
+[![CI](https://github.com/pixelados-net/pixels/actions/workflows/ci.yml/badge.svg)](https://github.com/pixelados-net/pixels/actions/workflows/ci.yml)
+[![Package](https://github.com/pixelados-net/pixels/actions/workflows/package.yml/badge.svg)](https://github.com/pixelados-net/pixels/actions/workflows/package.yml)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/pixelados-net/pixels)](go.mod)
+[![Version](https://img.shields.io/badge/version-v0.0.1-blue)](https://github.com/pixelados-net/pixels/releases)
+[![License](https://img.shields.io/github/license/pixelados-net/pixels)](LICENSE)
 
 Pixels is a server implementation of the [Pixel Protocol](https://pixelados-net.github.io/pixel-protocol), written in Go. The Pixel Protocol is an open specification for the network protocol, room engine, and catalog model spoken by [Nitro](https://github.com/billsonnn/nitro-react) and the wider family of Nitro-based clients: HTML5 clients that render entirely in the browser over native WebSockets, instead of a Flash client with a bridge sitting in front of it.
 
@@ -15,10 +16,10 @@ Pixels is under active development. Most of the protocol surface the specificati
 
 ## Getting started
 
-The [wiki](https://github.com/niflaot/pixels/wiki) is the place to start:
+The [wiki](https://github.com/pixelados-net/pixels/wiki) is the place to start:
 
-- [Getting Started](https://github.com/niflaot/pixels/wiki/GETTING-STARTED) covers dependencies, minimum configuration, seeding the database, issuing your first SSO ticket, and running the server locally or as a container.
-- [Architecture](https://github.com/niflaot/pixels/wiki/ARCHITECTURE) is a tour of the codebase: what a realm is and what each one does.
+- [Getting Started](https://github.com/pixelados-net/pixels/wiki/GETTING-STARTED) covers dependencies, minimum configuration, seeding the database, issuing your first SSO ticket, and running the server locally or as a container.
+- [Architecture](https://github.com/pixelados-net/pixels/wiki/ARCHITECTURE) is a tour of the codebase: what a realm is and what each one does.
 - The Architecture Internals pages explain every core concept in depth, from packet handlers and commands to events, projections, configuration, and infrastructure, so you can understand the project before reading a single line of code.
 
 The short version for local development:
@@ -67,3 +68,7 @@ Every environment variable the server reads is documented with its default in [`
 ## Contributing
 
 Contributions are welcome. Read [`CONTRIBUTING.md`](CONTRIBUTING.md) for the workflow and expectations, and [`AGENTS.md`](AGENTS.md) for the project's architectural conventions: package layout rules, code style, testing requirements, and the full index of implemented features. In short: keep changes scoped, add tests with every behavioral change, and keep coverage above 80%.
+
+## License
+
+Pixels is licensed under the [GNU Affero General Public License version 3](LICENSE).

@@ -28,7 +28,7 @@ Pixels currently owns live rooms, players, timers, and connection bindings in on
 
 ## Release image contract
 
-GitHub Actions publishes `ghcr.io/niflaot/pixels` only for a valid semantic tag such as `v0.0.1` whose commit belongs to `main`. The tag must match `pkg/build.Version`. Validation, migrations, tests, binary builds, and the multi architecture image must all succeed before the Discord webhook runs.
+GitHub Actions publishes `ghcr.io/pixelados-net/pixels` only for a valid semantic tag such as `v0.0.1` whose commit belongs to `main`. The tag must match `pkg/build.Version`. Validation, migrations, tests, binary builds, and the multi architecture image must all succeed before the Discord webhook runs.
 
 The image receives both release version and commit hash at build time. `GET /status` exposes the semantic version and the startup log includes both version and short commit.
 
@@ -47,7 +47,7 @@ git tag -a v0.0.1 -m "Pixels v0.0.1"
 git push origin v0.0.1
 ```
 
-Deploy an immutable tag such as `ghcr.io/niflaot/pixels:v0.0.1`. Do not deploy `latest` when rollback accuracy matters.
+Deploy an immutable tag such as `ghcr.io/pixelados-net/pixels:v0.0.1`. Do not deploy `latest` when rollback accuracy matters.
 
 ## Secrets and environment
 

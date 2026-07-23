@@ -2,7 +2,7 @@
 
 A server implementation of the [Pixel Protocol](https://pixelados-net.github.io/pixel-protocol), written in Go.
 
-> **This wiki is generated automatically** from the [`docs/wiki/`](https://github.com/niflaot/pixels/tree/main/docs/wiki) folder of the repository on every push to `main`. Do not edit pages here: your changes will be overwritten. Open a pull request against `docs/wiki/` instead.
+> **This wiki is generated automatically** from the [`docs/wiki/`](https://github.com/pixelados-net/pixels/tree/main/docs/wiki) folder of the repository on every push to `main`. Do not edit pages here: your changes will be overwritten. Open a pull request against `docs/wiki/` instead.
 
 ## What is this?
 
@@ -60,8 +60,8 @@ From there, six feature-focused sections go deep on the systems players actually
 Beyond the wiki:
 
 - `GET /docs` on a running instance (with `PIXELS_ENV=development`) serves the full interactive OpenAPI reference for every administrative route.
-- [`AGENTS.md`](https://github.com/niflaot/pixels/blob/main/AGENTS.md) documents the project's architectural conventions in depth, including package layout rules and the full index of implemented features.
-- [`CONTRIBUTING.md`](https://github.com/niflaot/pixels/blob/main/CONTRIBUTING.md) covers the contribution workflow and the pull request checklist.
+- [`AGENTS.md`](https://github.com/pixelados-net/pixels/blob/main/AGENTS.md) documents the project's architectural conventions in depth, including package layout rules and the full index of implemented features.
+- [`CONTRIBUTING.md`](https://github.com/pixelados-net/pixels/blob/main/CONTRIBUTING.md) covers the contribution workflow and the pull request checklist.
 
 ## Pages
 
@@ -82,7 +82,7 @@ Beyond the wiki:
 
 ## Links
 
-- [Repository](https://github.com/niflaot/pixels)
-- [Issues](https://github.com/niflaot/pixels/issues)
+- [Repository](https://github.com/pixelados-net/pixels)
+- [Issues](https://github.com/pixelados-net/pixels/issues)
 - [Pixel Protocol specification](https://pixelados-net.github.io/pixel-protocol)
 - [Nitro client](https://github.com/billsonnn/nitro-react)

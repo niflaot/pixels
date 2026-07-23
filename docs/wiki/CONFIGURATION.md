@@ -1,6 +1,6 @@
 # Configuration
 
-Every tunable in Pixels comes from environment variables, every variable has a working default, and every variable is documented in [`.env.example`](https://github.com/niflaot/pixels/blob/main/.env.example) plus [[ENVIRONMENT-VARIABLES]]. This page explains how configuration is structured in code, the two loading patterns you will encounter, and the rules for adding new settings.
+Every tunable in Pixels comes from environment variables, every variable has a working default, and every variable is documented in [`.env.example`](https://github.com/pixelados-net/pixels/blob/main/.env.example) plus [[ENVIRONMENT-VARIABLES]]. This page explains how configuration is structured in code, the two loading patterns you will encounter, and the rules for adding new settings.
 
 ## Principles
 

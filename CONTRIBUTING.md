@@ -4,9 +4,9 @@ Thanks for your interest in contributing. Pixels is a from-scratch Go implementa
 
 ## Before you start
 
-1. Read the [Getting Started](https://github.com/niflaot/pixels/wiki/GETTING-STARTED) wiki page and get a local instance running against PostgreSQL, Redis, and (if you're touching the camera realm) object storage.
-2. Skim the [Architecture](https://github.com/niflaot/pixels/wiki/ARCHITECTURE) wiki pages. They explain the realm pattern, handlers, commands, events, and projections, which is most of what you need to know before opening any file.
-3. Check the [issues](https://github.com/niflaot/pixels/issues) for existing discussion. For anything larger than a bug fix, open an issue first so the approach can be agreed on before you invest time in it.
+1. Read the [Getting Started](https://github.com/pixelados-net/pixels/wiki/GETTING-STARTED) wiki page and get a local instance running against PostgreSQL, Redis, and (if you're touching the camera realm) object storage.
+2. Skim the [Architecture](https://github.com/pixelados-net/pixels/wiki/ARCHITECTURE) wiki pages. They explain the realm pattern, handlers, commands, events, and projections, which is most of what you need to know before opening any file.
+3. Check the [issues](https://github.com/pixelados-net/pixels/issues) for existing discussion. For anything larger than a bug fix, open an issue first so the approach can be agreed on before you invest time in it.
 
 ## Ground rules
 
@@ -31,7 +31,7 @@ go test -race -covermode=atomic -coverprofile=coverage.out ./...
 go tool cover -func=coverage.out                 # total must stay above 80%
 ```
 
-If your change touches the database schema, validate and apply the Liquibase changelogs from a clean database before pushing (the commands are in the [Getting Started](https://github.com/niflaot/pixels/wiki/GETTING-STARTED) page). Seeds must be idempotent: applying them twice must not duplicate rows.
+If your change touches the database schema, validate and apply the Liquibase changelogs from a clean database before pushing (the commands are in the [Getting Started](https://github.com/pixelados-net/pixels/wiki/GETTING-STARTED) page). Seeds must be idempotent: applying them twice must not duplicate rows.
 
 Add tests with every behavioral change. Prefer table-driven tests when cases share a setup, and test behavior rather than implementation details.
 

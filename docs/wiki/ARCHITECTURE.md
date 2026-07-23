@@ -1,6 +1,6 @@
 # Architecture
 
-Pixels is organized around four top-level layers: reusable infrastructure in `pkg/`, feature behavior in `internal/`, packet coding in `networking/`, and a controlled extension surface in `sdk/`. This page focuses on the middle one, since that's where almost all of the actual game logic lives, and walks through what each realm actually does, not just what its name implies. For the exact package layout rules and naming conventions, see [`AGENTS.md`](https://github.com/niflaot/pixels/blob/main/AGENTS.md) in the repository.
+Pixels is organized around four top-level layers: reusable infrastructure in `pkg/`, feature behavior in `internal/`, packet coding in `networking/`, and a controlled extension surface in `sdk/`. This page focuses on the middle one, since that's where almost all of the actual game logic lives, and walks through what each realm actually does, not just what its name implies. For the exact package layout rules and naming conventions, see [`AGENTS.md`](https://github.com/pixelados-net/pixels/blob/main/AGENTS.md) in the repository.
 
 ## The realm pattern
 
