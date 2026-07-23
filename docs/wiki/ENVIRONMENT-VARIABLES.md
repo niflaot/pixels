@@ -8,7 +8,7 @@ Durations use Go duration syntax such as `250ms`, `5m`, `24h`, and `168h`. Empty
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `PIXELS_ENV` | `development` | Runtime environment and security posture |
+| `PIXELS_ENV` | `development` | Runtime environment |
 | `PIXELS_HOST` | `127.0.0.1` | HTTP and protocol bind host |
 | `PIXELS_PORT` | `3000` | HTTP and protocol bind port |
 | `PIXELS_ACCESS_KEY` | `pixels-development-access-key-change-me` | Key required in `X-API-Key` for private routes |
@@ -60,6 +60,14 @@ Durations use Go duration syntax such as `250ms`, `5m`, `24h`, and `168h`. Empty
 
 | Variable | Default | Purpose |
 |---|---|---|
+| `PIXELS_DIFFIE_ENABLED` | `false` | Accept legacy RSA, Diffie-Hellman, and RC4 negotiation |
+| `PIXELS_DIFFIE_REQUIRED` | `false` | Require a ready legacy channel before SSO |
+| `PIXELS_DIFFIE_RSA_EXPONENT` | `3` | Hexadecimal RSA public exponent shared with Nitro |
+| `PIXELS_DIFFIE_RSA_MODULUS` | empty | Hexadecimal RSA modulus shared with Nitro |
+| `PIXELS_DIFFIE_RSA_PRIVATE_EXPONENT` | empty | Server-only hexadecimal RSA private exponent |
+| `PIXELS_DIFFIE_PRIME_BITS` | `128` | Generated legacy DH prime size |
+| `PIXELS_DIFFIE_PRIVATE_BITS` | `128` | Generated legacy DH private value size |
+| `PIXELS_DIFFIE_SERVER_CLIENT_ENCRYPTION` | `true` | Enable RC4 for outbound packets too |
 | `PIXELS_WS_QUEUE_SIZE` | `256` | Outbound packet queue capacity per connection |
 | `PIXELS_WS_WRITE_TIMEOUT` | `5s` | WebSocket write deadline |
 | `PIXELS_WS_READ_TIMEOUT` | `75s` | WebSocket read deadline |

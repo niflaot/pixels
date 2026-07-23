@@ -1,14 +1,12 @@
 # Production Setup
 
-This page turns a local Pixels checkout into an operable deployment. It covers the current production blocker, release images, infrastructure, migrations, secrets, proxying, storage, monitoring, backups, and rollback. [[ENVIRONMENT-VARIABLES]] is the complete environment reference.
+This page turns a local Pixels checkout into an operable deployment. It covers release images, infrastructure, migrations, secrets, proxying, optional protocol compatibility, storage, monitoring, backups, and rollback. [[ENVIRONMENT-VARIABLES]] is the complete environment reference.
 
-## Current production readiness
+## Production security posture
 
-Pixels can build and run a production container, but the normal Nitro login flow has one explicit blocker. `PIXELS_ENV=production` requires a session `SecureChannel` before accepting an SSO ticket, while the in protocol Diffie Hellman provider is not implemented yet. TLS at a reverse proxy protects the WebSocket transport but does not mark that session channel ready.
+`PIXELS_ENV=production` does not require the legacy Diffie handshake. A normal Nitro client may authenticate through WSS with compatibility disabled. HTTPS/WSS at the public edge remains mandatory.
 
-Do not weaken the policy silently or claim a public deployment is complete. Before exposing a hotel to users, implement and test the Diffie provider plus channel activation, or make a reviewed architectural change that lets an authenticated TLS transport satisfy the policy. [[AUTH-SECURITY]] documents the exact boundary.
-
-Everything below remains the required operational setup once that blocker is resolved. It is also useful for a private staging environment where the security limitation is understood.
+Enable `PIXELS_DIFFIE_ENABLED` only for clients that implement the historical RSA, Diffie-Hellman, and RC4 sequence. Treat that layer as wire compatibility, not modern transport security. Set `PIXELS_DIFFIE_REQUIRED=true` only when every deployed client has matching RSA public configuration; otherwise valid clients that skip the legacy handshake will be rejected. [[AUTH-SECURITY]] documents the exact boundary.
 
 ## Recommended topology
 
@@ -28,7 +26,7 @@ Pixels currently owns live rooms, players, timers, and connection bindings in on
 
 ## Release image contract
 
-GitHub Actions publishes `ghcr.io/pixelados-net/pixels` only for a valid semantic tag such as `v0.0.1` whose commit belongs to `main`. The tag must match `pkg/build.Version`. Validation, migrations, tests, binary builds, and the multi architecture image must all succeed before the Discord webhook runs.
+GitHub Actions publishes `ghcr.io/pixelados-net/pixels` only for a valid semantic tag such as `v0.0.2` whose commit belongs to `main`. The tag must match `pkg/build.Version`. Validation, migrations, tests, binary builds, and the multi architecture image must all succeed before the Discord webhook runs.
 
 The image receives both release version and commit hash at build time. `GET /status` exposes the semantic version and the startup log includes both version and short commit.
 
@@ -43,11 +41,11 @@ Release steps:
 ```sh
 git switch main
 git pull --ff-only
-git tag -a v0.0.1 -m "Pixels v0.0.1"
-git push origin v0.0.1
+git tag -a v0.0.2 -m "Pixels v0.0.2"
+git push origin v0.0.2
 ```
 
-Deploy an immutable tag such as `ghcr.io/pixelados-net/pixels:v0.0.1`. Do not deploy `latest` when rollback accuracy matters.
+Deploy an immutable tag such as `ghcr.io/pixelados-net/pixels:v0.0.2`. Do not deploy `latest` when rollback accuracy matters.
 
 ## Secrets and environment
 
@@ -62,6 +60,7 @@ Store secrets in the deployment platform, not in `.env` committed to Git. At min
 | `STORAGE_ACCESS_KEY` | Dedicated bucket access identity |
 | `STORAGE_SECRET_KEY` | Dedicated bucket secret |
 | `PIXELS_PROGRESSION_DAILY_POOL_SEED` | Stable secret salt if deterministic quest selection must not be predictable |
+| `PIXELS_DIFFIE_RSA_PRIVATE_EXPONENT` | Server-only RSA private value when legacy compatibility is enabled |
 
 Use different values per environment. Rotate the API and SSO keys with a coordinated CMS and Pixels deployment. Rotating `SSO_KEY` invalidates outstanding tickets, which is normally desirable during a security rotation.
 
@@ -137,7 +136,7 @@ A rollback should use the previous immutable image and its compatible plugin set
 
 | Check | Required state |
 |---|---|
-| Session security | Diffie or an approved secure transport integration is implemented and tested |
+| Session security | HTTPS/WSS is enforced; optional Diffie settings match every enabled Nitro client |
 | Release | Semantic tag matches source version and points to `main` |
 | Image | Immutable GHCR tag verified before deployment |
 | Secrets | Every published development value replaced |

@@ -43,14 +43,14 @@ func TestUnknownReason(t *testing.T) {
 	}
 }
 
-// TestSecurityPolicyForEnvironment verifies environment policy defaults.
+// TestSecurityPolicyForEnvironment verifies environments no longer imply legacy crypto.
 func TestSecurityPolicyForEnvironment(t *testing.T) {
 	if SecurityPolicyForEnvironment("development").Mode != SecurityOptional {
 		t.Fatal("expected optional development security")
 	}
 
-	if SecurityPolicyForEnvironment("production").Mode != SecurityRequired {
-		t.Fatal("expected required production security")
+	if SecurityPolicyForEnvironment("production").Mode != SecurityOptional {
+		t.Fatal("expected optional production compatibility security")
 	}
 }
 
@@ -200,6 +200,19 @@ func contextBackground() context.Context {
 type fakeSecureChannel struct {
 	// state stores the fake security phase.
 	state SecurityState
+}
+
+// fakeActivatableChannel records serialized activation.
+type fakeActivatableChannel struct {
+	// fakeSecureChannel provides the base compatibility channel behavior.
+	fakeSecureChannel
+}
+
+// Activate marks the fake compatibility channel ready.
+func (channel *fakeActivatableChannel) Activate() error {
+	channel.state = SecurityReady
+
+	return nil
 }
 
 // State returns the fake security phase.

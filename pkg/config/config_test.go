@@ -58,7 +58,6 @@ func TestLoadUsesEnvironment(t *testing.T) {
 	if config.App.AccessKey != "secret" {
 		t.Fatalf("expected access key from environment, got %q", config.App.AccessKey)
 	}
-
 	if config.Logger.Format != logger.FormatJSON {
 		t.Fatalf("expected json logger format, got %q", config.Logger.Format)
 	}
@@ -95,10 +94,10 @@ func TestLoadUsesEnvironment(t *testing.T) {
 
 // TestLoadUsesDotenv verifies dotenv files populate environment variables.
 func TestLoadUsesDotenv(t *testing.T) {
-	clearEnv(t, "PIXELS_ENV", "PIXELS_HOST", "PIXELS_PORT", "PIXELS_ACCESS_KEY", "LOG_LEVEL", "LOG_FORMAT", "TOON_CONSOLE", "PIXELS_I18N_PATH", "PIXELS_CURRENCY_TYPES", "PIXELS_CURRENCY_LEDGER_TYPES", "PIXELS_PLUGIN_DIRECTORY", "PIXELS_PLUGIN_CALLBACK_TIMEOUT", "PIXELS_COMMAND_PREFIX", "PIXELS_POSTGRES_HOST", "REDIS_ADDRESS", "SSO_DEFAULT_TTL", "SSO_KEY")
+	clearEnv(t, "PIXELS_ENV", "PIXELS_HOST", "PIXELS_PORT", "PIXELS_ACCESS_KEY", "PIXELS_DIFFIE_ENABLED", "PIXELS_DIFFIE_REQUIRED", "PIXELS_DIFFIE_RSA_EXPONENT", "PIXELS_DIFFIE_RSA_MODULUS", "PIXELS_DIFFIE_RSA_PRIVATE_EXPONENT", "LOG_LEVEL", "LOG_FORMAT", "TOON_CONSOLE", "PIXELS_I18N_PATH", "PIXELS_CURRENCY_TYPES", "PIXELS_CURRENCY_LEDGER_TYPES", "PIXELS_PLUGIN_DIRECTORY", "PIXELS_PLUGIN_CALLBACK_TIMEOUT", "PIXELS_COMMAND_PREFIX", "PIXELS_POSTGRES_HOST", "REDIS_ADDRESS", "SSO_DEFAULT_TTL", "SSO_KEY")
 
 	path := filepath.Join(t.TempDir(), ".env")
-	content := "PIXELS_ENV=dotenv\nPIXELS_HOST=localhost\nPIXELS_PORT=9090\nPIXELS_ACCESS_KEY=dotenv-key\nLOG_LEVEL=warn\nLOG_FORMAT=console\nTOON_CONSOLE=true\nPIXELS_I18N_PATH=dotenv-i18n.json\nPIXELS_CURRENCY_TYPES=-1:credits,5:diamonds\nPIXELS_CURRENCY_LEDGER_TYPES=-1,5\nPIXELS_PLUGIN_DIRECTORY=dotenv-plugins\nPIXELS_PLUGIN_CALLBACK_TIMEOUT=900ms\nPIXELS_COMMAND_PREFIX=!\nPIXELS_POSTGRES_HOST=dotenv-db\nREDIS_ADDRESS=localhost:6381\nSSO_DEFAULT_TTL=15m\nSSO_KEY=dotenv-sso-key\n"
+	content := "PIXELS_ENV=dotenv\nPIXELS_HOST=localhost\nPIXELS_PORT=9090\nPIXELS_ACCESS_KEY=dotenv-key\nPIXELS_DIFFIE_ENABLED=false\nLOG_LEVEL=warn\nLOG_FORMAT=console\nTOON_CONSOLE=true\nPIXELS_I18N_PATH=dotenv-i18n.json\nPIXELS_CURRENCY_TYPES=-1:credits,5:diamonds\nPIXELS_CURRENCY_LEDGER_TYPES=-1,5\nPIXELS_PLUGIN_DIRECTORY=dotenv-plugins\nPIXELS_PLUGIN_CALLBACK_TIMEOUT=900ms\nPIXELS_COMMAND_PREFIX=!\nPIXELS_POSTGRES_HOST=dotenv-db\nREDIS_ADDRESS=localhost:6381\nSSO_DEFAULT_TTL=15m\nSSO_KEY=dotenv-sso-key\n"
 
 	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatalf("write dotenv: %v", err)
@@ -169,7 +168,7 @@ func TestLoadReturnsEnvironmentError(t *testing.T) {
 
 // TestModuleProvidesConfig verifies the Fx module exposes composed and focused config.
 func TestModuleProvidesConfig(t *testing.T) {
-	clearEnv(t, "PIXELS_ENV", "PIXELS_HOST", "PIXELS_PORT", "PIXELS_ACCESS_KEY", "LOG_LEVEL", "LOG_FORMAT", "TOON_CONSOLE", "PIXELS_I18N_PATH", "PIXELS_CURRENCY_TYPES", "PIXELS_CURRENCY_LEDGER_TYPES", "PIXELS_PLUGIN_DIRECTORY", "PIXELS_PLUGIN_CALLBACK_TIMEOUT", "PIXELS_COMMAND_PREFIX", "PIXELS_POSTGRES_HOST", "REDIS_ADDRESS", "SSO_DEFAULT_TTL", "SSO_KEY")
+	clearEnv(t, "PIXELS_ENV", "PIXELS_HOST", "PIXELS_PORT", "PIXELS_ACCESS_KEY", "PIXELS_DIFFIE_ENABLED", "PIXELS_DIFFIE_REQUIRED", "PIXELS_DIFFIE_RSA_EXPONENT", "PIXELS_DIFFIE_RSA_MODULUS", "PIXELS_DIFFIE_RSA_PRIVATE_EXPONENT", "LOG_LEVEL", "LOG_FORMAT", "TOON_CONSOLE", "PIXELS_I18N_PATH", "PIXELS_CURRENCY_TYPES", "PIXELS_CURRENCY_LEDGER_TYPES", "PIXELS_PLUGIN_DIRECTORY", "PIXELS_PLUGIN_CALLBACK_TIMEOUT", "PIXELS_COMMAND_PREFIX", "PIXELS_POSTGRES_HOST", "REDIS_ADDRESS", "SSO_DEFAULT_TTL", "SSO_KEY")
 
 	var invoked bool
 	app := fxtest.New(
@@ -181,7 +180,6 @@ func TestModuleProvidesConfig(t *testing.T) {
 			if config.App != app {
 				t.Fatalf("expected app config provider to match composed config")
 			}
-
 			if config.Logger != log {
 				t.Fatalf("expected logger config provider to match composed config")
 			}

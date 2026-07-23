@@ -27,7 +27,7 @@ type StatusResponse struct {
 	// Environment stores the runtime environment.
 	Environment string `json:"environment" required:"true" example:"development"`
 	// Version stores the running build version.
-	Version string `json:"version" required:"true" example:"v0.0.1"`
+	Version string `json:"version" required:"true" example:"v0.0.2"`
 }
 
 // CurrencyUIConfigResponse is the public data-driven Nitro configuration extension.

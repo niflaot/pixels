@@ -9,6 +9,7 @@ import (
 	roomentry "github.com/niflaot/pixels/internal/realm/room/access/entry"
 	roommoderation "github.com/niflaot/pixels/internal/realm/room/control/moderation"
 	realmsubscription "github.com/niflaot/pixels/internal/realm/subscription"
+	"github.com/niflaot/pixels/networking/crypto/diffie"
 	appconfig "github.com/niflaot/pixels/pkg/config/app"
 	"github.com/niflaot/pixels/pkg/i18n"
 	"github.com/niflaot/pixels/pkg/logger"
@@ -23,6 +24,7 @@ var Module = fx.Module(
 	fx.Provide(
 		New,
 		App,
+		Diffie,
 		Logger,
 		I18N,
 		Currency,
@@ -46,6 +48,11 @@ func New() (AppConfig, error) {
 // App extracts application-level settings from composed configuration.
 func App(config AppConfig) appconfig.Config {
 	return config.App
+}
+
+// Diffie extracts legacy handshake compatibility settings.
+func Diffie(config AppConfig) diffie.Config {
+	return config.Diffie
 }
 
 // Logger extracts logger settings from composed configuration.

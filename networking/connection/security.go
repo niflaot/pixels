@@ -70,6 +70,24 @@ func (context Context) CompleteSecurity(ctx context.Context, packet codec.Packet
 	return context.session.CompleteSecurity(ctx, packet, channel)
 }
 
+// BeginSecurity starts and attaches a negotiating secure channel.
+func (context Context) BeginSecurity(ctx context.Context, channel SecureChannel) error {
+	if context.session == nil {
+		return ErrInvalidConnection
+	}
+
+	return context.session.BeginSecurity(ctx, channel)
+}
+
+// Security returns the current session secure channel.
+func (context Context) Security() SecureChannel {
+	if context.session == nil {
+		return nil
+	}
+
+	return context.session.secureChannel()
+}
+
 // SecurityPolicy returns the connection security policy.
 func (session *Session) SecurityPolicy() SecurityPolicy {
 	session.mutex.RLock()
@@ -114,6 +132,18 @@ func (session *Session) AttachSecurity(channel SecureChannel) error {
 	return nil
 }
 
+// BeginSecurity starts and attaches one negotiating secure channel.
+func (session *Session) BeginSecurity(ctx context.Context, channel SecureChannel) error {
+	if channel == nil {
+		return ErrInvalidSecurity
+	}
+	if err := channel.Begin(ctx); err != nil {
+		return err
+	}
+
+	return session.AttachSecurity(channel)
+}
+
 // CompleteSecurity sends a plaintext completion packet before activating security.
 func (session *Session) CompleteSecurity(ctx context.Context, packet codec.Packet, channel SecureChannel) error {
 	if channel == nil {
@@ -126,7 +156,7 @@ func (session *Session) CompleteSecurity(ctx context.Context, packet codec.Packe
 
 	activator := session.securityActivator()
 	if activator == nil {
-		return session.AttachSecurity(channel)
+		return session.ActivateSecurity(channel)
 	}
 
 	return activator(ctx, channel)
@@ -134,14 +164,12 @@ func (session *Session) CompleteSecurity(ctx context.Context, packet codec.Packe
 
 // SecurityState returns the attached secure channel state.
 func (session *Session) SecurityState() SecurityState {
-	session.mutex.RLock()
-	defer session.mutex.RUnlock()
-
-	if session.security == nil {
+	channel := session.secureChannel()
+	if channel == nil {
 		return SecurityPlain
 	}
 
-	return session.security.State()
+	return channel.State()
 }
 
 // Open unwraps inbound bytes when security is ready.
@@ -182,7 +210,26 @@ func (session *Session) ValidateAuthenticationSecurity(ctx context.Context) erro
 
 // ActivateSecurity attaches a secure channel from a transport barrier.
 func (session *Session) ActivateSecurity(channel SecureChannel) error {
-	return session.AttachSecurity(channel)
+	if channel == nil {
+		return ErrInvalidSecurity
+	}
+	current := session.secureChannel()
+	if current == nil {
+		if err := session.AttachSecurity(channel); err != nil {
+			return err
+		}
+	} else if current != channel {
+		return ErrInvalidSecurity
+	}
+	activatable, ok := channel.(ActivatableSecureChannel)
+	if !ok {
+		if channel.State() != SecurityReady {
+			return ErrInvalidSecurity
+		}
+		return nil
+	}
+
+	return activatable.Activate()
 }
 
 // secureChannel returns the attached secure channel.
