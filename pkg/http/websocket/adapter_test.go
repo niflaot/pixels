@@ -18,6 +18,7 @@ import (
 	"github.com/niflaot/pixels/internal/realm/session/binding"
 	"github.com/niflaot/pixels/networking/codec"
 	netconn "github.com/niflaot/pixels/networking/connection"
+	"github.com/niflaot/pixels/networking/crypto/diffie"
 	inrelease "github.com/niflaot/pixels/networking/inbound/handshake/release"
 	inticket "github.com/niflaot/pixels/networking/inbound/security/ticket"
 	outauth "github.com/niflaot/pixels/networking/outbound/authentication/ok"
@@ -71,6 +72,7 @@ func testServer(t *testing.T, service *sso.Service) (string, func()) {
 	adapter := New(
 		Config{PingInterval: time.Hour, PongTimeout: time.Hour},
 		appconfig.Config{Environment: "development"},
+		diffie.Config{},
 		netconn.NewRegistry(),
 		realmconn.NewHandlers(service, testFinder{}, live.NewRegistry(), binding.NewRegistry(), bus.New(), nil),
 		zap.NewNop(),

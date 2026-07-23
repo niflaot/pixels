@@ -1,6 +1,6 @@
 # Security and Encryption
 
-This page covers the secure channel wrapper, the current state of the Diffie Hellman contract, the per environment security policy, and the configuration values you must never ship with defaults. Read [[AUTH-CONNECTIONS]] for the transport boundary and [[AUTH-HANDSHAKE]] for the states these rules apply in.
+This page covers the secure channel wrapper, the optional legacy Diffie-Hellman and RC4 compatibility layer, its explicit policy, and the configuration values you must protect. Read [[AUTH-CONNECTIONS]] for the transport boundary and [[AUTH-HANDSHAKE]] for the states these rules apply in.
 
 ## The secure channel wrapper
 
@@ -20,46 +20,29 @@ When no ready channel is attached, `Session.Open` and `Session.Seal` return the 
 
 Security activation needs an ordering barrier. `CompleteSecurity` first sends the plaintext completion packet, then asks the transport's `SecurityActivator` to queue channel activation. The WebSocket adapter uses its single writer queue for both operations, so encryption cannot begin before the completion packet is physically written.
 
-## Diffie Hellman current status
+## Legacy Diffie-Hellman compatibility
 
-The wire protocol defines an in-band Diffie-Hellman negotiation (RSA-signed prime and generator, an encrypted public key exchange), and `networking/crypto/diffie` defines exactly those contracts:
+Pixels implements the historical in-band handshake used by Nitro-family clients:
 
-```go
-// Provider prepares protocol Diffie-Hellman values.
-type Provider interface {
-	// Begin returns encrypted prime and generator values.
-	Begin(context.Context) (Parameters, error)
-	// Complete consumes a client public key and returns server completion values.
-	Complete(context.Context, PublicKey) (Result, error)
-}
+```text
+Nitro                         Pixels
+  HANDSHAKE_INIT_DIFFIE  ────▶
+                         ◀──── RSA-signed prime and generator
+  RSA-encrypted public key ──▶
+                         ◀──── RSA-signed server public key
+  RC4 client traffic      ═══▶
+  RC4 server traffic      ◀═══  when enabled
 ```
 
-What exists today is the contract and the packet decoding, not the negotiation. A client that sends Diffie init or complete is disconnected with a clear protocol error (`diffie unavailable`) rather than strung along with a half-working exchange:
+Every connection receives fresh Diffie values generated with `crypto/rand`. The server validates the client public value, derives the unsigned big-endian shared key, and creates independent stateful RC4 streams for each direction. RSA uses the protocol's PKCS#1 v1.5 block formats: type 1 for server signatures and type 2 for client public-key encryption.
 
-```go
-// DiffieInit handles Diffie start packets.
-func DiffieInit(context netconn.Context, packet codec.Packet) error {
-	if _, err := indiffieinit.Decode(packet); err != nil {
-		return err
-	}
-	return disconnectMissingDiffie(context)
-}
-```
+The final server public-key packet is deliberately sent in plaintext. The WebSocket writer queues an activation barrier immediately after it, and only later packets use RC4. This ordering is required for interoperability and is covered by session, transport, crypto, and handler tests.
 
-Nitro clients handle this fine in development because they can be configured to skip the in-protocol handshake entirely and go straight to the SSO ticket.
+When compatibility is disabled, clients may skip Diffie and send their SSO ticket normally. A client that explicitly requests Diffie while the layer is disabled is disconnected instead of receiving a partial exchange.
 
 ## The security policy
 
-Enforcement doesn't depend on Diffie being implemented. Each session carries a security policy derived from the environment at connection time:
-
-```go
-func SecurityPolicyForEnvironment(environment string) SecurityPolicy {
-	if strings.EqualFold(environment, "production") {
-		return SecurityPolicy{Mode: SecurityRequired}
-	}
-	return DefaultSecurityPolicy() // SecurityOptional
-}
-```
+Legacy protocol encryption is a compatibility choice, not an environment identity. `PIXELS_ENV=production` no longer implies Diffie and never blocks an otherwise valid SSO ticket. `PIXELS_DIFFIE_REQUIRED=true` is the only setting that requires a ready in-protocol channel, and startup rejects that setting unless `PIXELS_DIFFIE_ENABLED=true`.
 
 | Mode | Authentication rule |
 |---|---|
@@ -68,7 +51,31 @@ func SecurityPolicyForEnvironment(environment string) SecurityPolicy {
 
 Handlers never see any of this. The session unwraps security before dispatch, so packet handlers are byte for byte identical on plain and secured connections. That separation is a hard architectural rule.
 
-TLS termination in front of the server is still required for a public deployment because it protects the HTTP and WebSocket transport. It does not currently mark `SecureChannel` ready. Since the in protocol Diffie implementation is not complete, `PIXELS_ENV=production` currently rejects the normal Nitro SSO flow even behind a TLS proxy. [[PRODUCTION-SETUP]] calls this out as a release blocker instead of presenting TLS as a substitute for the session policy.
+TLS termination in front of the server remains required for public deployments. RC4 and 128-bit legacy Diffie exist only for client compatibility; they are obsolete cryptography and are not a substitute for HTTPS/WSS.
+
+## Compatibility configuration
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `PIXELS_DIFFIE_ENABLED` | `false` | Accept the legacy handshake |
+| `PIXELS_DIFFIE_REQUIRED` | `false` | Require it before SSO authentication |
+| `PIXELS_DIFFIE_RSA_EXPONENT` | `3` | Hexadecimal public RSA exponent |
+| `PIXELS_DIFFIE_RSA_MODULUS` | empty | Hexadecimal modulus shared with Nitro |
+| `PIXELS_DIFFIE_RSA_PRIVATE_EXPONENT` | empty | Server-only hexadecimal private exponent |
+| `PIXELS_DIFFIE_PRIME_BITS` | `128` | Per-session legacy DH prime size |
+| `PIXELS_DIFFIE_PRIVATE_BITS` | `128` | Per-session legacy DH private value size |
+| `PIXELS_DIFFIE_SERVER_CLIENT_ENCRYPTION` | `true` | Encrypt outbound traffic as well as inbound |
+
+The modulus and exponent must match Nitro Renderer's `security.diffie.rsa.modulus` and `security.diffie.rsa.exponent`. Nitro never receives the private exponent. Do not use the public example key pairs copied through old emulator repositories; their private values are already public.
+
+Generate a fresh matching server and renderer configuration locally:
+
+```sh
+go run ./cmd/diffie-keygen > diffie-keys.txt
+chmod 600 diffie-keys.txt
+```
+
+Copy the three `PIXELS_DIFFIE_RSA_*` values into the server's secret environment and only the two `security.diffie.rsa.*` public values into `renderer-config.json`. Delete the temporary file after storing the private exponent in the deployment secret manager.
 
 ## Configuration you must not leave at defaults
 
@@ -78,6 +85,7 @@ Everything boots with defaults for development convenience, and three of those d
 |---|---|---|
 | `PIXELS_ACCESS_KEY` | `pixels-development-access-key-change-me` | Guards every private HTTP route, **including SSO ticket creation**. Anyone holding it can mint a login ticket for any player. |
 | `SSO_KEY` | `pixels-development-sso-key-change-me` | HMAC key deriving the Redis storage keys for tickets. |
-| `PIXELS_ENV` | `development` | Leaves connection security optional and exposes `/docs`. Set `production`. |
+| `PIXELS_ENV` | `development` | Exposes development-only behavior such as `/docs`. Set `production`. |
+| `PIXELS_DIFFIE_RSA_PRIVATE_EXPONENT` | empty | Required only when compatibility is enabled and must remain server-side. |
 
-Related knobs with sane defaults you may still want to tune: `SSO_DEFAULT_TTL` (five minutes; tickets are consumed within seconds in a healthy flow, so shorter is fine), `SSO_PREFIX` (Redis namespacing when sharing an instance), and the `PIXELS_WS_*` family, outbound queue size, read/write timeouts, ping cadence, that governs the WebSocket layer everything above rides on.
+Related knobs with sane defaults you may still want to tune: `SSO_DEFAULT_TTL` (five minutes; tickets are consumed within seconds in a healthy flow, so shorter is fine), `SSO_PREFIX` (Redis namespacing when sharing an instance), and the `PIXELS_WS_*` family that governs the WebSocket layer everything above rides on.

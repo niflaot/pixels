@@ -104,7 +104,7 @@ docker run --rm -p 3000:3000 --env-file .env ghcr.io/pixelados-net/pixels:latest
 
 The container listens on `0.0.0.0:3000` by default. Database migrations are not applied by the image on startup; run them the same way as in local development, against your target database, before pointing a container at it.
 
-The image being available does not by itself make the current security handshake production ready. [[PRODUCTION-SETUP]] documents the remaining secure channel blocker and the required operational checklist.
+The image being available does not configure the optional legacy Diffie/RC4 compatibility layer. [[PRODUCTION-SETUP]] documents WSS, key generation, explicit compatibility settings, and the operational checklist.
 
 ## Minimum requirements
 

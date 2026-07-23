@@ -14,6 +14,7 @@ import (
 	roomentry "github.com/niflaot/pixels/internal/realm/room/access/entry"
 	roommoderation "github.com/niflaot/pixels/internal/realm/room/control/moderation"
 	realmsubscription "github.com/niflaot/pixels/internal/realm/subscription"
+	"github.com/niflaot/pixels/networking/crypto/diffie"
 	appconfig "github.com/niflaot/pixels/pkg/config/app"
 	"github.com/niflaot/pixels/pkg/i18n"
 	"github.com/niflaot/pixels/pkg/logger"
@@ -25,6 +26,9 @@ import (
 type AppConfig struct {
 	// App contains application-level settings.
 	App appconfig.Config
+
+	// Diffie contains optional legacy handshake compatibility settings.
+	Diffie diffie.Config
 
 	// Logger contains zap logger settings.
 	Logger logger.Config
@@ -70,6 +74,11 @@ func Load(paths ...string) (AppConfig, error) {
 	}
 
 	app, err := appconfig.Load()
+	if err != nil {
+		return AppConfig{}, err
+	}
+
+	diffieConfig, err := diffie.LoadConfig()
 	if err != nil {
 		return AppConfig{}, err
 	}
@@ -136,6 +145,7 @@ func Load(paths ...string) (AppConfig, error) {
 
 	return AppConfig{
 		App:            app,
+		Diffie:         diffieConfig,
 		Logger:         log,
 		I18N:           translations,
 		Currency:       currency,

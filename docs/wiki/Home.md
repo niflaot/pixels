@@ -47,7 +47,7 @@ Once it's running, **[[ARCHITECTURE]]** walks through how the codebase is organi
 
 From there, six feature-focused sections go deep on the systems players actually touch, each split across a few pages so no single one runs long:
 
-- **Authentication** ([[AUTH-CONNECTIONS]], [[AUTH-HANDSHAKE]], [[AUTH-SECURITY]], [[AUTH-SSO]]): the transport independent connection contract, the state machine, the current status of the Diffie Hellman handshake, and how SSO tickets create a live session.
+- **Authentication** ([[AUTH-CONNECTIONS]], [[AUTH-HANDSHAKE]], [[AUTH-SECURITY]], [[AUTH-SSO]]): the transport independent connection contract, the state machine, optional legacy Diffie and RC4 compatibility, and how SSO tickets create a live session.
 - **Users** ([[USERS-MODEL]], [[USERS-PROFILE]], [[USERS-BADGES-PERMISSIONS]], [[USERS-PERMISSIONS]]): the durable and live player split, profile and figure data, badges, and the hotel permission resolver.
 - **Navigator** ([[NAVIGATOR-BROWSING]], [[NAVIGATOR-ROOM-ADS]], [[NAVIGATOR-CREATION-AND-COMPAT]]): the four browsing tabs behind one search packet, room ad promotions, and room creation.
 - **Inventory** ([[INVENTORY-FURNITURE]], [[INVENTORY-WALLET]], [[INVENTORY-COLLECTIONS]]): the furniture inventory model, the currency wallet, and every other owned collection.

@@ -14,6 +14,7 @@ import (
 	"github.com/niflaot/pixels/internal/realm/player/live"
 	"github.com/niflaot/pixels/internal/realm/session/binding"
 	netconn "github.com/niflaot/pixels/networking/connection"
+	"github.com/niflaot/pixels/networking/crypto/diffie"
 	"github.com/niflaot/pixels/pkg/build"
 	"github.com/niflaot/pixels/pkg/bus"
 	"github.com/niflaot/pixels/pkg/config"
@@ -221,7 +222,7 @@ func testApp(t *testing.T, environment string) *fiber.App {
 	service := testSSO(redisClient)
 	registry := netconn.NewRegistry()
 	config := testConfig(environment)
-	adapter := ws.New(ws.Config{}, config.App, registry, realmconn.NewHandlers(service, testFinder{}, live.NewRegistry(), binding.NewRegistry(), bus.New(), nil), zap.NewNop(), config.Logger)
+	adapter := ws.New(ws.Config{}, config.App, diffie.Config{}, registry, realmconn.NewHandlers(service, testFinder{}, live.NewRegistry(), binding.NewRegistry(), bus.New(), nil), zap.NewNop(), config.Logger)
 
 	return New(zap.NewNop(), config, testInfo(), service, redisClient, testPlayerManager{}, adapter, testRooms(), testLayouts(), testRoomRuntime(), nil, testNavigator(), testCurrencyDependencies(registry, zap.NewNop()), testCatalogDependencies(registry, zap.NewNop()))
 }

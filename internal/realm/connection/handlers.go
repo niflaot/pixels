@@ -29,6 +29,7 @@ import (
 	sessionunbound "github.com/niflaot/pixels/internal/realm/session/events/unbound"
 	"github.com/niflaot/pixels/networking/codec"
 	netconn "github.com/niflaot/pixels/networking/connection"
+	"github.com/niflaot/pixels/networking/crypto/diffie"
 	"github.com/niflaot/pixels/pkg/bus"
 	"github.com/niflaot/pixels/pkg/i18n"
 	"go.uber.org/zap"
@@ -134,22 +135,27 @@ type Handlers struct {
 
 // NewHandlers creates connection-realm handler registries.
 func NewHandlers(sso *sso.Service, finder playerservice.Finder, players *live.Registry, bindings *binding.Registry, events *bus.Bus, currencies *currencyrequest.Handler) *Handlers {
-	return newHandlers(sso, finder, players, bindings, events, currencies, nil)
+	return newHandlers(sso, finder, players, bindings, events, currencies, nil, nil)
+}
+
+// NewHandlersWithDiffie creates handlers with optional legacy handshake compatibility.
+func NewHandlersWithDiffie(sso *sso.Service, finder playerservice.Finder, players *live.Registry, bindings *binding.Registry, events *bus.Bus, currencies *currencyrequest.Handler, factory *diffie.Factory) *Handlers {
+	return newHandlers(sso, finder, players, bindings, events, currencies, nil, factory)
 }
 
 // NewHandlersWithPermissions creates handlers with permission bootstrap projection.
-func NewHandlersWithPermissions(sso *sso.Service, finder playerservice.Finder, players *live.Registry, bindings *binding.Registry, events *bus.Bus, currencies *currencyrequest.Handler, permissions *permissionbroadcast.Projector) *Handlers {
-	return newHandlers(sso, finder, players, bindings, events, currencies, permissions)
+func NewHandlersWithPermissions(sso *sso.Service, finder playerservice.Finder, players *live.Registry, bindings *binding.Registry, events *bus.Bus, currencies *currencyrequest.Handler, permissions *permissionbroadcast.Projector, factory *diffie.Factory) *Handlers {
+	return newHandlers(sso, finder, players, bindings, events, currencies, permissions, factory)
 }
 
 // newHandlers creates connection-realm handlers with optional permission projection.
-func newHandlers(sso *sso.Service, finder playerservice.Finder, players *live.Registry, bindings *binding.Registry, events *bus.Bus, currencies *currencyrequest.Handler, permissions *permissionbroadcast.Projector) *Handlers {
+func newHandlers(sso *sso.Service, finder playerservice.Finder, players *live.Registry, bindings *binding.Registry, events *bus.Bus, currencies *currencyrequest.Handler, permissions *permissionbroadcast.Projector, factory *diffie.Factory) *Handlers {
 	inbound := netconn.NewHandlerRegistry()
 	outbound := netconn.NewHandlerRegistry()
 	authenticator := security.NewAuthenticator(sso, finder, players, bindings, events, currencies, permissions)
 	handlers := &Handlers{Inbound: inbound, Outbound: outbound, players: players, bindings: bindings, events: events, authenticator: authenticator}
 
-	registerInbound(inbound, authenticator)
+	registerInbound(inbound, authenticator, factory)
 	outbound.SetFallback(noopHandler, netconn.AllowAnyActiveState(), netconn.AllowUnauthenticated())
 
 	return handlers
@@ -164,8 +170,8 @@ func (handlers *Handlers) SetSanctionGate(gate security.SanctionGate) {
 }
 
 // registerInbound registers connection-realm inbound handlers.
-func registerInbound(registry *netconn.HandlerRegistry, authenticator *security.Authenticator) {
-	handshake.Register(registry)
+func registerInbound(registry *netconn.HandlerRegistry, authenticator *security.Authenticator, factory *diffie.Factory) {
+	handshake.Register(registry, factory)
 	security.Register(registry, authenticator)
 	heartbeat.Register(registry)
 	latency.Register(registry)

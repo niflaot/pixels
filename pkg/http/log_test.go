@@ -10,6 +10,7 @@ import (
 	"github.com/niflaot/pixels/internal/realm/player/live"
 	"github.com/niflaot/pixels/internal/realm/session/binding"
 	netconn "github.com/niflaot/pixels/networking/connection"
+	"github.com/niflaot/pixels/networking/crypto/diffie"
 	"github.com/niflaot/pixels/pkg/bus"
 	ws "github.com/niflaot/pixels/pkg/http/websocket"
 	"go.uber.org/zap"
@@ -49,7 +50,7 @@ func testAppWithLogger(t *testing.T, environment string, log *zap.Logger) *fiber
 	service := testSSO(redisClient)
 	registry := netconn.NewRegistry()
 	config := testConfig(environment)
-	adapter := ws.New(ws.Config{}, config.App, registry, connection.NewHandlers(service, testFinder{}, live.NewRegistry(), binding.NewRegistry(), bus.New(), nil), zap.NewNop(), config.Logger)
+	adapter := ws.New(ws.Config{}, config.App, diffie.Config{}, registry, connection.NewHandlers(service, testFinder{}, live.NewRegistry(), binding.NewRegistry(), bus.New(), nil), zap.NewNop(), config.Logger)
 
 	return New(log, config, testInfo(), service, redisClient, testPlayerManager{}, adapter, testRooms(), testLayouts(), testRoomRuntime(), nil, testNavigator(), testCurrencyDependencies(registry, log), testCatalogDependencies(registry, log))
 }

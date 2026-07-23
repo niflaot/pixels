@@ -1,11 +1,14 @@
 package connection
 
-import "go.uber.org/fx"
+import (
+	"github.com/niflaot/pixels/networking/crypto/diffie"
+	"go.uber.org/fx"
+)
 
 // Module provides connection-realm handlers.
 var Module = fx.Module(
 	"realm-connection",
-	fx.Provide(NewHandlersWithPermissions),
+	fx.Provide(diffie.NewFactory, NewHandlersWithPermissions),
 	fx.Invoke(
 		RegisterSecurityTranslations,
 		RegisterEffectHandlers,

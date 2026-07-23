@@ -4,7 +4,6 @@ package connection
 import (
 	"context"
 	"errors"
-	"strings"
 	"time"
 
 	"github.com/niflaot/pixels/networking/codec"
@@ -63,6 +62,12 @@ type PacketLogger interface {
 
 // SecurityActivator activates security after queued transport writes.
 type SecurityActivator func(context.Context, SecureChannel) error
+
+// ActivatableSecureChannel becomes ready at a serialized transport boundary.
+type ActivatableSecureChannel interface {
+	// Activate marks completed negotiation ready for transport bytes.
+	Activate() error
+}
 
 // Direction names whether a packet is entering or leaving a connection.
 type Direction uint8
@@ -170,12 +175,10 @@ func DefaultSecurityPolicy() SecurityPolicy {
 	return SecurityPolicy{Mode: SecurityOptional}
 }
 
-// SecurityPolicyForEnvironment returns a policy for an environment name.
-func SecurityPolicyForEnvironment(environment string) SecurityPolicy {
-	if strings.EqualFold(environment, "production") {
-		return SecurityPolicy{Mode: SecurityRequired}
-	}
-
+// SecurityPolicyForEnvironment returns an optional compatibility policy.
+//
+// Deprecated: select an explicit policy from Diffie compatibility configuration.
+func SecurityPolicyForEnvironment(string) SecurityPolicy {
 	return DefaultSecurityPolicy()
 }
 

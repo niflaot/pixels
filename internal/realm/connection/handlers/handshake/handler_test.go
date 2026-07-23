@@ -2,16 +2,27 @@ package handshake
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/niflaot/pixels/networking/codec"
 	netconn "github.com/niflaot/pixels/networking/connection"
+	"github.com/niflaot/pixels/networking/crypto/diffie"
 	indiffiecomplete "github.com/niflaot/pixels/networking/inbound/handshake/diffie/complete"
 	indiffieinit "github.com/niflaot/pixels/networking/inbound/handshake/diffie/init"
 	inpolicy "github.com/niflaot/pixels/networking/inbound/handshake/policy"
 	inrelease "github.com/niflaot/pixels/networking/inbound/handshake/release"
 	invariables "github.com/niflaot/pixels/networking/inbound/handshake/variables"
+	outdiffieinit "github.com/niflaot/pixels/networking/outbound/handshake/diffie/init"
 )
+
+// TestDiffieInitRejectsUnexpectedHeader verifies inbound header validation.
+func TestDiffieInitRejectsUnexpectedHeader(t *testing.T) {
+	err := (Handler{}).DiffieInit(netconn.Context{}, codec.Packet{Header: 1})
+	if !errors.Is(err, codec.ErrUnexpectedHeader) {
+		t.Fatalf("expected unexpected header, got %v", err)
+	}
+}
 
 // TestRegisterHandlesEarlyHandshake verifies early metadata packets.
 func TestRegisterHandlesEarlyHandshake(t *testing.T) {
@@ -25,6 +36,28 @@ func TestRegisterHandlesEarlyHandshake(t *testing.T) {
 	}
 	if err := session.Receive(context.Background(), policyPacket(t)); err != nil {
 		t.Fatalf("receive policy: %v", err)
+	}
+}
+
+// TestDiffieInitBeginsConfiguredNegotiation verifies signed parameters are sent.
+func TestDiffieInitBeginsConfiguredNegotiation(t *testing.T) {
+	factory := testDiffieFactory(t)
+	var sent codec.Packet
+	session := testSessionWithFactory(t, factory, func(packet codec.Packet) {
+		sent = packet
+	})
+
+	if err := session.Receive(context.Background(), releasePacket(t)); err != nil {
+		t.Fatalf("receive release: %v", err)
+	}
+	if err := session.Receive(context.Background(), diffieInitPacket(t)); err != nil {
+		t.Fatalf("receive diffie init: %v", err)
+	}
+	if sent.Header != outdiffieinit.Header {
+		t.Fatalf("expected Diffie init response, got %d with states %d and %d", sent.Header, session.State(), session.SecurityState())
+	}
+	if session.State() != netconn.StateSecuring || session.SecurityState() != netconn.SecurityNegotiating {
+		t.Fatalf("unexpected negotiation states %d and %d", session.State(), session.SecurityState())
 	}
 }
 
@@ -64,13 +97,31 @@ func TestDiffieCompleteUnavailableDisconnects(t *testing.T) {
 // testSession creates a handshake session.
 func testSession(t *testing.T) *netconn.Session {
 	t.Helper()
+	return testSessionWithFactory(t, nil, nil)
+}
+
+// testSessionWithFactory creates a configurable handshake session.
+func testSessionWithFactory(t *testing.T, factory *diffie.Factory, observe func(codec.Packet)) *netconn.Session {
+	t.Helper()
 	inbound := netconn.NewHandlerRegistry()
-	Register(inbound)
+	outbound := netconn.NewHandlerRegistry()
+	outbound.SetFallback(
+		func(netconn.Context, codec.Packet) error {
+			return nil
+		},
+		netconn.AllowAnyActiveState(),
+		netconn.AllowUnauthenticated(),
+	)
+	Register(inbound, factory)
 	session, err := netconn.NewSession(netconn.SessionConfig{
-		ID:      "handshake-test",
-		Kind:    "websocket",
-		Inbound: inbound,
-		Sender: func(context.Context, codec.Packet) error {
+		ID:       "handshake-test",
+		Kind:     "websocket",
+		Inbound:  inbound,
+		Outbound: outbound,
+		Sender: func(_ context.Context, packet codec.Packet) error {
+			if observe != nil {
+				observe(packet)
+			}
 			return nil
 		},
 		Disposer: func(context.Context, netconn.Reason) error {
@@ -82,6 +133,13 @@ func testSession(t *testing.T) *netconn.Session {
 	}
 
 	return session
+}
+
+// testDiffieFactory generates an isolated RSA fixture for handler behavior.
+func testDiffieFactory(t *testing.T) *diffie.Factory {
+	t.Helper()
+	factory, _ := testNegotiationFactory(t)
+	return factory
 }
 
 // releasePacket creates a release-version packet.

@@ -38,3 +38,18 @@ func TestSessionPolicyAndHeartbeatMethods(t *testing.T) {
 		t.Fatalf("expected invalid state, got %v", err)
 	}
 }
+
+// TestSessionActivatesAttachedNegotiatingChannel verifies the compatibility barrier path.
+func TestSessionActivatesAttachedNegotiatingChannel(t *testing.T) {
+	session := mustSession(t, sessionFixture(t))
+	channel := &fakeActivatableChannel{fakeSecureChannel: fakeSecureChannel{state: SecurityPlain}}
+	if err := session.BeginSecurity(context.Background(), channel); err != nil {
+		t.Fatalf("begin security: %v", err)
+	}
+	if err := session.CompleteSecurity(context.Background(), codecPacket(2), channel); err != nil {
+		t.Fatalf("complete security: %v", err)
+	}
+	if channel.State() != SecurityReady {
+		t.Fatalf("expected ready channel, got %d", channel.State())
+	}
+}

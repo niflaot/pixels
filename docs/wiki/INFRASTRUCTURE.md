@@ -91,4 +91,4 @@ Keys are stable and namespaced (`moderation.report.received`), params interpolat
 
 ## Build metadata
 
-`pkg/build` carries the project name, semantic version, and commit hash injected at build time through `-ldflags`. The running server reports the semantic version, such as `v0.0.1`, in `/status`. The startup log reports that version and the short commit separately, so operators can compare the public release identity and the exact source revision without producing a noncanonical version string.
+`pkg/build` carries the project name, semantic version, and commit hash injected at build time through `-ldflags`. The running server reports the semantic version, such as `v0.0.2`, in `/status`. The startup log reports that version and the short commit separately, so operators can compare the public release identity and the exact source revision without producing a noncanonical version string.

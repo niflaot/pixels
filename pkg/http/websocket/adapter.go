@@ -8,6 +8,7 @@ import (
 	realmconn "github.com/niflaot/pixels/internal/realm/connection"
 	"github.com/niflaot/pixels/networking/codec"
 	netconn "github.com/niflaot/pixels/networking/connection"
+	"github.com/niflaot/pixels/networking/crypto/diffie"
 	"github.com/niflaot/pixels/pkg/config/app"
 	logconfig "github.com/niflaot/pixels/pkg/logger"
 	"go.uber.org/zap"
@@ -23,6 +24,8 @@ type Adapter struct {
 	config Config
 	// app stores application environment settings.
 	app app.Config
+	// diffie stores explicit legacy compatibility policy.
+	diffie diffie.Config
 	// registry tracks active WebSocket sessions.
 	registry *netconn.Registry
 	// handlers routes connection-realm packets.
@@ -34,10 +37,11 @@ type Adapter struct {
 }
 
 // New creates a WebSocket adapter.
-func New(config Config, app app.Config, registry *netconn.Registry, handlers *realmconn.Handlers, log *zap.Logger, logger logconfig.Config) *Adapter {
+func New(config Config, app app.Config, diffieConfig diffie.Config, registry *netconn.Registry, handlers *realmconn.Handlers, log *zap.Logger, logger logconfig.Config) *Adapter {
 	return &Adapter{
 		config:   config.Normalize(),
 		app:      app,
+		diffie:   diffieConfig,
 		registry: registry,
 		handlers: handlers,
 		log:      log,
