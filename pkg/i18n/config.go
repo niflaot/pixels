@@ -16,7 +16,7 @@ type MissingMode string
 
 // Config contains i18n catalog settings.
 type Config struct {
-	// Path stores the JSON translation catalog path.
+	// Path stores the local path or HTTP URL of the JSON translation catalog.
 	Path string `env:"PIXELS_I18N_PATH" envDefault:"i18n/translations.json"`
 
 	// DefaultLocale stores the locale used without player preference.

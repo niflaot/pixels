@@ -1,8 +1,11 @@
 package i18n
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"go.uber.org/zap"
@@ -20,6 +23,47 @@ func TestLoadCatalogReadsJSON(t *testing.T) {
 
 	if got := catalog.Default("hello"); got != "Hola" {
 		t.Fatalf("expected Hola, got %q", got)
+	}
+}
+
+// TestLoadCatalogReadsHTTP verifies catalog loading from an HTTP URL.
+func TestLoadCatalogReadsHTTP(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+		_, _ = response.Write([]byte(`{"version":1,"locales":{"es":{"hello":"Hola remota"}}}`))
+	}))
+	defer server.Close()
+
+	catalog, err := LoadCatalog(Config{Path: server.URL + "/translations.json?token=secret", DefaultLocale: "es"}, zap.NewNop())
+	if err != nil {
+		t.Fatalf("load remote catalog: %v", err)
+	}
+	if got := catalog.Default("hello"); got != "Hola remota" {
+		t.Fatalf("expected remote translation, got %q", got)
+	}
+}
+
+// TestLoadCatalogRejectsHTTPFailure verifies remote failures stop startup.
+func TestLoadCatalogRejectsHTTPFailure(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+		http.Error(response, "unavailable", http.StatusServiceUnavailable)
+	}))
+	defer server.Close()
+
+	if _, err := LoadCatalog(Config{Path: server.URL + "/translations.json"}, zap.NewNop()); err == nil {
+		t.Fatal("expected remote status error")
+	}
+}
+
+// TestLoadCatalogRejectsOversizedHTTPBody verifies remote catalogs are bounded.
+func TestLoadCatalogRejectsOversizedHTTPBody(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+		response.Header().Set("Content-Length", strconv.FormatInt(maxCatalogBytes+1, 10))
+		response.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	if _, err := LoadCatalog(Config{Path: server.URL + "/translations.json"}, zap.NewNop()); err == nil {
+		t.Fatal("expected oversized remote catalog error")
 	}
 }
 

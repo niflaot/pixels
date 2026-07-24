@@ -15,7 +15,7 @@ Durations use Go duration syntax such as `250ms`, `5m`, `24h`, and `168h`. Empty
 | `LOG_LEVEL` | `info` | Zap minimum log level |
 | `LOG_FORMAT` | `console` | Zap encoder, either console or JSON |
 | `TOON_CONSOLE` | `false` | Compact protocol tracing format |
-| `PIXELS_I18N_PATH` | `i18n/translations.json` | Translation catalog path |
+| `PIXELS_I18N_PATH` | `i18n/translations.json` | Translation catalog path or HTTP(S) URL |
 | `PIXELS_I18N_DEFAULT_LOCALE` | `es` | Locale used without a player preference |
 | `PIXELS_I18N_FALLBACK_LOCALE` | `en` | Locale used for missing keys |
 | `PIXELS_I18N_MISSING_MODE` | `key` | Missing key behavior, either key or empty |

@@ -104,11 +104,7 @@ func (handler Handler) Handle(ctx context.Context, envelope command.Envelope[Com
 		offers = append(offers, mapped)
 	}
 	viewer.SetPage(page.ID)
-	pageText := "catalog.page." + page.Name
-	if handler.Translations != nil {
-		pageText = handler.Translations.Default(i18n.Key(pageText))
-	}
-	texts := []string{pageText, "", ""}
+	texts := []string{pageDescription(handler.Translations, page.Name), "", "", ""}
 	if page.Layout == "room_bundle" && handler.Translations != nil {
 		texts[1] = handler.Translations.Default(i18n.Key("catalog.page." + page.Name + ".teaser"))
 		texts[2] = handler.Translations.Default(i18n.Key("catalog.page." + page.Name + ".details"))
@@ -120,6 +116,20 @@ func (handler Handler) Handle(ctx context.Context, envelope command.Envelope[Com
 	}
 
 	return envelope.Command.Connection.Send(ctx, packet)
+}
+
+// pageDescription resolves optional catalog copy without exposing a missing key.
+func pageDescription(translations i18n.Translator, pageName string) string {
+	if translations == nil {
+		return ""
+	}
+	key := i18n.Key("catalog.page." + pageName + ".description")
+	description := translations.Default(key)
+	if description == string(key) {
+		return ""
+	}
+
+	return description
 }
 
 // products resolves optional bundle products with a legacy single-product fallback.

@@ -72,7 +72,10 @@ Queries themselves are plain SQL string constants with positional parameters and
 
 ## i18n
 
-`pkg/i18n` loads an immutable translation catalog from JSON at startup and exposes a `Translator`:
+`pkg/i18n` loads an immutable translation catalog from a local JSON path or
+HTTP(S) URL at startup and exposes a `Translator`. Remote reads have a
+ten-second deadline, accept only successful HTTP responses, and share the
+same eight-megabyte limit as local files:
 
 ```go
 // Translator resolves localized text.
@@ -84,6 +87,13 @@ type Translator interface {
 ```
 
 Keys are stable and namespaced (`moderation.report.received`), params interpolate into the resolved string, and lookups fall back from the requested locale to the configured fallback locale, with missing-key behavior configurable between echoing the key (development-friendly) and returning empty. `Entries` exists so the HTTP layer can serve whole localized text bundles to the Nitro client. The rule that makes this layer work is in [[PROJECTIONS]]: text is resolved before encoding, so no packet or realm re-implements translation.
+
+Catalog pages use `catalog.page.<name>` for the navigation title and the
+optional `catalog.page.<name>.description` key for the page header copy. A
+missing description is encoded as empty text instead of exposing its internal
+key. Deployments can keep hotel-specific catalog copy outside the repository
+by pointing `PIXELS_I18N_PATH` at an external URL or a mounted file. The
+catalog is loaded once, so updates take effect after a process restart.
 
 ## HTTP
 

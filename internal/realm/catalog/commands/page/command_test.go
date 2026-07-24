@@ -30,13 +30,20 @@ func TestHandleSendsCatalogPage(t *testing.T) {
 			Name: "chair", CostCredits: 2, PointsType: -1, Amount: 1, Enabled: true}},
 		definition: furnituremodel.Definition{Base: sharedmodel.Base{Identity: sharedmodel.Identity{ID: 9}}, SpriteID: 39, Kind: furnituremodel.KindFloor},
 	}
-	handler := Handler{Players: players, Bindings: bindings, Catalog: reader, Translations: i18n.NewCatalog(i18n.Config{}, nil)}
+	translations := i18n.NewCatalog(i18n.Config{}, map[i18n.Locale]map[i18n.Key]string{
+		"es": {"catalog.page.groups.description": "Explora muebles para tus grupos."},
+	})
+	handler := Handler{Players: players, Bindings: bindings, Catalog: reader, Translations: translations}
 	err := handler.Handle(context.Background(), command.Envelope[Command]{Command: Command{Connection: connection, PageID: 2, OfferID: -1, Mode: "NORMAL"}})
 	if err != nil || len(*sent) != 1 || (*sent)[0].Header != outpage.Header {
 		t.Fatalf("unexpected packets %#v error %v", *sent, err)
 	}
-	values, _, err := codec.DecodePayload(nil, codec.Definition{codec.Int32Field, codec.StringField, codec.StringField}, (*sent)[0].Payload)
-	if err != nil || values[2].String != "guild_frontpage" {
+	values, _, err := codec.DecodePayload(nil, codec.Definition{
+		codec.Int32Field, codec.StringField, codec.StringField, codec.Int32Field,
+		codec.StringField, codec.StringField, codec.StringField, codec.Int32Field,
+		codec.StringField,
+	}, (*sent)[0].Payload)
+	if err != nil || values[2].String != "guild_frontpage" || values[7].Int32 != 4 || values[8].String != "Explora muebles para tus grupos." {
 		t.Fatalf("unexpected catalog page layout %#v error %v", values, err)
 	}
 	player, _ := players.Find(7)
@@ -61,6 +68,22 @@ func TestHandleSendsPureEffectOffer(t *testing.T) {
 	err := handler.Handle(context.Background(), command.Envelope[Command]{Command: Command{Connection: connection, PageID: 2, OfferID: -1, Mode: "NORMAL"}})
 	if err != nil || len(*sent) != 1 || (*sent)[0].Header != outpage.Header {
 		t.Fatalf("unexpected packets %#v error %v", *sent, err)
+	}
+}
+
+// TestPageDescriptionTreatsMissingCopyAsOptional verifies public catalogs do not expose private keys.
+func TestPageDescriptionTreatsMissingCopyAsOptional(t *testing.T) {
+	translations := i18n.NewCatalog(i18n.Config{}, map[i18n.Locale]map[i18n.Key]string{
+		"es": {"catalog.page.chairs.description": "Encuentra asientos para cada sala."},
+	})
+	if description := pageDescription(translations, "chairs"); description != "Encuentra asientos para cada sala." {
+		t.Fatalf("unexpected page description %q", description)
+	}
+	if description := pageDescription(translations, "private_collection"); description != "" {
+		t.Fatalf("expected missing description to stay empty, got %q", description)
+	}
+	if description := pageDescription(nil, "chairs"); description != "" {
+		t.Fatalf("expected nil translations to stay empty, got %q", description)
 	}
 }
 
