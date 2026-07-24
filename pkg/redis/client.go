@@ -67,6 +67,61 @@ func (client *Client) Increment(ctx context.Context, key string, ttl time.Durati
 	return counter.Val(), nil
 }
 
+// ListLength returns the number of values stored in a Redis list.
+func (client *Client) ListLength(ctx context.Context, key string) (int64, error) {
+	return client.client.LLen(ctx, key).Result()
+}
+
+// ListRange returns an inclusive range of values from a Redis list.
+func (client *Client) ListRange(ctx context.Context, key string, start int64, stop int64) ([][]byte, error) {
+	values, err := client.client.LRange(ctx, key, start, stop).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([][]byte, len(values))
+	for index, value := range values {
+		result[index] = []byte(value)
+	}
+
+	return result, nil
+}
+
+// ListAppend appends values to a Redis list.
+func (client *Client) ListAppend(ctx context.Context, key string, values ...[]byte) error {
+	arguments := make([]any, len(values))
+	for index, value := range values {
+		arguments[index] = value
+	}
+
+	return client.client.RPush(ctx, key, arguments...).Err()
+}
+
+// SetAdd adds members to a Redis set.
+func (client *Client) SetAdd(ctx context.Context, key string, members ...string) error {
+	arguments := make([]any, len(members))
+	for index, member := range members {
+		arguments[index] = member
+	}
+
+	return client.client.SAdd(ctx, key, arguments...).Err()
+}
+
+// SetMembers returns every member of a Redis set.
+func (client *Client) SetMembers(ctx context.Context, key string) ([]string, error) {
+	return client.client.SMembers(ctx, key).Result()
+}
+
+// SetRemove removes members from a Redis set.
+func (client *Client) SetRemove(ctx context.Context, key string, members ...string) error {
+	arguments := make([]any, len(members))
+	for index, member := range members {
+		arguments[index] = member
+	}
+
+	return client.client.SRem(ctx, key, arguments...).Err()
+}
+
 // Set writes a Redis key with an optional expiration duration.
 func (client *Client) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {
 	return client.client.Set(ctx, key, value, ttl).Err()

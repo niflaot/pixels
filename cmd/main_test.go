@@ -36,8 +36,8 @@ func setFigureDataPathForTest(t *testing.T) {
 func TestOptionsBuilds(t *testing.T) {
 	options := options()
 
-	if len(options) != 37 {
-		t.Fatalf("expected thirty-seven options, got %d", len(options))
+	if len(options) != 38 {
+		t.Fatalf("expected thirty-eight options, got %d", len(options))
 	}
 }
 

@@ -60,6 +60,7 @@ func newSocketSession(adapter *Adapter, conn *fiberws.Conn) (*socketSession, err
 		RemoteAddr:        conn.IP(),
 		Inbound:           adapter.handlers.Inbound,
 		Outbound:          adapter.handlers.Outbound,
+		Observers:         adapter.handlers.Observers,
 		SecurityPolicy:    adapter.diffie.SecurityPolicy(),
 		PacketLogger:      packetLoggerForEnvironment(adapter.app.Environment, adapter.log, adapter.logger),
 		Sender:            socket.send,

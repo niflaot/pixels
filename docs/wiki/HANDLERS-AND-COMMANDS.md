@@ -93,6 +93,10 @@ A command is a plain struct naming an intent (`room.enter`, `navigator.search`, 
 
 Why the extra layer? Three reasons. Commands give every state-changing action a uniform audit trail in the logs. Middleware (permission checks, throttles) composes without touching handler bodies. And commands are how work crosses from "the goroutine this connection runs on" into "the context of a live room" safely.
 
+## First-party chat commands
+
+The shared Brigodier tree also owns first-party room-chat commands registered by `internal/realm/admin`. They use the configured `PIXELS_COMMAND_PREFIX`, are consumed before normal speech, and require concrete permission nodes. These commands do not use the public plugin SDK and cannot be disabled with a plugin scope. See [[COMMANDS]] for the operational command list and the packet-trace lifecycle.
+
 ## Immediate work versus tick work
 
 The room world is a simulation: rollers roll, pets wander, Wired effects fire after delays, game timers count down. That simulation advances on a **tick**, driven by the contracts in `internal/tick`:

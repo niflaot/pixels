@@ -18,7 +18,7 @@ var (
 	numericLikePattern = regexp.MustCompile(`^-?\d+(?:\.\d+)?(?:e[+-]?\d+)?$`)
 
 	// toonFieldOrder defines stable primary log field order.
-	toonFieldOrder = []string{"lvl", "msg", "error", "cid", "state", "header", "bytes", "payload"}
+	toonFieldOrder = []string{"lvl", "msg", "error", "seq", "ts", "dir", "cid", "state", "header", "bytes", "payload"}
 )
 
 // toonField stores one ordered TOON object field.
@@ -27,6 +27,33 @@ type toonField struct {
 	key string
 	// value stores the JSON-like value.
 	value interface{}
+}
+
+// FormatToonLine encodes one stable inline TOON document.
+func FormatToonLine(fields map[string]any) string {
+	remaining := make(map[string]any, len(fields))
+	for key, value := range fields {
+		remaining[key] = value
+	}
+	ordered := make([]toonField, 0, len(fields))
+	for _, key := range toonFieldOrder {
+		if value, found := remaining[key]; found {
+			ordered = append(ordered, toonField{key: key, value: value})
+			delete(remaining, key)
+		}
+	}
+	keys := make([]string, 0, len(remaining))
+	for key := range remaining {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		ordered = append(ordered, toonField{key: key, value: remaining[key]})
+	}
+	output := encodeToonFields(ordered)
+	defer output.Free()
+
+	return output.String()
 }
 
 // encodeToonFields writes ordered fields as one TOON document.
@@ -123,6 +150,26 @@ func encodeToonValue(value interface{}) string {
 		return strconv.FormatFloat(typed, 'g', -1, 64)
 	case float32:
 		return strconv.FormatFloat(float64(typed), 'g', -1, 32)
+	case int:
+		return strconv.Itoa(typed)
+	case int8:
+		return strconv.FormatInt(int64(typed), 10)
+	case int16:
+		return strconv.FormatInt(int64(typed), 10)
+	case int32:
+		return strconv.FormatInt(int64(typed), 10)
+	case int64:
+		return strconv.FormatInt(typed, 10)
+	case uint:
+		return strconv.FormatUint(uint64(typed), 10)
+	case uint8:
+		return strconv.FormatUint(uint64(typed), 10)
+	case uint16:
+		return strconv.FormatUint(uint64(typed), 10)
+	case uint32:
+		return strconv.FormatUint(uint64(typed), 10)
+	case uint64:
+		return strconv.FormatUint(typed, 10)
 	default:
 		return encodeToonString(fmt.Sprint(typed))
 	}

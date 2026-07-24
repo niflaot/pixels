@@ -134,6 +134,28 @@ minimum manual checks expected when touching it.
   - Send `POST /api/admin/notifications/send` to an online player and
     verify the localized bubble or alert packet arrives.
 
+### FEATURE: Core Administrative Commands and Packet Tracing
+
+- Owns `internal/realm/admin`, the bidirectional connection observer,
+  Redis list/set helpers, and TOON line formatting.
+- Provides permission-gated `:alert`, `:halert`, `:about`, and `:trace`
+  commands through the shared Brigodier tree without using the public plugin
+  SDK.
+- Packet traces follow player ids across reconnects, capture successful inbound
+  and outbound packets, expire after one absolute 30-minute window, stop at
+  20,000 entries or 20 MiB, survive process restarts in Redis, and upload final
+  TOON documents below `debug/traces/` in object storage.
+- Test after changes:
+  - `go test -race ./internal/realm/admin/... ./networking/connection ./pkg/redis ./pkg/logger`
+  - `go test ./internal/realm/admin/trace -run '^$' -bench . -benchmem`
+  - Verify the inactive observer path remains at zero allocations.
+  - Run every command with and without its permission; disconnect one target
+    during `:halert` and verify later targets still receive it.
+  - Start a trace, reconnect Nitro, finalize it, and verify both `in` and `out`
+    entries plus the durable URL.
+  - Restart Pixels during a trace and verify startup reconciliation uploads it
+    once with reason `server restarted`.
+
 ### FEATURE: Redis SSO
 
 - Owns `internal/auth/sso` and Redis-backed ticket storage.

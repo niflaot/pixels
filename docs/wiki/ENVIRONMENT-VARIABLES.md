@@ -51,7 +51,7 @@ Durations use Go duration syntax such as `250ms`, `5m`, `24h`, and `168h`. Empty
 | `STORAGE_PUBLIC_BASE_URL` | empty | Permanent public bucket origin override |
 | `STORAGE_ACCESS_KEY` | empty | S3 access key |
 | `STORAGE_SECRET_KEY` | empty | S3 secret key |
-| `STORAGE_BUCKET` | `pixels-camera` | Camera object bucket |
+| `STORAGE_BUCKET` | `pixels-camera` | Durable camera and staff trace object bucket |
 | `STORAGE_USE_SSL` | `true` | Use HTTPS for S3 operations |
 | `STORAGE_PUBLIC_READ` | `true` | Apply public read bucket policy |
 | `STORAGE_UPLOAD_TIMEOUT` | `10s` | Upload and delete request timeout |

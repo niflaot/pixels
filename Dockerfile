@@ -12,7 +12,7 @@ COPY pkg ./pkg
 COPY sdk ./sdk
 COPY i18n ./i18n
 
-ARG VERSION=v0.0.1
+ARG VERSION=v0.0.3
 ARG COMMIT=unknown
 RUN CGO_ENABLED=1 go build -trimpath -ldflags="-s -w -X github.com/niflaot/pixels/pkg/build.Version=${VERSION} -X github.com/niflaot/pixels/pkg/build.CommitHash=${COMMIT}" -o /out/pixels ./cmd
 

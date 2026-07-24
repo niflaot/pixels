@@ -220,6 +220,8 @@ type SessionConfig struct {
 	Inbound *HandlerRegistry
 	// Outbound handles packets sent to the peer.
 	Outbound *HandlerRegistry
+	// Observers receive successful inbound and outbound protocol traffic.
+	Observers *ObserverRegistry
 	// SecurityPolicy controls whether encryption is required.
 	SecurityPolicy SecurityPolicy
 	// PacketLogger records development packet traffic.

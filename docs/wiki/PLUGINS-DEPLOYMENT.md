@@ -14,7 +14,7 @@ module example.net/hello-plugin
 
 go 1.26
 
-require github.com/niflaot/pixels v0.0.0
+require github.com/niflaot/pixels v0.0.3
 
 replace github.com/niflaot/pixels => /absolute/path/to/pixels
 ```
