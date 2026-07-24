@@ -119,3 +119,38 @@ func TestClientIncrementPreservesFirstExpiration(t *testing.T) {
 		t.Fatalf("expected existing lock preserved created=%v err=%v", created, err)
 	}
 }
+
+// TestClientListAndSetOperations verifies ordered lists and unique set members.
+func TestClientListAndSetOperations(t *testing.T) {
+	server := miniredis.RunT(t)
+	client := New(Config{Address: server.Addr()})
+	t.Cleanup(func() { _ = client.Close() })
+	ctx := context.Background()
+
+	if err := client.ListAppend(ctx, "pixels:list", []byte("one"), []byte("two")); err != nil {
+		t.Fatalf("append list: %v", err)
+	}
+	length, err := client.ListLength(ctx, "pixels:list")
+	if err != nil || length != 2 {
+		t.Fatalf("length=%d err=%v", length, err)
+	}
+	values, err := client.ListRange(ctx, "pixels:list", 0, -1)
+	if err != nil || len(values) != 2 || string(values[0]) != "one" || string(values[1]) != "two" {
+		t.Fatalf("values=%q err=%v", values, err)
+	}
+
+	if err = client.SetAdd(ctx, "pixels:set", "one", "two", "one"); err != nil {
+		t.Fatalf("add set: %v", err)
+	}
+	members, err := client.SetMembers(ctx, "pixels:set")
+	if err != nil || len(members) != 2 {
+		t.Fatalf("members=%q err=%v", members, err)
+	}
+	if err = client.SetRemove(ctx, "pixels:set", "one"); err != nil {
+		t.Fatalf("remove set: %v", err)
+	}
+	members, err = client.SetMembers(ctx, "pixels:set")
+	if err != nil || len(members) != 1 || members[0] != "two" {
+		t.Fatalf("remaining=%q err=%v", members, err)
+	}
+}

@@ -108,3 +108,20 @@ func TestNewRejectsInvalidFormat(t *testing.T) {
 		t.Fatal("expected invalid format error")
 	}
 }
+
+// TestFormatToonLinePreservesTraceOrder verifies exported trace formatting.
+func TestFormatToonLinePreservesTraceOrder(t *testing.T) {
+	line := FormatToonLine(map[string]any{
+		"payload": "AQI=",
+		"bytes":   2,
+		"header":  uint16(4000),
+		"cid":     "12345678",
+		"dir":     "in",
+		"ts":      "2026-07-24T02:15:03.412Z",
+		"seq":     1,
+	})
+	expected := "seq: 1, ts: \"2026-07-24T02:15:03.412Z\", dir: in, cid: \"12345678\", header: 4000, bytes: 2, payload: AQI=\n"
+	if line != expected {
+		t.Fatalf("expected %q, got %q", expected, line)
+	}
+}

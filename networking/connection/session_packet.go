@@ -23,6 +23,7 @@ func (session *Session) Receive(ctx context.Context, packet codec.Packet) error 
 	if session.logger != nil {
 		session.logger.Received(context, packet)
 	}
+	session.observers.Notify(context, packet)
 
 	err := session.inbound.Handle(context, packet)
 	if errors.Is(err, ErrHandlerNotFound) && session.logger != nil {
@@ -57,6 +58,7 @@ func (session *Session) Send(ctx context.Context, packet codec.Packet) error {
 	if session.logger != nil {
 		session.logger.Sent(context, packet)
 	}
+	session.observers.Notify(context, packet)
 
 	return nil
 }

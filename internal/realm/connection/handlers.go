@@ -123,6 +123,8 @@ type Handlers struct {
 	Inbound *netconn.HandlerRegistry
 	// Outbound routes server packets.
 	Outbound *netconn.HandlerRegistry
+	// Observers receive successful bidirectional protocol traffic.
+	Observers *netconn.ObserverRegistry
 	// players stores live player runtime state.
 	players *live.Registry
 	// bindings stores player connection bindings.
@@ -152,8 +154,9 @@ func NewHandlersWithPermissions(sso *sso.Service, finder playerservice.Finder, p
 func newHandlers(sso *sso.Service, finder playerservice.Finder, players *live.Registry, bindings *binding.Registry, events *bus.Bus, currencies *currencyrequest.Handler, permissions *permissionbroadcast.Projector, factory *diffie.Factory) *Handlers {
 	inbound := netconn.NewHandlerRegistry()
 	outbound := netconn.NewHandlerRegistry()
+	observers := netconn.NewObserverRegistry()
 	authenticator := security.NewAuthenticator(sso, finder, players, bindings, events, currencies, permissions)
-	handlers := &Handlers{Inbound: inbound, Outbound: outbound, players: players, bindings: bindings, events: events, authenticator: authenticator}
+	handlers := &Handlers{Inbound: inbound, Outbound: outbound, Observers: observers, players: players, bindings: bindings, events: events, authenticator: authenticator}
 
 	registerInbound(inbound, authenticator, factory)
 	outbound.SetFallback(noopHandler, netconn.AllowAnyActiveState(), netconn.AllowUnauthenticated())

@@ -46,6 +46,8 @@ type Session struct {
 	inbound *HandlerRegistry
 	// outbound routes sent packets.
 	outbound *HandlerRegistry
+	// observers receive successful protocol traffic.
+	observers *ObserverRegistry
 	// sender writes outbound packets through the transport.
 	sender Sender
 	// disposer releases transport resources.
@@ -94,6 +96,7 @@ func NewSession(config SessionConfig) (*Session, error) {
 		done:           make(chan struct{}),
 		inbound:        inbound,
 		outbound:       outbound,
+		observers:      config.Observers,
 		sender:         config.Sender,
 		disposer:       config.Disposer,
 		activator:      config.SecurityActivator,

@@ -1,9 +1,9 @@
 # Pixels
 
 [![CI](https://github.com/pixelados-net/pixels/actions/workflows/ci.yml/badge.svg)](https://github.com/pixelados-net/pixels/actions/workflows/ci.yml)
-[![Package](https://github.com/pixelados-net/pixels/actions/workflows/package.yml/badge.svg?branch=v0.0.1&event=push)](https://github.com/pixelados-net/pixels/actions/workflows/package.yml)
+[![Package](https://github.com/pixelados-net/pixels/actions/workflows/package.yml/badge.svg?branch=v0.0.3&event=push)](https://github.com/pixelados-net/pixels/actions/workflows/package.yml)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/pixelados-net/pixels)](go.mod)
-[![Version](https://img.shields.io/badge/version-v0.0.2-blue)](https://github.com/pixelados-net/pixels/releases)
+[![Version](https://img.shields.io/badge/version-v0.0.3-blue)](https://github.com/pixelados-net/pixels/releases)
 [![License](https://img.shields.io/github/license/pixelados-net/pixels)](LICENSE)
 
 Pixels is a server implementation of the [Pixel Protocol](https://pixelados-net.github.io/pixel-protocol), written in Go. The Pixel Protocol is an open specification for the network protocol, room engine, and catalog model spoken by [Nitro](https://github.com/billsonnn/nitro-react) and the wider family of Nitro-based clients: HTML5 clients that render entirely in the browser over native WebSockets, instead of a Flash client with a bridge sitting in front of it.
@@ -19,6 +19,7 @@ Pixels is under active development. Most of the protocol surface the specificati
 The [wiki](https://github.com/pixelados-net/pixels/wiki) is the place to start:
 
 - [Getting Started](https://github.com/pixelados-net/pixels/wiki/GETTING-STARTED) covers dependencies, minimum configuration, seeding the database, issuing your first SSO ticket, and running the server locally or as a container.
+- [Core Commands](https://github.com/pixelados-net/pixels/wiki/COMMANDS) documents the permission-gated `:alert`, `:halert`, `:about`, and production packet `:trace` commands.
 - [Architecture](https://github.com/pixelados-net/pixels/wiki/ARCHITECTURE) is a tour of the codebase: what a realm is and what each one does.
 - The Architecture Internals pages explain every core concept in depth, from packet handlers and commands to events, projections, configuration, and infrastructure, so you can understand the project before reading a single line of code.
 

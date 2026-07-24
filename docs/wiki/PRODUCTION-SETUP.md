@@ -20,13 +20,13 @@ Nitro and CMS
     S3 compatible object storage
 ```
 
-Expose only the reverse proxy publicly. Keep PostgreSQL and Redis on a private network. Restrict the S3 API to Pixels and expose only the durable public object URL required for camera content.
+Expose only the reverse proxy publicly. Keep PostgreSQL and Redis on a private network. Restrict the S3 API to Pixels and expose only the durable public object URL required for camera content and staff packet traces.
 
 Pixels currently owns live rooms, players, timers, and connection bindings in one process. PostgreSQL and Redis are shared infrastructure, but they do not coordinate a room simulation across several Pixels replicas. Start with one active application instance. Treat horizontal application scaling as an architectural change, not a deployment toggle.
 
 ## Release image contract
 
-GitHub Actions publishes `ghcr.io/pixelados-net/pixels` only for a valid semantic tag such as `v0.0.2` whose commit belongs to `main`. The tag must match `pkg/build.Version`. Validation, migrations, tests, binary builds, and the multi architecture image must all succeed before the Discord webhook runs.
+GitHub Actions publishes `ghcr.io/pixelados-net/pixels` only for a valid semantic tag such as `v0.0.3` whose commit belongs to `main`. The tag must match `pkg/build.Version`. Validation, migrations, tests, binary builds, and the multi architecture image must all succeed before the Discord webhook runs.
 
 The image receives both release version and commit hash at build time. `GET /status` exposes the semantic version and the startup log includes both version and short commit.
 
@@ -41,11 +41,11 @@ Release steps:
 ```sh
 git switch main
 git pull --ff-only
-git tag -a v0.0.2 -m "Pixels v0.0.2"
-git push origin v0.0.2
+git tag -a v0.0.3 -m "Pixels v0.0.3"
+git push origin v0.0.3
 ```
 
-Deploy an immutable tag such as `ghcr.io/pixelados-net/pixels:v0.0.2`. Do not deploy `latest` when rollback accuracy matters.
+Deploy an immutable tag such as `ghcr.io/pixelados-net/pixels:v0.0.3`. Do not deploy `latest` when rollback accuracy matters.
 
 ## Secrets and environment
 
@@ -105,6 +105,8 @@ The current Redis client accepts an address, username, password, and database nu
 The camera subsystem validates its bucket during startup and fails fast when storage is unusable. Use HTTPS with `STORAGE_USE_SSL=true`. `STORAGE_PUBLIC_BASE_URL` must be a permanent public origin because photo furniture stores durable URLs.
 
 `STORAGE_PUBLIC_READ=true` applies a public read policy to the bucket. If the provider manages policy outside the application, verify the resulting objects are still permanently readable. Use a dedicated bucket and lifecycle monitoring. Do not apply an object expiration rule that deletes referenced photos.
+
+Staff packet traces are stored below `debug/traces/` in the same bucket and may contain sensitive session-visible payloads. Restrict `admin.trace`, treat trace URLs as confidential, and apply an explicit retention policy to that prefix. A trace lifecycle rule must not match durable camera photos.
 
 ## Reverse proxy and WebSocket
 
