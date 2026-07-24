@@ -20,4 +20,5 @@
     <include file="migrations/0013_add_description.sql" relativeToChangelogFile="true"/>
     <include file="migrations/0014_clothing_products.sql" relativeToChangelogFile="true"/>
     <include file="migrations/0015_add_room_final_interactions.sql" relativeToChangelogFile="true"/>
+    <include file="migrations/0016_validate_room_footprints.sql" relativeToChangelogFile="true"/>
 </databaseChangeLog>

@@ -102,11 +102,11 @@ The current Redis client accepts an address, username, password, and database nu
 
 ## Object storage
 
-The camera subsystem validates its bucket during startup and fails fast when storage is unusable. Use HTTPS with `STORAGE_USE_SSL=true`. `STORAGE_PUBLIC_BASE_URL` must be a permanent public origin because photo furniture stores durable URLs.
+The camera and diagnostic subsystems validate their independent buckets during startup and fail fast when storage is unusable. Use HTTPS with `STORAGE_USE_SSL=true`. `STORAGE_PUBLIC_BASE_URL` must be a permanent public camera origin because photo furniture stores durable URLs. Configure `STORAGE_DEBUG_BUCKET` separately and set `STORAGE_DEBUG_PUBLIC_BASE_URL` when its public origin cannot be derived from the S3 endpoint.
 
 `STORAGE_PUBLIC_READ=true` applies a public read policy to the bucket. If the provider manages policy outside the application, verify the resulting objects are still permanently readable. Use a dedicated bucket and lifecycle monitoring. Do not apply an object expiration rule that deletes referenced photos.
 
-Staff packet traces are stored below `debug/traces/` in the same bucket and may contain sensitive session-visible payloads. Restrict `admin.trace`, treat trace URLs as confidential, and apply an explicit retention policy to that prefix. A trace lifecycle rule must not match durable camera photos.
+Staff packet traces are stored below `debug/traces/` in `STORAGE_DEBUG_BUCKET` and may contain sensitive session-visible payloads. Restrict `admin.trace`, treat trace URLs as confidential, and apply an explicit retention policy to the debug bucket without affecting durable camera photos.
 
 ## Reverse proxy and WebSocket
 

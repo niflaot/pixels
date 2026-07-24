@@ -29,7 +29,7 @@ Pixels reads configuration from environment variables, and every single one has 
 | `PIXELS_POSTGRES_HOST`, `_PORT`, `_DATABASE`, `_USER`, `_PASSWORD` | Your actual PostgreSQL connection |
 | `REDIS_ADDRESS`, `REDIS_PASSWORD` | Your actual Redis connection |
 | `SSO_KEY` | HMAC key used to derive SSO ticket storage keys; the default is a published development value |
-| `STORAGE_ENDPOINT`, `STORAGE_ACCESS_KEY`, `STORAGE_SECRET_KEY`, `STORAGE_BUCKET`, `STORAGE_PUBLIC_BASE_URL` | Your object storage credentials and bucket; there is no safe default for credentials, so the camera realm won't work correctly until these are set |
+| `STORAGE_ENDPOINT`, `STORAGE_ACCESS_KEY`, `STORAGE_SECRET_KEY`, `STORAGE_BUCKET`, `STORAGE_PUBLIC_BASE_URL`, `STORAGE_DEBUG_BUCKET`, `STORAGE_DEBUG_PUBLIC_BASE_URL` | Your object storage credentials plus independent camera and diagnostic buckets; there is no safe default for credentials, so camera and packet traces won't work correctly until these are set |
 | `PIXELS_FIGURE_DATA_URL` | Must point at the same `FigureData.json` used by Nitro so server-side avatar validation matches the client; use `PIXELS_FIGURE_DATA_PATH` only as a local override |
 
 Everything else, from chat flood thresholds to subscription payday intervals, has a sensible default and can be left alone until you have a specific reason to change it.

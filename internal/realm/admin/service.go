@@ -64,6 +64,10 @@ func (service *Service) Alert(ctx context.Context, sender sdkcommand.Sender, use
 	if !found {
 		return sender.Reply(ctx, service.message("admin.command.alert.offline", "El jugador {player} no está conectado.", i18n.Params{"player": strings.TrimSpace(username)}))
 	}
+	issuerID := service.senderID(sender)
+	if target.ID() == issuerID {
+		return sender.Reply(ctx, service.message("admin.command.alert.self", "No puedes enviarte una alerta a ti mismo."))
+	}
 	packet, err := outalert.Encode(strings.TrimSpace(reason))
 	if err != nil {
 		return service.replyFailure(ctx, sender, err)
@@ -75,7 +79,6 @@ func (service *Service) Alert(ctx context.Context, sender sdkcommand.Sender, use
 	if err = connection.Send(ctx, packet); err != nil {
 		return service.replyFailure(ctx, sender, err)
 	}
-	issuerID := service.senderID(sender)
 	service.log.Info("admin alert sent", zap.Int64("issuer_id", issuerID), zap.String("issuer_name", sender.Name()), zap.Int64("target_id", target.ID()), zap.String("target_name", target.Username()), zap.String("reason", strings.TrimSpace(reason)))
 
 	return sender.Reply(ctx, service.message("admin.command.alert.sent", "Alerta enviada a {player}.", i18n.Params{"player": target.Username()}))
@@ -87,9 +90,13 @@ func (service *Service) HotelAlert(ctx context.Context, sender sdkcommand.Sender
 	if err != nil {
 		return service.replyFailure(ctx, sender, err)
 	}
+	issuerID := service.senderID(sender)
 	delivered := 0
 	failed := 0
 	for _, target := range service.players.Snapshot() {
+		if target.ID() == issuerID {
+			continue
+		}
 		connection, connectionErr := service.connection(target.ID())
 		if connectionErr != nil || connection.Send(ctx, packet) != nil {
 			failed++
@@ -97,7 +104,7 @@ func (service *Service) HotelAlert(ctx context.Context, sender sdkcommand.Sender
 		}
 		delivered++
 	}
-	service.log.Info("admin hotel alert sent", zap.Int64("issuer_id", service.senderID(sender)), zap.String("issuer_name", sender.Name()), zap.String("reason", strings.TrimSpace(reason)), zap.Int("delivered", delivered), zap.Int("failed", failed))
+	service.log.Info("admin hotel alert sent", zap.Int64("issuer_id", issuerID), zap.String("issuer_name", sender.Name()), zap.String("reason", strings.TrimSpace(reason)), zap.Int("delivered", delivered), zap.Int("failed", failed))
 
 	return sender.Reply(ctx, service.message("admin.command.halert.sent", "Alerta enviada a {delivered} jugadores; {failed} fallaron.", i18n.Params{"delivered": strconv.Itoa(delivered), "failed": strconv.Itoa(failed)}))
 }

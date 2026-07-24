@@ -28,10 +28,28 @@ type Config struct {
 	UploadTimeout time.Duration `env:"STORAGE_UPLOAD_TIMEOUT" envDefault:"10s"`
 }
 
+// DebugConfig contains the bucket-specific settings for diagnostic objects.
+type DebugConfig struct {
+	// PublicBaseURL overrides the durable public debug bucket URL.
+	PublicBaseURL string `env:"STORAGE_DEBUG_PUBLIC_BASE_URL" envDefault:""`
+	// Bucket stores packet traces and future diagnostic objects.
+	Bucket string `env:"STORAGE_DEBUG_BUCKET" envDefault:"pixels-debug"`
+}
+
 // LoadConfig reads storage configuration from environment variables.
 func LoadConfig() (Config, error) { return env.ParseAs[Config]() }
+
+// LoadDebugConfig reads diagnostic storage configuration from environment variables.
+func LoadDebugConfig() (DebugConfig, error) { return env.ParseAs[DebugConfig]() }
 
 // valid reports whether required fields and limits are usable.
 func (config Config) valid() bool {
 	return strings.TrimSpace(config.Endpoint) != "" && strings.TrimSpace(config.Bucket) != "" && config.UploadTimeout > 0
+}
+
+// apply returns shared storage settings scoped to the diagnostic bucket.
+func (config DebugConfig) apply(shared Config) Config {
+	shared.PublicBaseURL = config.PublicBaseURL
+	shared.Bucket = config.Bucket
+	return shared
 }

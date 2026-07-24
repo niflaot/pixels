@@ -62,7 +62,7 @@ type Tracer struct {
 }
 
 // New creates a production packet tracer.
-func New(store *redis.Client, uploader *storage.Client, players *playerlive.Registry, bindings *binding.Registry, connections *netconn.Registry, translations i18n.Translator, log *zap.Logger) *Tracer {
+func New(store *redis.Client, uploader *storage.DebugClient, players *playerlive.Registry, bindings *binding.Registry, connections *netconn.Registry, translations i18n.Translator, log *zap.Logger) *Tracer {
 	if log == nil {
 		log = zap.NewNop()
 	}

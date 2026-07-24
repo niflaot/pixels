@@ -139,7 +139,7 @@ func TestHandleJoinsRoomWithFurnitureSendsFloorItemsPacket(t *testing.T) {
 		Rooms:    roomManagerForTest{room: roomForTest(), found: true},
 		Layouts:  layoutManagerForTest{roomLayout: layoutForTest(), found: true},
 		Furniture: furnitureManagerForTest{
-			definitions: []furnituremodel.Definition{{Base: sharedmodel.Base{Identity: sharedmodel.Identity{ID: 2}}, SpriteID: 39, AllowSit: true}},
+			definitions: []furnituremodel.Definition{{Base: sharedmodel.Base{Identity: sharedmodel.Identity{ID: 2}}, SpriteID: 39, Width: 1, Length: 1, AllowSit: true}},
 			items:       []furnituremodel.Item{placedFurnitureItemForTest(1, 2, 1, 0, 0)},
 		},
 		Runtime: newRuntimeForFurnitureTest(t),
@@ -164,6 +164,35 @@ func TestHandleJoinsRoomWithFurnitureSendsFloorItemsPacket(t *testing.T) {
 	}
 	if items := active.FurnitureItems(); len(items) != 1 || items[0].ID != 1 {
 		t.Fatalf("expected loaded furniture snapshot, got %#v", items)
+	}
+}
+
+// TestHandleIgnoresOffMapFurnitureDuringWorldLoad verifies malformed rows do not fail room entry.
+func TestHandleIgnoresOffMapFurnitureDuringWorldLoad(t *testing.T) {
+	player := playerForTest(t)
+	connection, _ := sessionConnectionForTest(t)
+	handler := Handler{
+		Players:  playerRegistryForTest(t, player),
+		Bindings: bindingRegistryForTest(t, 7),
+		Rooms:    roomManagerForTest{room: roomForTest(), found: true},
+		Layouts:  layoutManagerForTest{roomLayout: layoutForTest(), found: true},
+		Furniture: furnitureManagerForTest{
+			definitions: []furnituremodel.Definition{{Base: sharedmodel.Base{Identity: sharedmodel.Identity{ID: 2}}, SpriteID: 39, Width: 1, Length: 1}},
+			items:       []furnituremodel.Item{placedFurnitureItemForTest(1, 2, 1, 2, 2)},
+		},
+		Runtime: newRuntimeForFurnitureTest(t),
+	}
+	if err := handler.Handle(context.Background(), command.Envelope[Command]{
+		Command: Command{Handler: connection, RoomID: 9},
+	}); err != nil {
+		t.Fatalf("handle command: %v", err)
+	}
+	active, found := handler.Runtime.Find(9)
+	if !found || active == nil {
+		t.Fatal("expected active room")
+	}
+	if !active.WorldLoaded() || len(active.FurnitureItems()) != 0 {
+		t.Fatalf("loaded=%v items=%#v", active.WorldLoaded(), active.FurnitureItems())
 	}
 }
 

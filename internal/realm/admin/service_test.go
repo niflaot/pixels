@@ -161,6 +161,20 @@ func TestAlertReportsOfflineAndDelivers(t *testing.T) {
 	}
 }
 
+// TestAlertRejectsTheIssuingPlayer verifies direct alerts cannot target their sender.
+func TestAlertRejectsTheIssuingPlayer(t *testing.T) {
+	fixture := newServiceFixture()
+	packets := make([]codec.Packet, 0, 1)
+	addServicePlayer(t, fixture, 1, "admin", nil, &packets)
+	sender := &commandSender{name: "admin"}
+	if err := fixture.service.Alert(context.Background(), sender, "ADMIN", "self"); err != nil {
+		t.Fatalf("self alert: %v", err)
+	}
+	if len(packets) != 0 || !strings.Contains(sender.lastReply(), "ti mismo") {
+		t.Fatalf("packets=%d reply=%q", len(packets), sender.lastReply())
+	}
+}
+
 // TestHotelAlertContinuesAfterDeliveryFailure verifies partial broadcast behavior.
 func TestHotelAlertContinuesAfterDeliveryFailure(t *testing.T) {
 	fixture := newServiceFixture()
@@ -173,6 +187,22 @@ func TestHotelAlertContinuesAfterDeliveryFailure(t *testing.T) {
 	}
 	if len(packets) != 1 || !strings.Contains(sender.lastReply(), "1 jugadores; 1 fallaron") {
 		t.Fatalf("packets=%d reply=%q", len(packets), sender.lastReply())
+	}
+}
+
+// TestHotelAlertExcludesTheIssuer verifies a broadcast never echoes to its sender.
+func TestHotelAlertExcludesTheIssuer(t *testing.T) {
+	fixture := newServiceFixture()
+	issuerPackets := make([]codec.Packet, 0, 1)
+	targetPackets := make([]codec.Packet, 0, 1)
+	addServicePlayer(t, fixture, 1, "admin", nil, &issuerPackets)
+	addServicePlayer(t, fixture, 2, "target", nil, &targetPackets)
+	sender := &commandSender{name: "admin"}
+	if err := fixture.service.HotelAlert(context.Background(), sender, "Maintenance"); err != nil {
+		t.Fatalf("hotel alert: %v", err)
+	}
+	if len(issuerPackets) != 0 || len(targetPackets) != 1 || !strings.Contains(sender.lastReply(), "1 jugadores; 0 fallaron") {
+		t.Fatalf("issuer=%d target=%d reply=%q", len(issuerPackets), len(targetPackets), sender.lastReply())
 	}
 }
 

@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/minio/minio-go/v7"
+	"go.uber.org/fx/fxtest"
+	"go.uber.org/zap"
 )
 
 // storageObjects captures provider operations for tests.
@@ -80,5 +82,47 @@ func TestClientRejectsInvalidKeys(t *testing.T) {
 	client := &Client{objects: &storageObjects{}, config: Config{Bucket: "camera", UploadTimeout: time.Second}}
 	if _, err := client.Put(context.Background(), "../secret", bytes.NewReader([]byte{1}), 1, "image/png"); err == nil {
 		t.Fatal("expected traversal rejection")
+	}
+}
+
+// TestDebugClientDelegatesToItsScopedClient verifies diagnostic object operations.
+func TestDebugClientDelegatesToItsScopedClient(t *testing.T) {
+	objects := &storageObjects{}
+	client := &DebugClient{client: &Client{
+		objects: objects,
+		config: Config{
+			Endpoint: "storage.local", PublicBaseURL: "https://cdn.local/debug",
+			Bucket: "pixels-debug", UseSSL: true, UploadTimeout: time.Second,
+		},
+	}}
+	url, err := client.Put(context.Background(), "debug/traces/test.txt", bytes.NewReader([]byte("trace")), 5, "text/plain")
+	if err != nil || url != "https://cdn.local/debug/debug/traces/test.txt" {
+		t.Fatalf("url=%q err=%v", url, err)
+	}
+	if client.PublicURL("debug/traces/test.txt") != url {
+		t.Fatalf("unexpected public URL %q", client.PublicURL("debug/traces/test.txt"))
+	}
+	if err = client.Delete(context.Background(), "debug/traces/test.txt"); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+	var missing *DebugClient
+	if _, err = missing.Put(context.Background(), "debug/traces/test.txt", bytes.NewReader([]byte("trace")), 5, "text/plain"); err == nil {
+		t.Fatal("expected nil debug client rejection")
+	}
+}
+
+// TestNewDebugScopesTheSharedClient verifies production wiring selects only debug routing fields.
+func TestNewDebugScopesTheSharedClient(t *testing.T) {
+	client, err := NewDebug(
+		fxtest.NewLifecycle(t),
+		Config{Endpoint: "storage.local", Bucket: "pixels-camera", PublicBaseURL: "https://cdn.local/camera", UploadTimeout: time.Second},
+		DebugConfig{Bucket: "pixels-debug", PublicBaseURL: "https://cdn.local/debug"},
+		zap.NewNop(),
+	)
+	if err != nil {
+		t.Fatalf("new debug: %v", err)
+	}
+	if client.client.config.Bucket != "pixels-debug" || client.client.config.PublicBaseURL != "https://cdn.local/debug" {
+		t.Fatalf("config=%+v", client.client.config)
 	}
 }

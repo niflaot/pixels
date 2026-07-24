@@ -178,6 +178,7 @@ func (handler Handler) loadWorld(ctx context.Context, room *roomlive.Room, roomD
 	if err != nil {
 		return err
 	}
+	furnitureItems = roomfurniture.FilterForGrid(roomGrid, furnitureItems)
 	rotation := worldunit.Rotation(roomLayout.DoorDirection % 8)
 
 	return room.LoadWorld(roomlive.WorldConfig{

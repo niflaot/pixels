@@ -43,8 +43,29 @@ type Client struct {
 	log *zap.Logger
 }
 
+// DebugClient provides object operations scoped to the diagnostic bucket.
+type DebugClient struct {
+	// client performs diagnostic object operations.
+	client *Client
+}
+
 // New creates an object client and installs startup validation.
 func New(lifecycle fx.Lifecycle, config Config, logger *zap.Logger) (*Client, error) {
+	return newClient(lifecycle, config, logger, "object storage connected")
+}
+
+// NewDebug creates a diagnostic object client with independent bucket settings.
+func NewDebug(lifecycle fx.Lifecycle, shared Config, config DebugConfig, logger *zap.Logger) (*DebugClient, error) {
+	client, err := newClient(lifecycle, config.apply(shared), logger, "debug object storage connected")
+	if err != nil {
+		return nil, err
+	}
+
+	return &DebugClient{client: client}, nil
+}
+
+// newClient creates one bucket-scoped object client and installs startup validation.
+func newClient(lifecycle fx.Lifecycle, config Config, logger *zap.Logger, connectedMessage string) (*Client, error) {
 	if !config.valid() {
 		return nil, ErrInvalidConfig
 	}
@@ -58,11 +79,38 @@ func New(lifecycle fx.Lifecycle, config Config, logger *zap.Logger) (*Client, er
 			return err
 		}
 		if logger != nil {
-			logger.Info("object storage connected", zap.String("endpoint", config.Endpoint), zap.String("bucket", config.Bucket), zap.Bool("public_read", config.PublicRead))
+			logger.Info(connectedMessage, zap.String("endpoint", config.Endpoint), zap.String("bucket", config.Bucket), zap.Bool("public_read", config.PublicRead))
 		}
 		return nil
 	}})
 	return client, nil
+}
+
+// Put uploads one bounded diagnostic object and returns its durable public URL.
+func (client *DebugClient) Put(ctx context.Context, key string, body io.Reader, size int64, contentType string) (string, error) {
+	if client == nil || client.client == nil {
+		return "", ErrInvalidConfig
+	}
+
+	return client.client.Put(ctx, key, body, size, contentType)
+}
+
+// Delete removes one diagnostic object with the configured timeout.
+func (client *DebugClient) Delete(ctx context.Context, key string) error {
+	if client == nil || client.client == nil {
+		return ErrInvalidConfig
+	}
+
+	return client.client.Delete(ctx, key)
+}
+
+// PublicURL resolves one permanent diagnostic object URL without signing it.
+func (client *DebugClient) PublicURL(key string) string {
+	if client == nil || client.client == nil {
+		return ""
+	}
+
+	return client.client.PublicURL(key)
 }
 
 // Put uploads one bounded object and returns its durable public URL.

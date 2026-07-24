@@ -13,9 +13,9 @@ The seeded `admin` group already inherits these nodes through its `*` grant. Pro
 
 ## Direct and hotel alerts
 
-`:alert` resolves usernames case-insensitively against the live player registry. An offline or disconnecting target produces explicit localized feedback instead of silently dropping the command. Successful sends are logged with issuer, target, and reason.
+`:alert` resolves usernames case-insensitively against the live player registry. It rejects the issuing account as its target and sends only the reason argument in the popup. An offline or disconnecting target produces explicit localized feedback instead of silently dropping the command. Successful sends are logged with issuer, target, and reason.
 
-`:halert` reuses the same generic-alert packet but continues through the complete online snapshot if an individual connection fails. Its reply reports successful and failed deliveries, and the operation is logged with the issuer and reason.
+`:halert` reuses the same generic-alert packet, excludes the issuer, and continues through the remaining online snapshot if an individual connection fails. Its reply reports successful and failed deliveries, and the operation is logged with the issuer and reason.
 
 ## Build and plugin discovery
 
@@ -34,10 +34,10 @@ Each line uses the same compact TOON escaping rules as protocol logs and contain
 
 Active metadata and ordered entries live in Redis. A controlled or unexpected process restart leaves that state intact; the next Pixels process reconciles and finalizes the interrupted trace with reason `server restarted`. Normal client disconnects do not finalize it.
 
-Final documents are uploaded below `debug/traces/` in the configured S3-compatible bucket. The staff member receives the durable URL when still connected, and Pixels emits a warning log containing player, reason, count, truncation state, and URL. Upload failures retain the active state so expiry or another toggle can retry without losing the captured entries.
+Final documents are uploaded below `debug/traces/` in the S3-compatible bucket selected by `STORAGE_DEBUG_BUCKET`. The staff member receives the durable URL when still connected, and Pixels emits a warning log containing player, reason, count, truncation state, and URL. Upload failures retain the active state so expiry or another toggle can retry without losing the captured entries.
 
 Packet payloads can contain private chat, room state, tickets, or other operational data visible to that session. Keep `admin.trace` tightly restricted, protect Redis and the S3 API, and apply an appropriate retention policy to `debug/traces/`. When `STORAGE_PUBLIC_READ=true`, anyone holding a trace URL can read it.
 
 ## Required infrastructure
 
-The commands add no new environment variables. `:trace` reuses the existing `REDIS_*` and `STORAGE_*` configuration documented in [[ENVIRONMENT-VARIABLES]]. Production startup already validates the object-storage bucket, and trace persistence uses a separate key prefix from camera objects.
+`:trace` reuses the existing `REDIS_*` and shared `STORAGE_*` credentials documented in [[ENVIRONMENT-VARIABLES]], but routes objects through `STORAGE_DEBUG_BUCKET` and its optional `STORAGE_DEBUG_PUBLIC_BASE_URL`. Production startup validates both the camera and debug buckets independently.

@@ -61,6 +61,8 @@ type Definition struct {
 
 `Width` and `Length` describe the tile footprint at rotation zero; the room world rotates it on demand rather than storing four pre-rotated shapes (`worldfurniture.Footprint` and `worldfurniture.Dimensions`, used throughout the interaction packages, do this rotation). `StackHeight` is how much height in room units the item adds for anything placed on top of it. A chair contributes its seat height, a rug contributes almost nothing. Whether anything is allowed to use that added height at all is a separate flag, `AllowStack`; a `StackHeight` on a non-stackable item is inert. The runtime consequence of both, how the surface resolver turns a footprint and a stack height into an actual walkable section, is [[ROOMS-HEIGHTMAP]]'s subject, not this page's.
 
+PostgreSQL enforces the same footprint boundary for every active floor item. An insert or move outside the fixed or custom room heightmap is rejected with `furniture_items_room_footprint_chk`; shrinking a layout, switching a room model, or enlarging a furniture definition is rejected when it would invalidate an existing item. A room load also filters any malformed historical row that predates the constraint, so one damaged item cannot disconnect everyone entering the room. The database guard prevents new corruption, while the runtime filter is only the containment layer.
+
 `AllowWalk`, `AllowSit`, and `AllowLay` are independent: a chair typically allows sit but not walk or lay, a rug typically allows walk but not sit, and a bed allows lay. All three can coexist on one definition when the client's own animation set supports it.
 
 ## The capability flags

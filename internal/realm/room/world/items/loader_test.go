@@ -8,6 +8,7 @@ import (
 	furnituremodel "github.com/niflaot/pixels/internal/realm/furniture/model"
 	furnitureservice "github.com/niflaot/pixels/internal/realm/furniture/service"
 	worldfurniture "github.com/niflaot/pixels/internal/realm/room/world/furniture"
+	"github.com/niflaot/pixels/internal/realm/room/world/grid"
 	worldunit "github.com/niflaot/pixels/internal/realm/room/world/unit"
 	sharedmodel "github.com/niflaot/pixels/pkg/model"
 )
@@ -73,6 +74,23 @@ func TestLoadRoomFurniturePropagatesStoreErrors(t *testing.T) {
 	}, 1)
 	if !errors.Is(err, expected) {
 		t.Fatalf("expected definitions error, got %v", err)
+	}
+}
+
+// TestFilterForGridKeepsOnlyCompleteFootprints verifies layout integrity filtering.
+func TestFilterForGridKeepsOnlyCompleteFootprints(t *testing.T) {
+	roomGrid, err := grid.Parse("00\r00")
+	if err != nil {
+		t.Fatalf("parse grid: %v", err)
+	}
+	items := []worldfurniture.Item{
+		{ID: 1, Point: grid.MustPoint(0, 0), Definition: worldfurniture.Definition{Width: 2, Length: 1}},
+		{ID: 2, Point: grid.MustPoint(1, 1), Definition: worldfurniture.Definition{Width: 2, Length: 1}},
+		{ID: 3, Point: grid.MustPoint(0, 0), Definition: worldfurniture.Definition{}},
+	}
+	accepted := FilterForGrid(roomGrid, items)
+	if len(accepted) != 1 || accepted[0].ID != 1 {
+		t.Fatalf("accepted=%#v", accepted)
 	}
 }
 

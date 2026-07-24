@@ -41,8 +41,12 @@ func TestRegisteredCommandsExecuteEveryCorePath(t *testing.T) {
 			t.Fatalf("command=%q handled=%v err=%v", command, handled, err)
 		}
 	}
-	if len(packets) != 3 || fixture.trace.activates != 1 || fixture.trace.finalizes != 1 {
+	if len(packets) != 2 || fixture.trace.activates != 1 || fixture.trace.finalizes != 1 {
 		t.Fatalf("packets=%d activates=%d finalizes=%d", len(packets), fixture.trace.activates, fixture.trace.finalizes)
+	}
+	values, err := codec.DecodePacketExact(packets[0], codec.Definition{codec.Named("message", codec.StringField)})
+	if err != nil || len(values) != 1 || values[0].String != "Please behave" {
+		t.Fatalf("direct alert payload=%#v err=%v", values, err)
 	}
 }
 

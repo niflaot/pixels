@@ -6,6 +6,7 @@ import (
 
 	furnitureservice "github.com/niflaot/pixels/internal/realm/furniture/service"
 	worldfurniture "github.com/niflaot/pixels/internal/realm/room/world/furniture"
+	"github.com/niflaot/pixels/internal/realm/room/world/grid"
 )
 
 // LoadRoomFurniture loads placed furniture items for a room as room world furniture items.
@@ -36,4 +37,31 @@ func LoadRoomFurniture(ctx context.Context, manager furnitureservice.Manager, ro
 	}
 
 	return items, nil
+}
+
+// FitsGrid reports whether every tile in one furniture footprint exists in a room grid.
+func FitsGrid(roomGrid grid.Grid, item worldfurniture.Item) bool {
+	footprint := worldfurniture.Footprint(item.Point, item.Definition.Width, item.Definition.Length, item.Rotation)
+	if len(footprint) == 0 {
+		return false
+	}
+	for _, point := range footprint {
+		if !roomGrid.Valid(point) {
+			return false
+		}
+	}
+
+	return true
+}
+
+// FilterForGrid removes furniture whose complete footprint does not fit a room grid.
+func FilterForGrid(roomGrid grid.Grid, items []worldfurniture.Item) []worldfurniture.Item {
+	accepted := items[:0]
+	for _, item := range items {
+		if FitsGrid(roomGrid, item) {
+			accepted = append(accepted, item)
+		}
+	}
+
+	return accepted
 }

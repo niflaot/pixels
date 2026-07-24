@@ -141,10 +141,12 @@ minimum manual checks expected when touching it.
 - Provides permission-gated `:alert`, `:halert`, `:about`, and `:trace`
   commands through the shared Brigodier tree without using the public plugin
   SDK.
+- Direct alerts reject the issuer, hotel alerts exclude the issuer, and popup
+  payloads contain only the requested message.
 - Packet traces follow player ids across reconnects, capture successful inbound
   and outbound packets, expire after one absolute 30-minute window, stop at
   20,000 entries or 20 MiB, survive process restarts in Redis, and upload final
-  TOON documents below `debug/traces/` in object storage.
+  TOON documents below `debug/traces/` in the independent debug object bucket.
 - Test after changes:
   - `go test -race ./internal/realm/admin/... ./networking/connection ./pkg/redis ./pkg/logger`
   - `go test ./internal/realm/admin/trace -run '^$' -bench . -benchmem`
@@ -606,6 +608,10 @@ minimum manual checks expected when touching it.
   packets.
 - Initial room entry sends the model name once; subsequent room-model requests
   send only door and heightmap geometry so Nitro cannot enter a request loop.
+- PostgreSQL rejects active floor furniture whose complete rotated footprint is
+  outside its fixed or custom heightmap. Layout, room-model, and furniture-size
+  changes must preserve every existing footprint. Room loading still filters
+  malformed historical rows as a last-resort compatibility guard.
 - Path cancellation caused by furniture or fixture changes must broadcast a
   neutral final unit status without `mv`; silent cancellation leaves clients
   animating movement indefinitely.
@@ -613,6 +619,8 @@ minimum manual checks expected when touching it.
   - `go test ./internal/realm/room/...`
   - Click a room from navigator, enter it, and verify empty room model renders.
   - Enter the same room repeatedly and verify packet `2300` does not loop.
+  - Attempt an off-map furniture write and a layout shrink in PostgreSQL and
+    verify `furniture_items_room_footprint_chk` rejects both.
   - Change furniture during a walk and verify the unit stops on its current tile.
   - Fill a runtime room to capacity and verify `room.entry_error`.
   - Verify `room.occupancy_changed`, `room.entered`, and `room.left` events.

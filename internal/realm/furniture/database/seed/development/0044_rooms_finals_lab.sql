@@ -20,7 +20,7 @@ on conflict(id) do update set sprite_id=excluded.sprite_id,name=excluded.name,pu
 
 insert into furniture_items(id,definition_id,owner_player_id,room_id,x,y,z,rotation,wall_position,extra_data,rental_price_credits)
 overriding system value values
- (970101,13,1,160,2,2,0,0,null,'0',null),
+ (970101,13,1,160,5,2,0,0,null,'0',null),
  (970102,31,1,160,4,2,0,0,null,'0',null),
  (970103,20,1,160,null,null,null,0,':w=4,2 l=1,1 r','0',null),
  (970104,970001,1,160,6,2,0,0,null,'0',null),
