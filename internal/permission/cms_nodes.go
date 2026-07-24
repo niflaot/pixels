@@ -23,4 +23,6 @@ var (
 	CMSPermissionGroupsUpdate = RegisterNode("cms.permissions.groups.update", "")
 	// CMSPermissionGroupNodesManage allows changing group permission grants.
 	CMSPermissionGroupNodesManage = RegisterNode("cms.permissions.groups.nodes.manage", "")
+	// CMSPermissionGroupMembersManage allows changing direct group memberships.
+	CMSPermissionGroupMembersManage = RegisterNode("cms.permissions.groups.members.manage", "")
 )
